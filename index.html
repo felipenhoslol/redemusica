@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rede de musica sem nome</title>
+  <meta name="description" content="Rede social de música: compartilhe letras, avalie músicas, complete desafios e descubra o que seus amigos estão ouvindo.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Short+Stack&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/feed.css">
+  <link rel="stylesheet" href="css/profile.css">
+  <link rel="stylesheet" href="css/chat.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/player.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════
+       LEFT SIDEBAR NAVIGATION
+  ═══════════════════════════════════ -->
+  <aside class="app-sidebar" id="app-sidebar">
+    <!-- rendered by app.js renderSidebar() -->
+  </aside>
+
+  <!-- ═══════════════════════════════════
+       MAIN CONTENT AREA
+  ═══════════════════════════════════ -->
+  <main class="app-main">
+    <div class="app-content">
+
+      <!-- Tab views (only one active at a time) -->
+
+      <!-- FEED -->
+      <div class="tab-view-content" id="tab-feed" style="flex:1;min-width:0;"></div>
+
+      <!-- SEARCH -->
+      <div class="tab-view-content" id="tab-search" style="flex:1;min-width:0;"></div>
+
+      <!-- DESAFIOS -->
+      <div class="tab-view-content" id="tab-desafios" style="flex:1;min-width:0;"></div>
+
+      <!-- COMPARAR -->
+      <div class="tab-view-content" id="tab-comparar" style="flex:1;min-width:0;"></div>
+
+      <!-- PROFILE -->
+      <div class="tab-view-content" id="tab-profile" style="flex:1;min-width:0;"></div>
+
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════
+       DM FAB BUTTON
+  ═══════════════════════════════════ -->
+  <button class="dm-fab" id="dm-fab" title="Mensagens">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
+  </button>
+
+  <!-- ═══════════════════════════════════
+       FLOATING DM WINDOW
+  ═══════════════════════════════════ -->
+  <div class="dm-window" id="dm-window">
+    <div class="dm-header" id="dm-chat-header">
+      <div class="dm-header-left">
+        <div class="dm-header-title">Mensagens</div>
+      </div>
+      <div class="dm-header-actions">
+        <button class="dm-header-btn" onclick="window._closeDM()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+    <div class="dm-contacts" id="dm-contacts-list"></div>
+    <div class="dm-messages" id="dm-messages-area">
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:0.8rem">Selecione uma conversa.</div>
+    </div>
+    <div class="dm-attached-bar" id="dm-attached-bar" style="display:none;"></div>
+    <div class="dm-input-bar">
+      <button class="dm-attach-btn" id="dm-attach-song-btn" title="Enviar música" onclick="window._openDMSongSearch()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+      </button>
+      <input id="dm-text-input" class="dm-text-input" placeholder="Enviar mensagem..." autocomplete="off">
+      <button class="dm-send-btn" id="dm-send-btn" onclick="window._dmSend()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       FLOATING PLAYER BAR
+  ═══════════════════════════════════ -->
+  <div class="player-bar" id="player-bar"></div>
+
+  <!-- ═══════════════════════════════════
+       NOTIFICATIONS OVERLAY PANEL
+  ═══════════════════════════════════ -->
+  <div class="notifications-overlay" id="notif-overlay">
+    <div class="notifications-panel">
+      <div class="notif-panel-header">
+        <h3>Notificações</h3>
+        <button class="dm-header-btn" onclick="toggleNotifPanel()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="notif-list" id="notif-panel-content">
+        <div class="notif-empty">Carregando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       TOAST CONTAINER
+  ═══════════════════════════════════ -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ═══════════════════════════════════
+       MODALS
+  ═══════════════════════════════════ -->
+
+  <!-- Search Modal (iTunes) -->
+  <div class="modal-overlay" id="search-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="search-modal-title">Buscar Música</h3>
+        <button class="modal-close" onclick="closeDoodleModal('search-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input id="search-input" class="doodle-input" placeholder="Buscar artista ou título..." autocomplete="off">
+        </div>
+        <div id="search-modal-note-row" style="display:none;margin-bottom:10px;">
+          <label class="form-label">Nota pessoal (opcional)</label>
+          <input id="search-modal-note" class="doodle-input" placeholder="Por que esta música?">
+        </div>
+        <div id="search-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Edit Modal -->
+  <div class="modal-overlay" id="profile-edit-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Editar Perfil</h3>
+        <button class="modal-close" onclick="closeDoodleModal('profile-edit-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Follow List Modal -->
+  <div class="modal-overlay" id="follow-list-modal">
+    <div class="modal-box" style="max-width:400px;">
+      <div class="modal-header">
+        <h3>Seguidores</h3>
+        <button class="modal-close" onclick="closeDoodleModal('follow-list-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Review Modal -->
+  <div class="modal-overlay" id="review-modal">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-header">
+        <h3>Avaliar Música</h3>
+        <button class="modal-close" onclick="closeDoodleModal('review-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Create Challenge Modal -->
+  <div class="modal-overlay" id="create-challenge-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Novo Desafio</h3>
+        <button class="modal-close" onclick="closeDoodleModal('create-challenge-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Edit Post Modal -->
+  <div class="modal-overlay" id="edit-post-modal">
+    <div class="modal-box" style="max-width:480px;">
+      <div class="modal-header">
+        <h3>Editar Publicação</h3>
+        <button class="modal-close" onclick="closeDoodleModal('edit-post-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="edit-post-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Banner Modal -->
+  <div class="modal-overlay" id="banner-modal">
+    <div class="modal-box" style="max-width:520px;">
+      <div class="modal-header">
+        <h3>Alterar Banner do Perfil</h3>
+        <button class="modal-close" onclick="closeDoodleModal('banner-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="banner-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- JS Modules -->
+  <script type="module" src="js/app.js"></script>
+
+  <!-- Global init shim — app.js sets window.switchTab after DOMContentLoaded -->
+  <script>
+    // Shim: routes tab calls before and after app.js loads
+    var _pendingTab = null;
+    function switchTab(name) {
+      if (window._switchTabFn) { window._switchTabFn(name); }
+      else { _pendingTab = name; }
+    }
+    window._openDMSongSearch = () => {
+      if (window.openSearchModalForChat) window.openSearchModalForChat();
+      else if (window.openDoodleModal) window.openDoodleModal('search-modal');
+    };
+  </script>
+</body>
+</html>

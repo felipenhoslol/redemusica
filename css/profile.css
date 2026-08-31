@@ -1,0 +1,465 @@
+/* ==========================================================================
+   PROFILE STYLES — Follows, Pinned post, Showcase, Custom colors, Inline status
+   ========================================================================== */
+
+.profile-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* Banner */
+.profile-banner {
+  width: 100%;
+  height: 160px;
+  background: linear-gradient(135deg, #0c0814, #140924, #030305);
+  background-size: cover;
+  background-position: center;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border: var(--border);
+  border-bottom: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.6) 100%);
+  pointer-events: none;
+}
+
+.btn-edit-banner {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--white);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 25;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+  pointer-events: auto;
+}
+
+.btn-edit-banner:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: var(--purple-accent);
+  transform: translateY(-1px);
+}
+
+/* Info area below banner */
+.profile-info-card {
+  background: var(--profile-card-bg, var(--bg-card));
+  border: var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding-bottom: 0;
+  position: relative;
+}
+
+.profile-top-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 18px 6px;
+  margin-top: -42px;
+  flex-wrap: wrap;
+  gap: 12px;
+  position: relative;
+  z-index: 5;
+}
+
+.profile-avatar-wrap {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.profile-main-avatar {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  border: 4px solid var(--profile-card-bg, var(--bg-card));
+  background: var(--purple-dark);
+  color: var(--purple-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 700;
+  object-fit: cover;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  position: relative;
+}
+
+.profile-main-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.avatar-edit-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: #fff;
+  cursor: pointer;
+}
+
+.profile-avatar-wrap:hover .avatar-edit-overlay {
+  opacity: 1;
+}
+
+.profile-action-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Name, handle, status */
+.profile-details {
+  padding: 2px 16px 14px;
+}
+
+.profile-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--profile-text-color, var(--white));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-handle { font-size: 0.82rem; color: var(--muted); }
+
+/* Inline Status Editing */
+.profile-status-wrap { margin: 8px 0; }
+
+.profile-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  background: var(--bg-input);
+  border: 1px dashed var(--profile-status-color, var(--purple-accent));
+  border-radius: var(--radius-pill);
+  font-size: 0.88rem;
+  color: var(--profile-status-color, var(--muted));
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.profile-status-pill:hover { border-style: solid; }
+
+.inline-status-form { display: inline-flex; align-items: center; gap: 6px; }
+
+.inline-status-input {
+  background: var(--bg-input);
+  border: 1px solid var(--purple-accent);
+  border-radius: var(--radius-md);
+  padding: 3px 8px;
+  font-family: var(--font);
+  font-size: 0.88rem;
+  color: var(--white);
+  outline: none;
+  min-width: 200px;
+}
+
+.profile-bio {
+  font-size: 0.88rem;
+  color: var(--profile-text-color, var(--white));
+  line-height: 1.4;
+  margin-top: 6px;
+  max-width: 580px;
+}
+
+/* Follower stats row */
+.profile-stats-row {
+  display: flex;
+  gap: 20px;
+  padding: 8px 16px 12px;
+  border-top: var(--border);
+}
+
+.profile-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.profile-stat strong { color: var(--white); }
+.profile-stat span { color: var(--muted); }
+
+/* Featured Song in profile */
+.featured-song-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: var(--border);
+  background: var(--profile-featured-bg, var(--bg-selected));
+  position: relative;
+}
+
+.featured-label {
+  position: absolute;
+  top: -9px;
+  left: 16px;
+  background: var(--purple-mid);
+  color: var(--purple-light);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #000;
+  text-transform: uppercase;
+}
+
+.featured-vinyl {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #000;
+  animation: spinVinyl 8s linear infinite;
+  animation-play-state: paused;
+}
+
+.featured-vinyl.playing { animation-play-state: running; }
+
+@keyframes spinVinyl {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.featured-info { flex: 1; min-width: 0; }
+.featured-title { font-size: 0.9rem; font-weight: 700; color: var(--profile-text-color, var(--white)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.featured-artist { font-size: 0.75rem; color: var(--muted); }
+
+/* Song showcase (up to 5 songs grid) */
+.song-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: var(--border);
+}
+
+.showcase-slot {
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  border: 1px dashed var(--purple-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.15s;
+}
+
+.showcase-slot:hover { border-color: var(--purple-accent); }
+.showcase-slot img { width: 100%; height: 100%; object-fit: cover; }
+.showcase-slot-add { font-size: 1.2rem; color: var(--dimmed); }
+
+/* Profile sub-tabs */
+.profile-subtabs {
+  display: flex;
+  border-top: var(--border);
+  background: var(--bg-input);
+  border-radius: 0;
+}
+
+.profile-subtab-btn {
+  flex: 1;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.profile-subtab-btn:hover { color: var(--white); }
+.profile-subtab-btn.active { color: var(--white); border-bottom-color: var(--purple-accent); }
+
+/* Pinned post indication */
+.pinned-post-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--purple-light);
+  padding: 4px 14px 0;
+}
+
+/* ──────────────────────────────────────────
+   LIVE PROFILE PREVIEW (Inside Edit Modal)
+   ────────────────────────────────────────── */
+.profile-edit-preview-section {
+  background: var(--bg-surface);
+  border: var(--border-accent);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.profile-edit-preview-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--purple-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-preview-card {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  transition: all 0.2s ease;
+}
+
+.preview-banner {
+  height: 70px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.preview-top-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 12px 4px;
+  margin-top: -24px;
+  position: relative;
+  z-index: 2;
+}
+
+.preview-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--purple-dark);
+  color: var(--purple-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  border: 3px solid var(--preview-bg, var(--bg-card));
+  overflow: hidden;
+}
+
+.preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-body {
+  padding: 4px 12px 10px;
+}
+
+.preview-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-handle {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+
+.preview-status {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed currentColor;
+  margin-top: 4px;
+}
+
+.preview-featured {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.75rem;
+}
+
+/* Color Presets */
+.color-presets-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.preset-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-pill:hover {
+  border-color: var(--purple-accent);
+  background: var(--bg-surface);
+  transform: translateY(-1px);
+}
+
+.preset-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
