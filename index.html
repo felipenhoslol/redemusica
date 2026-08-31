@@ -225,6 +225,79 @@
     </div>
   </div>
 
+  <!-- Spotify / Last.fm Sync Modal -->
+  <div class="modal-overlay" id="spotify-modal">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--purple-light);">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M8 11.5c3.5-1 6.5-.5 9 1"></path>
+            <path d="M7 15c4.5-1.5 8-.5 11 1.5"></path>
+            <path d="M9 8c3-1 6-.5 8 .5"></path>
+          </svg>
+          <h3>Sincronizar Artistas do Mês</h3>
+        </div>
+        <button class="modal-close" onclick="closeDoodleModal('spotify-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:16px;">
+        <div style="display:flex;gap:6px;margin-bottom:14px;">
+          <button id="tab-btn-lastfm" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="flex:1;" onclick="window._setMusicServiceTab('lastfm')">
+            🔥 Last.fm (API)
+          </button>
+          <button id="tab-btn-picker" class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="flex:1;" onclick="window._setMusicServiceTab('picker')">
+            🔍 Escolher Artistas
+          </button>
+          <button id="tab-btn-spotify" class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="flex:1;" onclick="window._setMusicServiceTab('spotify')">
+            🟢 Spotify
+          </button>
+        </div>
+
+        <!-- Mode 1: Last.fm & Spotify Username -->
+        <div id="service-input-mode">
+          <div style="margin-bottom:12px;">
+            <label id="music-service-label" class="form-label" style="font-size:0.8rem;color:var(--muted);margin-bottom:6px;display:block;">
+              Nome de usuário no Last.fm
+            </label>
+            <input id="music-service-input" class="doodle-input" placeholder="Ex: seu_usuario_lastfm" style="width:100%;">
+            <div id="music-service-hint" style="font-size:0.72rem;color:var(--purple-muted);margin-top:6px;">
+              Busca seus <strong>Top 5 Artistas</strong> e scrobbles reais diretamente da API do Last.fm.
+            </div>
+          </div>
+
+          <div style="background:var(--bg-card);border:var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+            <div style="font-size:1.3rem;">👑</div>
+            <div style="font-size:0.75rem;color:var(--muted);">
+              Dica: O Last.fm sincroniza automaticamente o que você ouve no <strong>Spotify</strong>, <strong>Apple Music</strong> e <strong>YouTube Music</strong>.
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode 2: Custom Artist Search Picker -->
+        <div id="service-picker-mode" style="display:none;">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">
+            Pesquise e selecione os artistas para compor seu <strong>Top 5</strong>:
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <input id="picker-artist-search" class="doodle-input" placeholder="Buscar artista (ex: Frank Ocean, Matuê...)" style="flex:1;">
+            <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._searchArtistForPicker()">Buscar</button>
+          </div>
+          <div id="picker-search-results" style="max-height:140px;overflow-y:auto;margin-bottom:12px;"></div>
+          
+          <div style="font-size:0.75rem;font-weight:700;color:var(--purple-light);margin-bottom:6px;">Seus 5 Artistas Selecionados:</div>
+          <div id="picker-selected-list" style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;margin-bottom:14px;"></div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="closeDoodleModal('spotify-modal')">Cancelar</button>
+          <button id="btn-sync-music-service" class="doodle-btn doodle-btn-primary" onclick="window._submitMusicServiceSync()">Sincronizar Artistas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- JS Modules -->
   <script type="module" src="js/app.js"></script>
 

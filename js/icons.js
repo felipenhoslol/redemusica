@@ -1,4 +1,4 @@
-// Minimalist Hand-Drawn SVG Vector Icons (No Emojis)
+// Minimalist Hand-Drawn SVG Vector Icons & Dynamic Star Rating Renderer with Half-Star Support
 
 export const ICONS = {
   logo: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 15a3 3 0 0 1 3-3"/></svg>`,
@@ -43,42 +43,43 @@ export const ICONS = {
 };
 
 /**
- * Render dynamic star SVG (empty, half, filled)
+ * Render dynamic star SVG (empty, half 0.5, or full 1.0)
  * @param {number} fill 0 = empty, 0.5 = half, 1 = full
  * @param {number} size 
  * @returns {string} SVG markup
  */
-export function getStarSVG(fill = 1, size = 22) {
-  const fillId = 'half_star_' + Math.random().toString(36).substring(2, 7);
+export function getStarSVG(fill = 1, size = 20) {
   if (fill >= 1) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="var(--star-color, #ffb800)" stroke="var(--star-stroke, rgba(0,0,0,0.5))" stroke-width="1.2" class="doodle-star filled"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="#ffb800" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" class="doodle-star filled" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
   } else if (fill >= 0.5) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" class="doodle-star half">
+    const fillId = 'half_star_' + Math.random().toString(36).substring(2, 9);
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" class="doodle-star half" style="flex-shrink:0;">
       <defs>
         <linearGradient id="${fillId}">
-          <stop offset="50%" stop-color="var(--star-color, #ffb800)" />
-          <stop offset="50%" stop-color="var(--star-empty, rgba(255,255,255,0.12))" />
+          <stop offset="50%" stop-color="#ffb800" />
+          <stop offset="50%" stop-color="rgba(255,255,255,0.12)" />
         </linearGradient>
       </defs>
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="url(#${fillId})" stroke="var(--star-stroke, rgba(0,0,0,0.5))" stroke-width="1.2"></polygon>
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="url(#${fillId})" stroke="rgba(0,0,0,0.5)" stroke-width="1.2"></polygon>
     </svg>`;
   } else {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="var(--star-empty, rgba(255,255,255,0.12))" stroke="var(--star-stroke, rgba(0,0,0,0.5))" stroke-width="1.2" class="doodle-star empty"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="rgba(255,255,255,0.12)" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" class="doodle-star empty" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
   }
 }
 
 /**
- * Render a sequence of 5 stars for a numeric rating (0 to 5, half-steps)
+ * Render a sequence of 5 stars for a numeric rating (0.0 to 5.0, with half-star support like 3.5, 4.5)
  * @param {number} rating 
  * @param {number} size 
  * @returns {string} HTML of 5 stars
  */
-export function renderRatingStars(rating = 0, size = 20) {
+export function renderRatingStars(rating = 0, size = 18) {
+  const num = typeof rating === 'number' ? rating : parseFloat(rating) || 0;
   let html = '';
   for (let i = 1; i <= 5; i++) {
-    if (rating >= i) {
+    if (num >= i) {
       html += getStarSVG(1, size);
-    } else if (rating >= i - 0.5) {
+    } else if (num >= i - 0.5) {
       html += getStarSVG(0.5, size);
     } else {
       html += getStarSVG(0, size);

@@ -57,6 +57,17 @@ export function openSearchModalForFeed() {
   openDoodleModal('search-modal');
 }
 
+export function openSearchModalForLyrics() {
+  currentSearchTarget = { type: 'lyrics' };
+  const titleEl = document.getElementById('search-modal-title');
+  const noteRow = document.getElementById('search-modal-note-row');
+  if (titleEl) titleEl.innerHTML = 'Selecionar Música da Letra (iTunes)';
+  if (noteRow) noteRow.style.display = 'none';
+
+  resetSearchModal();
+  openDoodleModal('search-modal');
+}
+
 export function openSearchModalForFeaturedSong() {
   currentSearchTarget = { type: 'profile' };
   const titleEl = document.getElementById('search-modal-title');
@@ -168,6 +179,10 @@ window._selectTrackFromModal = (track) => {
   } else if (target.type === 'feed') {
     window._setCreatorSong?.(track);
     showToast(`Música anexada: ${track.title}`);
+
+  } else if (target.type === 'lyrics') {
+    window._setCreatorLyricsSong?.(track);
+    showToast(`Música da letra: ${track.title}`);
 
   } else if (target.type === 'profile') {
     storage.setFeaturedSong(track);
@@ -601,23 +616,70 @@ export function renderPlayerBar() {
       </div>
     </div>
     <div class="player-controls">
-      <button class="player-play-btn" id="player-play-btn" onclick="window._togglePlayerPlay()">
+      <button class="player-play-btn" id="player-play-btn" onclick="window._togglePlayerPlay()" title="Reproduzir / Pausar">
         ${ICONS.play}
       </button>
     </div>
     <div class="player-progress">
       <span class="player-time" id="player-time-cur">0:00</span>
-      <div class="progress-track" onclick="window._seekPlayer(event)">
+      <div class="progress-track" onclick="window._seekPlayer(event)" title="Avançar / Retroceder">
         <div class="progress-fill" id="player-progress-fill" style="width:0%"></div>
       </div>
       <span class="player-time" id="player-time-dur">0:00</span>
     </div>
-    <div class="player-vol">
-      ${ICONS.music}
-      <input type="range" min="0" max="1" step="0.05" value="0.8"
-        style="width:60px;accent-color:var(--purple-accent)"
-        oninput="globalAudio.setVolume(parseFloat(this.value))">
+    <div class="player-vol-container">
+      <button class="player-vol-btn" id="player-vol-btn" onclick="window._toggleMute()" title="Mutar / Desmutar som">
+        <svg id="player-vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+      </button>
+      <div class="player-vol-bar-wrapper">
+        <input type="range" class="player-vol-slider" id="player-vol-slider" min="0" max="1" step="0.01" value="0.8"
+          oninput="window._setPlayerVolume(parseFloat(this.value))">
+        <div class="player-vol-fill" id="player-vol-fill" style="width:80%;"></div>
+      </div>
+      <span class="player-vol-pct" id="player-vol-pct">80%</span>
     </div>`;
+
+  let lastNonZeroVolume = 0.8;
+
+  window._setPlayerVolume = (val) => {
+    globalAudio.setVolume(val);
+    if (val > 0) lastNonZeroVolume = val;
+    updateVolumeUI(val);
+  };
+
+  window._toggleMute = () => {
+    const current = globalAudio.volume || 0;
+    if (current > 0) {
+      lastNonZeroVolume = current;
+      globalAudio.setVolume(0);
+      updateVolumeUI(0);
+    } else {
+      const restore = lastNonZeroVolume || 0.8;
+      globalAudio.setVolume(restore);
+      updateVolumeUI(restore);
+    }
+  };
+
+  function updateVolumeUI(val) {
+    const fill = document.getElementById('player-vol-fill');
+    const slider = document.getElementById('player-vol-slider');
+    const pctEl = document.getElementById('player-vol-pct');
+    const iconEl = document.getElementById('player-vol-icon');
+
+    if (fill) fill.style.width = `${Math.round(val * 100)}%`;
+    if (slider) slider.value = val;
+    if (pctEl) pctEl.textContent = `${Math.round(val * 100)}%`;
+
+    if (iconEl) {
+      if (val === 0) {
+        iconEl.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>`;
+      } else if (val < 0.5) {
+        iconEl.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>`;
+      } else {
+        iconEl.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>`;
+      }
+    }
+  }
 
   // Subscribe to audio events via globalAudio.subscribe(callback)
   globalAudio.subscribe((event, data) => {

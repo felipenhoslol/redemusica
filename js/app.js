@@ -5,13 +5,15 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
          updatePost, getPostById,
          createPost, setFeaturedSong, addToShowcase, removeFromShowcase,
          getUnreadNotificationCount, getFeedPosts, getChallengeAnswers,
-         getActiveChallengeId, getChallengeAnswers as getAnswers } from './storage.js';
+         getActiveChallengeId, getChallengeAnswers as getAnswers,
+         updateUserMusicStats } from './storage.js';
 
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
+import { fetchLastFmUserTop, fetchLastFmTopArtists, syncSpotifyAccount, searchArtistInfo, searchTracks } from './api.js';
 import {
   openDoodleModal, closeDoodleModal, showDoodleToast,
-  initSearchModal, openSearchModalForFeed, openSearchModalForFeaturedSong,
+  initSearchModal, openSearchModalForFeed, openSearchModalForLyrics, openSearchModalForFeaturedSong,
   openSearchModalForChat, openSearchModalForShowcase,
   renderMusicAskGrid, renderChallengePills, renderCompareView,
   renderNotificationsPanel, renderPlayerBar, initGlobalSearch
@@ -47,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window._switchTabFn = switchTab;
   window.openSearchModalForChat = openSearchModalForChat;
   window.openSearchModalForFeed = openSearchModalForFeed;
+  window.openSearchModalForLyrics = openSearchModalForLyrics;
 
   // Process pending tab from shim
   if (window._pendingTab) { switchTab(window._pendingTab); window._pendingTab = null; }
@@ -168,21 +171,39 @@ function renderFeedTab() {
         <!-- Lyric of the day -->
         <div class="sidebar-widget">
           <div class="widget-header">
-            Letra do Dia
-            <button style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:0.75rem;" onclick="renderLyricWidgetEl(true)">novo</button>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--purple-light);">
+                <path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>
+              </svg>
+              <span>Letra do Dia</span>
+            </div>
+            <button class="lyric-refresh-btn" title="Sortear outra letra" onclick="renderLyricWidgetEl(true)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span>Novo</span>
+            </button>
           </div>
           <div id="lyric-widget-content"></div>
         </div>
 
         <!-- Following -->
         <div class="sidebar-widget">
-          <div class="widget-header">Seguindo</div>
+          <div class="widget-header">
+            <span>Seguindo</span>
+          </div>
           <div id="friends-widget"></div>
         </div>
 
         <!-- Trending -->
         <div class="sidebar-widget">
-          <div class="widget-header">Tendências</div>
+          <div class="widget-header">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="color:#ff5555;">🔥</span>
+              <span>Tendências (Last.fm)</span>
+            </div>
+            <span style="font-size:0.68rem;color:var(--purple-light);font-weight:700;">Global</span>
+          </div>
           <div id="trending-widget"></div>
         </div>
       </div>
@@ -570,9 +591,32 @@ function bindGlobalHandlers() {
     if (!wasOpen) dropdown.style.display = 'block';
   };
 
-  // Play track via globalAudio
-  window._playTrack = (track) => {
+  // Play track via globalAudio with dynamic iTunes search & HD artwork enrichment
+  window._playTrack = async (track) => {
     if (!track) return;
+
+    if (!track.previewUrl) {
+      const q = `${track.title || ''} ${track.artist || ''}`.trim();
+      if (q) {
+        showToast(`Buscando áudio de "${track.title || 'Música'}" no iTunes...`);
+        try {
+          const results = await searchTracks(q, 1);
+          if (results && results.length > 0) {
+            const enriched = {
+              ...track,
+              previewUrl: results[0].previewUrl,
+              artwork: results[0].artwork || track.artwork,
+              duration: results[0].duration || track.duration
+            };
+            globalAudio.playTrack(enriched);
+            return;
+          }
+        } catch (e) {
+          console.warn('iTunes track enrichment error:', e);
+        }
+      }
+    }
+
     globalAudio.playTrack(track);
   };
 
@@ -583,43 +627,104 @@ function bindGlobalHandlers() {
     globalAudio.seekToPercent(pct);
   };
 
+  // Global helper to search for lyric/track in iTunes catalog
+  window._searchLyricSong = (songTitle, artistName) => {
+    const q = `${songTitle || ''} ${artistName || ''}`.trim();
+    switchTab('search');
+    setTimeout(() => {
+      const inp = document.getElementById('global-search-input');
+      if (inp) {
+        inp.value = q;
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+        inp.focus();
+      }
+    }, 120);
+  };
+
+  // Global helper to search for artist songs in iTunes catalog
+  window._searchArtistInCatalog = (artistName) => {
+    switchTab('search');
+    setTimeout(() => {
+      const inp = document.getElementById('global-search-input');
+      if (inp) {
+        inp.value = artistName;
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+        inp.focus();
+      }
+    }, 120);
+  };
+
   // Submit post
   window._submitPost = () => {
-    const text = document.getElementById('creator-text')?.value?.trim();
+    const textEl = document.getElementById('creator-text');
+    const text = textEl?.value?.trim() || '';
     const tag  = document.getElementById('creator-tag')?.value || '#música';
 
-    // Gather from creator state (imported implicitly via module)
-    const lyricsEl = document.getElementById('creator-lyrics');
-    const lyricsSongEl = document.getElementById('creator-lyrics-song');
-    const lyricsArtEl = document.getElementById('creator-lyrics-art');
-    const lyricsStyleEl = document.getElementById('lyrics-style-sel');
+    // Only include lyrics if the lyrics attachment container is active and visible
+    const lyricsBox = document.getElementById('creator-lyrics-attach');
+    const isLyricsActive = lyricsBox && lyricsBox.style.display !== 'none' && lyricsBox.innerHTML.trim() !== '';
 
-    const lyrics = lyricsEl?.value?.trim() || '';
-    const lyricsSong = lyricsSongEl?.value?.trim() || '';
-    const lyricsArt = lyricsArtEl?.value?.trim() || '';
-    const lyricsCardStyle = lyricsStyleEl?.value || 'compact';
+    let lyrics = '';
+    let lyricsSong = '';
+    let lyricsArt = '';
+    let lyricsCardStyle = 'compact';
+
+    if (isLyricsActive) {
+      const lyricsEl = document.getElementById('creator-lyrics');
+      const lyricsSongEl = document.getElementById('creator-lyrics-song');
+      const lyricsArtEl = document.getElementById('creator-lyrics-art');
+      const lyricsStyleEl = document.getElementById('lyrics-style-sel');
+
+      lyrics = lyricsEl?.value?.trim() || '';
+      lyricsSong = lyricsSongEl?.value?.trim() || '';
+      lyricsArt = lyricsArtEl?.value?.trim() || '';
+      lyricsCardStyle = lyricsStyleEl?.value || 'compact';
+    }
+
+    // Check rating active
+    const ratingBox = document.getElementById('creator-rating-attach');
+    const isRatingActive = ratingBox && ratingBox.style.display !== 'none';
+    let rating = 0;
+    if (isRatingActive) {
+      import('./feed.js').then(m => {
+        rating = m.creatorState?.rating || window._pendingCreatorRating || 0;
+      });
+    }
 
     if (!text && !lyrics && !window._pendingCreatorSong) {
-      showToast('Escreva algo ou anexe uma música.');
+      showToast('Escreva algo ou anexe uma música/letra.');
       return;
     }
 
-    createPost({
-      text,
-      lyrics,
-      lyricsSong,
-      lyricsArt,
-      lyricsCardStyle,
-      tag,
-      rating: window._pendingCreatorRating || 0,
-      song: window._pendingCreatorSong || null,
+    // Read rating synchronously from feed module or window
+    import('./feed.js').then(m => {
+      const finalRating = isRatingActive ? (m.creatorState?.rating || 0) : 0;
+
+      createPost({
+        text,
+        lyrics,
+        lyricsSong,
+        lyricsArt,
+        lyricsCardStyle,
+        tag,
+        rating: finalRating,
+        song: window._pendingCreatorSong || null,
+      });
+
+      // Cleanup creator
+      if (textEl) textEl.value = '';
+      window._pendingCreatorSong = null;
+      window._pendingCreatorRating = 0;
+      if (window._creatorRemoveLyrics) window._creatorRemoveLyrics();
+      if (window._removeCreatorSong) window._removeCreatorSong();
+      if (ratingBox) {
+        ratingBox.style.display = 'none';
+        if (m.creatorState) m.creatorState.rating = 0;
+      }
+
+      showToast('Post publicado!');
+      renderFeedTab();
     });
-
-    window._pendingCreatorSong = null;
-    window._pendingCreatorRating = 0;
-
-    showToast('Post publicado!');
-    renderFeedTab();
   };
 
   // Creator attach song (set from search modal)
@@ -650,6 +755,11 @@ function bindGlobalHandlers() {
   // Creator search for song
   window._creatorOpenSearch = () => {
     openSearchModalForFeed();
+  };
+
+  // Creator search for lyrics song
+  window._openSearchForLyrics = () => {
+    openSearchModalForLyrics();
   };
 
   // Star picker for creator
@@ -777,6 +887,223 @@ function bindGlobalHandlers() {
 
   window._editBanner = () => {
     window._openBannerModal();
+  };
+
+  // ──────────────────────────────────────────
+  // SPOTIFY / LAST.FM / CUSTOM TOP ARTISTS HANDLERS
+  // ──────────────────────────────────────────
+  let currentMusicServiceTab = 'lastfm';
+  let tempPickerArtists = [];
+
+  window._openSpotifyModal = () => {
+    const user = getActiveUser();
+    const input = document.getElementById('music-service-input');
+    if (input) input.value = user.spotifyUsername || '';
+    tempPickerArtists = user.topArtistsMonth ? [...user.topArtistsMonth] : [];
+    renderPickerSelectedList();
+    window._setMusicServiceTab(user.musicService || 'lastfm');
+    openModal('spotify-modal');
+  };
+
+  window._setMusicServiceTab = (service) => {
+    currentMusicServiceTab = service;
+    const btnSp = document.getElementById('tab-btn-spotify');
+    const btnLm = document.getElementById('tab-btn-lastfm');
+    const btnPk = document.getElementById('tab-btn-picker');
+    const inputMode = document.getElementById('service-input-mode');
+    const pickerMode = document.getElementById('service-picker-mode');
+    const label = document.getElementById('music-service-label');
+    const hint = document.getElementById('music-service-hint');
+
+    // Reset styles
+    [btnSp, btnLm, btnPk].forEach(b => { if (b) b.className = 'doodle-btn doodle-btn-secondary doodle-btn-sm'; });
+
+    if (service === 'picker') {
+      if (btnPk) btnPk.className = 'doodle-btn doodle-btn-primary doodle-btn-sm';
+      if (inputMode) inputMode.style.display = 'none';
+      if (pickerMode) pickerMode.style.display = 'block';
+    } else {
+      if (inputMode) inputMode.style.display = 'block';
+      if (pickerMode) pickerMode.style.display = 'none';
+
+      if (service === 'spotify') {
+        if (btnSp) btnSp.className = 'doodle-btn doodle-btn-primary doodle-btn-sm';
+        if (label) label.textContent = 'Nome de usuário no Spotify ou perfil';
+        if (hint) hint.innerHTML = 'Dica: Conecta ao perfil e busca seus <strong>Top 5 Artistas</strong> favoritos.';
+      } else {
+        if (btnLm) btnLm.className = 'doodle-btn doodle-btn-primary doodle-btn-sm';
+        if (label) label.textContent = 'Nome de usuário no Last.fm (scrobbles)';
+        if (hint) hint.innerHTML = 'Dica: Busca seus <strong>Top 5 Artistas do Mês</strong> e scrobbles reais em tempo real via Last.fm API.';
+      }
+    }
+  };
+
+  function renderPickerSelectedList() {
+    const listEl = document.getElementById('picker-selected-list');
+    if (!listEl) return;
+
+    if (!tempPickerArtists.length) {
+      listEl.innerHTML = `<div style="font-size:0.75rem;color:var(--muted);padding:6px;">Nenhum artista selecionado ainda. Pesquise acima!</div>`;
+      return;
+    }
+
+    listEl.innerHTML = tempPickerArtists.map((a, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);">
+        <span style="font-size:0.75rem;font-weight:800;color:var(--purple-light);width:18px;">#${i + 1}</span>
+        <img src="${a.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
+          <div style="font-size:0.68rem;color:var(--muted);">${a.genre || 'Artista'}</div>
+        </div>
+        <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 6px;color:#ff5555;" onclick="window._removeArtistFromPicker(${i})">&times;</button>
+      </div>
+    `).join('');
+  }
+
+  window._removeArtistFromPicker = (idx) => {
+    tempPickerArtists.splice(idx, 1);
+    tempPickerArtists.forEach((a, i) => { a.rank = i + 1; });
+    renderPickerSelectedList();
+  };
+
+  window._searchArtistForPicker = async () => {
+    const inp = document.getElementById('picker-artist-search');
+    const q = inp ? inp.value.trim() : '';
+    const resEl = document.getElementById('picker-search-results');
+    if (!q || !resEl) return;
+
+    resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--purple-light);padding:8px;">Buscando "${q}" no catálogo...</div>`;
+
+    try {
+      const tracks = await searchTracks(q, 8);
+      if (!tracks.length) {
+        resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--muted);padding:8px;">Nenhum artista encontrado para "${q}".</div>`;
+        return;
+      }
+
+      // Deduplicate artists
+      const uniqueArtists = [];
+      const seen = new Set();
+      tracks.forEach(t => {
+        if (!seen.has(t.artist.toLowerCase())) {
+          seen.add(t.artist.toLowerCase());
+          uniqueArtists.push({
+            name: t.artist,
+            imageUrl: t.artwork,
+            genre: t.genre || 'Música'
+          });
+        }
+      });
+
+      resEl.innerHTML = uniqueArtists.map(a => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);margin-bottom:4px;">
+          <img src="${a.imageUrl}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.82rem;font-weight:700;color:var(--white);">${a.name}</div>
+            <div style="font-size:0.68rem;color:var(--muted);">${a.genre}</div>
+          </div>
+          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._addArtistToPicker(${JSON.stringify(a).replace(/"/g, '&quot;')})">+ Adicionar</button>
+        </div>
+      `).join('');
+    } catch (err) {
+      resEl.innerHTML = `<div style="font-size:0.75rem;color:#ff5555;padding:8px;">Erro na busca: ${err.message}</div>`;
+    }
+  };
+
+  window._addArtistToPicker = (artist) => {
+    if (tempPickerArtists.length >= 5) {
+      showToast('Seu Top 5 já está completo. Remova um para adicionar outro.');
+      return;
+    }
+    if (tempPickerArtists.some(a => a.name.toLowerCase() === artist.name.toLowerCase())) {
+      showToast('Este artista já está na lista.');
+      return;
+    }
+
+    tempPickerArtists.push({
+      rank: tempPickerArtists.length + 1,
+      name: artist.name,
+      imageUrl: artist.imageUrl,
+      genre: artist.genre,
+      playcount: 350 - tempPickerArtists.length * 40
+    });
+
+    renderPickerSelectedList();
+    showToast(`"${artist.name}" adicionado ao Top 5!`);
+  };
+
+  window._submitMusicServiceSync = async () => {
+    const input = document.getElementById('music-service-input');
+    const username = input ? input.value.trim() : '';
+    const btn = document.getElementById('btn-sync-music-service');
+    const activeUser = getActiveUser();
+
+    if (currentMusicServiceTab === 'picker') {
+      if (tempPickerArtists.length === 0) {
+        showToast('Adicione pelo menos 1 artista à lista.');
+        return;
+      }
+
+      updateUserMusicStats(activeUser.id, {
+        service: 'spotify',
+        username: activeUser.handle || 'me',
+        topArtist: tempPickerArtists[0],
+        topArtistsMonth: tempPickerArtists,
+        topTracksMonth: []
+      });
+
+      closeModal('spotify-modal');
+      showToast('Top 5 Artistas atualizados com sucesso!');
+      if (activeTab !== 'profile') {
+        switchTab('profile');
+      } else {
+        renderProfileTab(activeUser.id);
+      }
+      return;
+    }
+
+    if (!username) {
+      showToast('Digite seu nome de usuário ou termo.');
+      return;
+    }
+
+    if (btn) {
+      btn.textContent = 'Buscando scrobbles na API...';
+      btn.disabled = true;
+    }
+
+    try {
+      let result = null;
+      if (currentMusicServiceTab === 'lastfm') {
+        result = await fetchLastFmUserTop(username);
+      } else {
+        result = await syncSpotifyAccount(username);
+      }
+
+      updateUserMusicStats(activeUser.id, {
+        service: currentMusicServiceTab,
+        username: username,
+        topArtist: result.topArtist,
+        topArtistsMonth: result.topArtistsMonth,
+        topTracksMonth: result.topTracksMonth
+      });
+
+      closeModal('spotify-modal');
+      showToast(`Top 5 Artistas vinculados com sucesso via ${currentMusicServiceTab === 'lastfm' ? 'Last.fm' : 'Spotify'}!`);
+      
+      if (activeTab !== 'profile') {
+        switchTab('profile');
+      } else {
+        renderProfileTab(activeUser.id);
+      }
+    } catch (err) {
+      showToast(err.message || 'Erro ao sincronizar. Verifique o usuário informado.');
+    } finally {
+      if (btn) {
+        btn.textContent = 'Sincronizar Artistas';
+        btn.disabled = false;
+      }
+    }
   };
 
   window._refreshProfile = () => {

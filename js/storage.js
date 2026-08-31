@@ -33,6 +33,23 @@ const INITIAL_USERS = [
     status: 'ouvindo pós-punk no volume máximo',
     pinnedPostId: null,
     songShowcase: [],
+    spotifyConnected: true,
+    musicService: 'spotify',
+    spotifyUsername: 'voce_music',
+    topArtist: {
+      rank: 1,
+      name: 'The Weeknd',
+      playcount: 348,
+      genre: 'R&B / Synthpop',
+      imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'
+    },
+    topArtistsMonth: [
+      { rank: 1, name: 'The Weeknd', playcount: 348, genre: 'R&B / Synthpop', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
+      { rank: 2, name: 'Coldplay', playcount: 285, genre: 'Alt Rock / Pop', imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
+      { rank: 3, name: 'Joy Division', playcount: 210, genre: 'Post-Punk', imageUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80' },
+      { rank: 4, name: 'The Smiths', playcount: 178, genre: 'Indie Rock', imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' },
+      { rank: 5, name: 'Deftones', playcount: 142, genre: 'Alt Metal / Shoegaze', imageUrl: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=600&auto=format&fit=crop&q=80' }
+    ],
     featuredSong: {
       id: 'itunes_coldplay_yellow',
       title: 'Yellow',
@@ -59,6 +76,23 @@ const INITIAL_USERS = [
     status: 'analisando letras antigas',
     pinnedPostId: null,
     songShowcase: [],
+    spotifyConnected: true,
+    musicService: 'lastfm',
+    spotifyUsername: 'clara_scrobbles',
+    topArtist: {
+      rank: 1,
+      name: 'Elis Regina',
+      playcount: 290,
+      genre: 'MPB / Bossa Nova',
+      imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80'
+    },
+    topArtistsMonth: [
+      { rank: 1, name: 'Elis Regina', playcount: 290, genre: 'MPB / Bossa Nova', imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
+      { rank: 2, name: 'Legião Urbana', playcount: 240, genre: 'Rock Nacional', imageUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
+      { rank: 3, name: 'Gal Costa', playcount: 195, genre: 'Tropicália', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
+      { rank: 4, name: 'Caetano Veloso', playcount: 170, genre: 'MPB', imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
+      { rank: 5, name: 'Belchior', playcount: 155, genre: 'MPB', imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' }
+    ],
     featuredSong: null
   },
   {
@@ -77,6 +111,23 @@ const INITIAL_USERS = [
     status: 'procurando fitas cassete raras',
     pinnedPostId: null,
     songShowcase: [],
+    spotifyConnected: true,
+    musicService: 'spotify',
+    spotifyUsername: 'lucas_vinyl',
+    topArtist: {
+      rank: 1,
+      name: 'Joy Division',
+      playcount: 380,
+      genre: 'Post-Punk',
+      imageUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80'
+    },
+    topArtistsMonth: [
+      { rank: 1, name: 'Joy Division', playcount: 380, genre: 'Post-Punk', imageUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80' },
+      { rank: 2, name: 'The Cure', playcount: 310, genre: 'Goth / Post-Punk', imageUrl: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=600&auto=format&fit=crop&q=80' },
+      { rank: 3, name: 'New Order', playcount: 260, genre: 'Synthpop', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
+      { rank: 4, name: 'Bauhaus', playcount: 185, genre: 'Gothic Rock', imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' },
+      { rank: 5, name: 'The Smiths', playcount: 160, genre: 'Indie Rock', imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' }
+    ],
     featuredSong: null
   }
 ];
@@ -119,7 +170,14 @@ const INITIAL_POSTS = [
     lyricsCardStyle: 'full-bleed',
     tag: '#música',
     rating: 5.0,
-    song: null,
+    song: {
+      id: 'itunes_joy_division_love',
+      title: 'Love Will Tear Us Apart',
+      artist: 'Joy Division',
+      artwork: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80',
+      previewUrl: '',
+      duration: '3:25'
+    },
     imageUrl: '',
     likes: ['user_me'],
     comments: [],
@@ -147,6 +205,24 @@ const INITIAL_MESSAGES = [
 export function initStorage() {
   if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
+  } else {
+    try {
+      const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
+      let modified = false;
+      existing.forEach(u => {
+        const init = INITIAL_USERS.find(i => i.id === u.id);
+        if (init && (!u.topArtistsMonth || !u.topArtistsMonth.length)) {
+          u.topArtistsMonth = init.topArtistsMonth || [];
+          u.topArtist = init.topArtist || null;
+          u.spotifyConnected = init.spotifyConnected ?? true;
+          u.musicService = init.musicService || 'lastfm';
+          modified = true;
+        }
+      });
+      if (modified) {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(existing));
+      }
+    } catch(e) {}
   }
   if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_USER)) {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, 'user_me');
@@ -222,6 +298,21 @@ export function updateUser(userId, updates) {
     users[index] = { ...users[index], ...updates };
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   }
+}
+
+export function updateUserMusicStats(userId, stats) {
+  const user = getUserById(userId);
+  if (!user) return;
+  const updated = {
+    spotifyConnected: true,
+    musicService: stats.service || 'lastfm',
+    spotifyUsername: stats.username || '',
+    topArtist: stats.topArtist || (stats.topArtistsMonth ? stats.topArtistsMonth[0] : null),
+    topArtistsMonth: stats.topArtistsMonth || [],
+    topTracksMonth: stats.topTracksMonth || []
+  };
+  updateUser(userId, updated);
+  return getUserById(userId);
 }
 
 export function setFeaturedSong(track) {

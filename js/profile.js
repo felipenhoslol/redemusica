@@ -54,6 +54,7 @@ export function renderProfileView(container, targetUserId) {
     </div>` : '');
 
   const showcaseHtml = buildShowcaseHtml(user, isMe);
+  const topArtistsHtml = buildTopArtistsMonthHtml(user, isMe);
 
   const bannerStyle = user.bannerUrl
     ? `background-image:url('${user.bannerUrl}');background-size:cover;background-position:center;`
@@ -131,6 +132,7 @@ export function renderProfileView(container, targetUserId) {
           </div>
         </div>
         ${featuredHtml}
+        ${topArtistsHtml}
         ${showcaseHtml}
         <div class="profile-subtabs">
           <button class="profile-subtab-btn active" data-profile-tab="posts" onclick="window._switchProfileTab('posts', this)">Posts</button>
@@ -149,6 +151,20 @@ export function renderProfileView(container, targetUserId) {
 
   // Load default tab
   loadProfileTab('posts', user.id);
+
+  // Global helper to search for artist songs in the app
+  window._searchArtistInCatalog = (artistName) => {
+    if (window._switchTabFn) {
+      window._switchTabFn('search');
+      setTimeout(() => {
+        const inp = document.getElementById('global-search-input');
+        if (inp) {
+          inp.value = artistName;
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }, 100);
+    }
+  };
 
   // Inline status editing
   window._startEditStatus = () => {
@@ -177,6 +193,81 @@ export function renderProfileView(container, targetUserId) {
     if (el) el.style.display = 'block';
     loadProfileTab(tabId, user.id);
   };
+}
+
+function buildTopArtistsMonthHtml(user, isMe) {
+  const topArtists = user.topArtistsMonth || (user.topArtist ? [user.topArtist] : []);
+  const service = user.musicService || 'spotify';
+  const serviceLabel = service === 'lastfm' ? 'Last.fm' : 'Spotify';
+  const serviceClass = service === 'lastfm' ? 'lastfm' : 'spotify';
+
+  if (!topArtists.length) {
+    if (!isMe) return '';
+    return `
+      <div class="top-artists-section">
+        <div style="background:var(--bg-card);border:1px dashed var(--purple-accent);border-radius:var(--radius-lg);padding:14px;text-align:center;cursor:pointer;transition:border-color 0.2s;" onclick="window._openSpotifyModal()">
+          <div style="font-size:1.4rem;margin-bottom:4px;">👑</div>
+          <div style="font-size:0.88rem;font-weight:700;color:var(--white)">Exibir Top 5 Artistas do Mês</div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Conecte seu Last.fm ou Spotify para destacar seus artistas mais escutados</div>
+          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="margin-top:10px;">Conectar Agora</button>
+        </div>
+      </div>`;
+  }
+
+  const top1 = topArtists[0];
+  const others = topArtists.slice(1, 5);
+
+  return `
+    <div class="top-artists-section">
+      <div class="top-artists-header">
+        <div class="top-artists-title">
+          <span>👑 Top 5 Artistas do Mês</span>
+          <span class="top-artists-service-badge ${serviceClass}">
+            ${serviceLabel}
+          </span>
+        </div>
+        ${isMe ? `
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openSpotifyModal()" style="font-size:0.72rem;padding:3px 8px;" title="Atualizar ou sincronizar">
+            Sincronizar
+          </button>
+        ` : ''}
+      </div>
+
+      <!-- #1 Artist Spotlight -->
+      ${top1 ? `
+        <div class="top-artist-spotlight" onclick="window._searchArtistInCatalog('${top1.name.replace(/'/g, "\\'")}')" title="Clique para ver músicas de ${top1.name}">
+          <div class="spotlight-rank-crown">👑 #1 Mais Escutado</div>
+          <img class="spotlight-avatar" src="${top1.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" alt="${top1.name}" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'">
+          <div class="spotlight-info">
+            <div class="spotlight-title">${top1.name}</div>
+            <div class="spotlight-genre">${top1.genre || 'Top Artista do Mês'}</div>
+            <div class="spotlight-scrobbles">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color:var(--purple-light);"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+              <span>${top1.playcount ? top1.playcount + ' scrobbles este mês' : 'Mais escutado'}</span>
+            </div>
+          </div>
+          <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="event.stopPropagation();window._searchArtistInCatalog('${top1.name.replace(/'/g, "\\'")}')" title="Buscar músicas deste artista">
+            Músicas
+          </button>
+        </div>
+      ` : ''}
+
+      <!-- #2 to #5 Grid -->
+      ${others.length ? `
+        <div class="top-artists-grid">
+          ${others.map(a => `
+            <div class="top-artist-item" onclick="window._searchArtistInCatalog('${a.name.replace(/'/g, "\\'")}')" title="Clique para ver músicas de ${a.name}">
+              <div class="artist-rank-badge">#${a.rank}</div>
+              <img class="artist-avatar-thumb" src="${a.imageUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'}" alt="${a.name}" onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'">
+              <div class="artist-item-info">
+                <div class="artist-item-name">${a.name}</div>
+                <div class="artist-item-sub">${a.playcount ? a.playcount + ' scrobbles' : a.genre || 'Top Artista'}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>`;
 }
 
 function buildShowcaseHtml(user, isMe) {

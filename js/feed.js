@@ -2,7 +2,7 @@
 import * as Storage from './storage.js';
 import { globalAudio } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
-import { searchTracks } from './api.js';
+import { searchTracks, fetchLastFmTrendingTracks } from './api.js';
 import { getRandomLyric, getRandomCardStyle } from './lyrics_db.js';
 
 // ──────────────────────────────────────────
@@ -14,32 +14,29 @@ function renderLyricsCard(post) {
   const text = post.lyrics;
   const attr = post.lyricsSong ? `<span class="lyrics-song-attr">— ${post.lyricsSong}</span>` : '';
   const style = post.lyricsCardStyle || 'compact';
+  const art = post.lyricsArt || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80';
 
-  if (style === 'with-cover' && post.lyricsArt) {
+  if (style === 'compact' && !post.lyricsArt) {
     return `
-      <div class="lyrics-card-cover">
-        <img class="lyrics-cover-img" src="${post.lyricsArt}" alt="cover" loading="lazy" onerror="this.style.display='none'">
-        <div>
-          <div class="lyrics-text">${text}</div>
-          ${attr}
-        </div>
+      <div class="lyrics-card-compact">
+        <div class="lyrics-text">${text}</div>
+        ${attr}
       </div>`;
   }
-  if (style === 'full-bleed' && post.lyricsArt) {
-    return `
-      <div class="lyrics-card-fullbleed">
-        <img class="lyrics-bg-image" src="${post.lyricsArt}" alt="" loading="lazy">
-        <div class="lyrics-fullbleed-content">
-          <div class="lyrics-text">${text}</div>
-          ${attr}
-        </div>
-      </div>`;
-  }
-  // compact (default)
+
   return `
-    <div class="lyrics-card-compact">
-      <div class="lyrics-text">${text}</div>
-      ${attr}
+    <div class="lyrics-card-fullbleed" style="position:relative;overflow:hidden;border-radius:var(--radius-md);margin:8px 0;padding:14px;min-height:96px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid rgba(255,255,255,0.12);">
+      <img class="lyrics-bg-image" src="${art}" alt="" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(12px) brightness(0.25) saturate(1.4);transform:scale(1.15);pointer-events:none;z-index:0;">
+      <div style="position:absolute;inset:0;background:linear-gradient(135deg, rgba(20, 10, 35, 0.7), rgba(5, 2, 10, 0.85));z-index:1;"></div>
+      <div class="lyrics-fullbleed-content" style="position:relative;z-index:2;">
+        <div class="lyrics-text" style="font-size:0.95rem;line-height:1.45;color:#ffffff;font-style:italic;font-weight:600;text-shadow:0 2px 8px rgba(0,0,0,0.85);">${text}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.15);">
+          <img src="${art}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid rgba(255,255,255,0.2);">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--purple-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${post.lyricsSong || 'Música Destacada'}
+          </div>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -175,7 +172,7 @@ export function renderPostCard(post, options = {}) {
 // POST CREATOR
 // ──────────────────────────────────────────
 
-let creatorState = {
+export let creatorState = {
   selectedSong: null,
   lyricsText: '',
   lyricsSong: '',
@@ -228,32 +225,81 @@ export function renderPostCreator(containerEl) {
     if (creatorState.showLyrics) {
       // Pick a random card style
       const lyricData = getRandomLyric();
+      creatorState.lyricsText = lyricData.lyrics;
+      creatorState.lyricsSong = `${lyricData.song} — ${lyricData.artist}`;
       creatorState.lyricsArt = lyricData.albumArt || '';
       creatorState.lyricsCardStyle = getRandomCardStyle();
       el.style.display = 'block';
       el.innerHTML = `
         <div class="creator-lyrics-box">
           <div class="creator-lyrics-header">
-            <span>Letra</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+              <span style="font-weight:700;color:var(--white);">Letra Anexada</span>
+            </div>
             <div style="flex:1;display:flex;gap:6px;align-items:center;justify-content:flex-end;">
-              <label class="form-label" style="margin:0">Estilo:</label>
+              <label class="form-label" style="margin:0;font-size:0.72rem;">Estilo:</label>
               <select id="lyrics-style-sel" style="background:var(--bg-input);border:var(--border);border-radius:6px;color:var(--white);font-family:var(--font);font-size:0.72rem;padding:2px 4px;" onchange="creatorState.lyricsCardStyle=this.value">
                 <option value="compact"${creatorState.lyricsCardStyle==='compact'?' selected':''}>Compacto</option>
                 <option value="with-cover"${creatorState.lyricsCardStyle==='with-cover'?' selected':''}>Com Capa</option>
-                <option value="full-bleed"${creatorState.lyricsCardStyle==='full-bleed'?' selected':''}>Fundo</option>
+                <option value="full-bleed"${creatorState.lyricsCardStyle==='full-bleed'?' selected':''}>Fundo Total</option>
               </select>
-              <button class="btn-attach" onclick="window._creatorToggleLyrics()">Remover</button>
+              <button type="button" class="btn-attach" style="color:#ff5555;border-color:rgba(255,85,85,0.4);" onclick="window._creatorRemoveLyrics()">Cancelar Letra ✕</button>
             </div>
           </div>
-          <textarea id="creator-lyrics" class="creator-lyrics-textarea" placeholder="Cole a letra aqui..." onchange="window._creatorLyricsChanged()">${lyricData.lyrics}</textarea>
-          <input class="doodle-input" id="creator-lyrics-song" placeholder="Música — Artista" value="${lyricData.song} — ${lyricData.artist}" style="font-size:0.78rem;padding:4px 8px;margin-top:5px;" onchange="window._creatorLyricsChanged()">
-          <input class="doodle-input" id="creator-lyrics-art" placeholder="URL da capa (opcional)" value="${lyricData.albumArt||''}" style="font-size:0.78rem;padding:4px 8px;margin-top:4px;" onchange="window._creatorLyricsChanged()">
+
+          <!-- iTunes Search Song Row -->
+          <div id="creator-lyrics-song-preview" style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-surface);border:1px solid var(--purple-accent);border-radius:var(--radius-md);padding:6px 10px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+              <img id="creator-lyrics-preview-img" src="${creatorState.lyricsArt || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'}" style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex-shrink:0;">
+              <div style="min-width:0;flex:1;">
+                <div id="creator-lyrics-preview-title" style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${creatorState.lyricsSong}</div>
+                <div style="font-size:0.68rem;color:var(--purple-light);">Música vinculada à letra</div>
+              </div>
+            </div>
+            <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="font-size:0.75rem;padding:4px 10px;display:flex;align-items:center;gap:5px;flex-shrink:0;" onclick="window._openSearchForLyrics()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              Buscar no iTunes
+            </button>
+          </div>
+
+          <textarea id="creator-lyrics" class="creator-lyrics-textarea" placeholder="Cole os versos ou trecho da letra aqui..." oninput="window._creatorLyricsChanged()">${lyricData.lyrics}</textarea>
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+            <input class="doodle-input" id="creator-lyrics-song" placeholder="Música — Artista" value="${lyricData.song} — ${lyricData.artist}" style="font-size:0.78rem;padding:4px 8px;" oninput="window._creatorLyricsChanged()">
+            <input class="doodle-input" id="creator-lyrics-art" placeholder="URL da capa (opcional)" value="${lyricData.albumArt||''}" style="font-size:0.78rem;padding:4px 8px;" oninput="window._creatorLyricsChanged()">
+          </div>
         </div>`;
     } else {
+      window._creatorRemoveLyrics();
+    }
+  };
+
+  window._setCreatorLyricsSong = (track) => {
+    creatorState.lyricsSong = `${track.title} — ${track.artist}`;
+    creatorState.lyricsArt = track.artwork;
+    creatorState.selectedLyricsTrack = track;
+
+    const songInp = document.getElementById('creator-lyrics-song');
+    const artInp = document.getElementById('creator-lyrics-art');
+    const prevTitle = document.getElementById('creator-lyrics-preview-title');
+    const prevImg = document.getElementById('creator-lyrics-preview-img');
+
+    if (songInp) songInp.value = creatorState.lyricsSong;
+    if (artInp) artInp.value = creatorState.lyricsArt;
+    if (prevTitle) prevTitle.textContent = creatorState.lyricsSong;
+    if (prevImg) prevImg.src = creatorState.lyricsArt;
+  };
+
+  window._creatorRemoveLyrics = () => {
+    creatorState.showLyrics = false;
+    creatorState.lyricsText = '';
+    creatorState.lyricsSong = '';
+    creatorState.lyricsArt = '';
+    const el = document.getElementById('creator-lyrics-attach');
+    if (el) {
       el.style.display = 'none';
-      creatorState.lyricsText = '';
-      creatorState.lyricsSong = '';
-      creatorState.lyricsArt = '';
+      el.innerHTML = '';
     }
   };
 
@@ -262,6 +308,11 @@ export function renderPostCreator(containerEl) {
     creatorState.lyricsSong = document.getElementById('creator-lyrics-song')?.value || '';
     creatorState.lyricsArt = document.getElementById('creator-lyrics-art')?.value || '';
     creatorState.lyricsCardStyle = document.getElementById('lyrics-style-sel')?.value || 'compact';
+
+    const prevTitle = document.getElementById('creator-lyrics-preview-title');
+    const prevImg = document.getElementById('creator-lyrics-preview-img');
+    if (prevTitle && creatorState.lyricsSong) prevTitle.textContent = creatorState.lyricsSong;
+    if (prevImg && creatorState.lyricsArt) prevImg.src = creatorState.lyricsArt;
   };
 
   window._creatorToggleRating = () => {
@@ -278,25 +329,50 @@ export function renderPostCreator(containerEl) {
 }
 
 function renderCreatorRating(el) {
+  const currentRating = creatorState.rating || 0;
+  const presets = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+
   el.innerHTML = `
-    <div class="creator-rating-row">
-      <span class="form-label" style="margin:0">Nota da música:</span>
-      <div id="creator-stars-row" style="display:flex;gap:4px;">
-        ${[1,2,3,4,5].map(n => `
-          <button class="star-pick-btn" data-val="${n}" onmouseover="window._hoverStar(${n})" onmouseout="window._hoverStar(0)" onclick="window._pickStar(${n})">
-            ${getStarSVG(creatorState.rating >= n ? 1 : (creatorState.rating >= n - 0.5 ? 0.5 : 0), 26)}
-          </button>
-          <button class="star-pick-btn" data-val="${n-0.5}" onmouseover="window._hoverStar(${n - 0.5})" onmouseout="window._hoverStar(0)" onclick="window._pickStar(${n - 0.5})" style="margin-left:-22px;clip-path:inset(0 50% 0 0);opacity:0.01;position:absolute;">
-          </button>`).join('')}
+    <div class="creator-rating-row" style="display:flex;flex-direction:column;gap:8px;background:var(--bg-surface);border:1px solid var(--purple-accent);border-radius:var(--radius-md);padding:10px 12px;margin-top:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+        <span class="form-label" style="margin:0;font-weight:700;color:var(--white);">Nota para a música:</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="rating-value-badge" style="font-size:0.9rem;font-weight:800;color:#ffb800;background:rgba(255,184,0,0.12);padding:2px 8px;border-radius:var(--radius-pill);border:1px solid rgba(255,184,0,0.3);">
+            ${currentRating > 0 ? `★ ${currentRating.toFixed(1)}` : 'Sem nota'}
+          </span>
+          ${currentRating > 0 ? `<button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.7rem;padding:2px 6px;" onclick="window._pickStar(0)">Limpar</button>` : ''}
+        </div>
       </div>
-      <span class="rating-value-badge">${creatorState.rating > 0 ? creatorState.rating.toFixed(1) : '—'}</span>
+
+      <!-- 5 Interactive Stars with Half-Star Click Zones -->
+      <div id="creator-stars-row" style="display:flex;gap:6px;align-items:center;padding:4px 0;">
+        ${[1, 2, 3, 4, 5].map(n => {
+          const fill = currentRating >= n ? 1 : (currentRating >= n - 0.5 ? 0.5 : 0);
+          return `
+            <div style="position:relative;display:inline-block;cursor:pointer;line-height:0;" title="${n-0.5} ou ${n}">
+              ${getStarSVG(fill, 28)}
+              <!-- Left half click target (.5) -->
+              <div onclick="window._pickStar(${n - 0.5})" style="position:absolute;top:0;left:0;width:50%;height:100%;z-index:2;" title="Nota ${n - 0.5}"></div>
+              <!-- Right half click target (.0) -->
+              <div onclick="window._pickStar(${n})" style="position:absolute;top:0;right:0;width:50%;height:100%;z-index:2;" title="Nota ${n}.0"></div>
+            </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Quick Decimal Rating Preset Pills -->
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+        ${presets.map(p => `
+          <button type="button" class="rating-preset-btn${currentRating === p ? ' active' : ''}" onclick="window._pickStar(${p})" style="padding:2px 6px;font-size:0.72rem;background:${currentRating === p ? 'rgba(255,184,0,0.2)' : 'var(--bg-card)'};border:1px solid ${currentRating === p ? '#ffb800' : 'var(--border)'};color:${currentRating === p ? '#ffb800' : 'var(--muted)'};border-radius:4px;cursor:pointer;">
+            ${p.toFixed(1)}
+          </button>
+        `).join('')}
+      </div>
     </div>`;
 
   window._pickStar = (val) => {
     creatorState.rating = val;
     renderCreatorRating(el);
   };
-  window._hoverStar = (val) => {};
 }
 
 // ──────────────────────────────────────────
@@ -336,75 +412,97 @@ export function renderLyricWidget(container, forceNew = false) {
   }
 
   const lyric = cachedLyricOfDay;
-  const style = cachedLyricCardStyle;
+  const art = lyric.albumArt || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80';
+  const trackObj = {
+    title: lyric.song,
+    artist: lyric.artist,
+    artwork: art,
+    duration: '3:30'
+  };
 
-  let inner = '';
-  if (style === 'with-cover' && lyric.albumArt) {
-    inner = `
-      <div class="lyric-widget-cover">
-        <img src="${lyric.albumArt}" alt="cover" onerror="this.style.display='none'" style="width:56px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0;">
-        <div>
-          <div class="lyric-widget-text">${lyric.lyrics}</div>
-          <div class="lyric-widget-attr">${lyric.song} — ${lyric.artist}</div>
-        </div>
-      </div>`;
-  } else if (style === 'full-bleed' && lyric.albumArt) {
-    inner = `
-      <div style="position:relative;border-radius:0 0 12px 12px;overflow:hidden;min-height:90px;display:flex;align-items:flex-end;">
-        <img src="${lyric.albumArt}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.3) saturate(0.5);">
-        <div style="position:relative;z-index:1;padding:10px 12px;width:100%;background:linear-gradient(transparent,rgba(0,0,0,0.6));">
-          <div class="lyric-widget-text">${lyric.lyrics}</div>
-          <div class="lyric-widget-attr">${lyric.song} — ${lyric.artist}</div>
-        </div>
-      </div>`;
-  } else {
-    inner = `
-      <div class="lyric-widget-compact">
-        <div class="lyric-widget-text">${lyric.lyrics}</div>
-        <div class="lyric-widget-attr">${lyric.song} — ${lyric.artist}, ${lyric.year}</div>
-      </div>`;
-  }
+  container.innerHTML = `
+    <div class="lyric-widget-immersive" style="position:relative;overflow:hidden;border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:14px;min-height:125px;display:flex;flex-direction:column;justify-content:space-between;">
+      <!-- Blurred Atmospheric Cover Background -->
+      <img src="${art}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(14px) brightness(0.22) saturate(1.5);transform:scale(1.18);pointer-events:none;z-index:0;">
+      <div style="position:absolute;inset:0;background:linear-gradient(135deg, rgba(20, 10, 35, 0.72), rgba(5, 2, 10, 0.88));z-index:1;"></div>
 
-  container.innerHTML = inner;
+      <!-- Lyric Text -->
+      <div style="position:relative;z-index:2;margin-bottom:10px;">
+        <div style="font-size:0.92rem;line-height:1.42;color:#ffffff;font-style:italic;font-weight:600;text-shadow:0 2px 10px rgba(0,0,0,0.9);">
+          "${lyric.lyrics}"
+        </div>
+      </div>
+
+      <!-- Song Attribution Bar with Play and Search Lupa -->
+      <div style="position:relative;z-index:2;display:flex;align-items:center;gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.14);">
+        <img src="${art}" alt="${lyric.song}" style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid rgba(255,255,255,0.22);box-shadow:0 2px 8px rgba(0,0,0,0.6);cursor:pointer;" onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})" title="Ouvir música no iTunes">
+        <div style="min-width:0;flex:1;cursor:pointer;" onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})" title="Clique para ouvir">
+          <div style="font-size:0.8rem;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${lyric.song}</div>
+          <div style="font-size:0.68rem;color:rgba(255,255,255,0.7);">${lyric.artist}${lyric.year ? ` &bull; ${lyric.year}` : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:4px 6px;color:var(--purple-light);border-radius:50%;" onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})" title="Ouvir prévia no iTunes">
+            ${ICONS.play}
+          </button>
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:4px 6px;color:var(--purple-light);border-radius:50%;" onclick="window._searchLyricSong('${lyric.song.replace(/'/g, "\\'")}', '${lyric.artist.replace(/'/g, "\\'")}')" title="Buscar no catálogo do iTunes">
+            ${ICONS.search}
+          </button>
+        </div>
+      </div>
+    </div>`;
 }
 
 // ──────────────────────────────────────────
-// TRENDING WIDGET
+// TRENDING WIDGET (LAST.FM CHARTS API)
 // ──────────────────────────────────────────
 
-export function renderTrendingWidget(container) {
-  // Count most picked songs from challenge answers
-  const users = Storage.getAllUsers();
-  const songCount = {};
+let cachedTrendingList = null;
 
-  users.forEach(u => {
-    const answers = Storage.getChallengeAnswers(Storage.getActiveChallengeId(), u.id);
-    Object.values(answers).forEach(ans => {
-      if (ans && ans.title) {
-        const key = `${ans.title}|||${ans.artist}`;
-        if (!songCount[key]) songCount[key] = { title: ans.title, artist: ans.artist, artwork: ans.artwork, count: 0 };
-        songCount[key].count++;
-      }
-    });
-  });
+export async function renderTrendingWidget(container) {
+  if (!container) return;
 
-  const sorted = Object.values(songCount).sort((a, b) => b.count - a.count).slice(0, 5);
-
-  if (!sorted.length) {
-    container.innerHTML = `<div class="notif-empty" style="padding:12px">Ainda sem dados de tendências.</div>`;
+  if (cachedTrendingList) {
+    drawTrendingHtml(container, cachedTrendingList);
     return;
   }
 
-  container.innerHTML = sorted.map((s, i) => `
-    <div class="trending-item">
-      <span class="trending-rank">${i + 1}</span>
-      ${s.artwork ? `<img class="trending-cover" src="${s.artwork}" alt="">` : '<div class="trending-cover" style="background:var(--purple-dark);border-radius:5px;"></div>'}
-      <div class="trending-info">
-        <div class="trending-title">${s.title}</div>
-        <div class="trending-artist">${s.artist}</div>
-      </div>
-      <span class="trending-count">${s.count}x</span>
-    </div>`).join('');
+  container.innerHTML = `
+    <div style="padding:14px;text-align:center;color:var(--purple-light);font-size:0.75rem;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="animation:spin 1s linear infinite;display:inline-block;vertical-align:middle;margin-right:4px;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      Carregando tendências do Last.fm...
+    </div>`;
+
+  try {
+    const tracks = await fetchLastFmTrendingTracks(5);
+    cachedTrendingList = tracks;
+    drawTrendingHtml(container, tracks);
+  } catch (err) {
+    container.innerHTML = `<div class="notif-empty" style="padding:12px">Não foi possível carregar tendências no momento.</div>`;
+  }
+}
+
+function drawTrendingHtml(container, tracks) {
+  if (!tracks || !tracks.length) {
+    container.innerHTML = `<div class="notif-empty" style="padding:12px">Sem dados de tendências.</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:1px;">
+      ${tracks.map((s, i) => `
+        <div class="trending-item" style="cursor:pointer;" onclick="window._playTrack(${JSON.stringify(s).replace(/"/g, '&quot;')})" title="Ouvir prévia de ${s.title}">
+          <span class="trending-rank">#${i + 1}</span>
+          <img class="trending-cover" src="${s.artwork}" alt="${s.title}" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'">
+          <div class="trending-info">
+            <div class="trending-title">${s.title}</div>
+            <div class="trending-artist" onclick="event.stopPropagation();window._searchArtistInCatalog('${s.artist.replace(/'/g, "\\'")}')" style="cursor:pointer;" title="Ver mais de ${s.artist}">${s.artist}</div>
+          </div>
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:3px 6px;color:var(--purple-light);border-radius:50%;" onclick="event.stopPropagation();window._playTrack(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+            ${ICONS.play}
+          </button>
+        </div>
+      `).join('')}
+    </div>`;
 }
 
 // ──────────────────────────────────────────
@@ -412,21 +510,29 @@ export function renderTrendingWidget(container) {
 // ──────────────────────────────────────────
 
 export function renderFriendsWidget(container) {
-  const following = Storage.getFollowing();
+  const activeUser = Storage.getActiveUser();
+  const following = Storage.getFollowing(activeUser.id);
   const users = Storage.getAllUsers().filter(u => following.includes(u.id));
 
   if (!users.length) {
-    container.innerHTML = `<div class="notif-empty" style="padding:10px;font-size:0.78rem;">Siga alguém para ver aqui.</div>`;
+    container.innerHTML = `<div class="notif-empty" style="padding:14px;font-size:0.78rem;text-align:center;">Você ainda não segue ninguém.</div>`;
     return;
   }
 
-  container.innerHTML = users.map(u => `
-    <div class="friend-item" onclick="window._goToProfile('${u.id}')">
-      <div class="friend-online-dot"></div>
-      <div class="post-author-avatar" style="width:26px;height:26px;font-size:11px;border-radius:50%;background:var(--purple-dark);color:var(--purple-light);display:flex;align-items:center;justify-content:center;font-weight:700;border:1px solid var(--purple-mid);">${u.avatar || u.name[0]}</div>
-      <div>
-        <div style="font-size:0.78rem;font-weight:700;color:var(--white)">${u.name}</div>
-        <div style="font-size:0.68rem;color:var(--muted)">${u.status || 'offline'}</div>
-      </div>
-    </div>`).join('');
+  container.innerHTML = users.map(u => {
+    const isImage = u.avatar && (u.avatar.startsWith('http') || u.avatar.startsWith('data:') || u.avatar.startsWith('/'));
+    const avatarHtml = isImage
+      ? `<img class="friend-avatar" src="${u.avatar}" alt="${u.name}" style="width:30px;height:30px;min-width:30px;aspect-ratio:1/1;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+      : `<div class="friend-avatar" style="width:30px;height:30px;min-width:30px;aspect-ratio:1/1;border-radius:50%;background:var(--purple-dark);color:var(--purple-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;border:1px solid var(--purple-mid);flex-shrink:0;">${u.avatar || u.name[0]}</div>`;
+
+    return `
+      <div class="friend-item" onclick="window._goToProfile('${u.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;">
+        <div class="friend-online-dot" style="width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0;box-shadow:0 0 6px #10b981;"></div>
+        ${avatarHtml}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.name}</div>
+          <div style="font-size:0.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.status || u.handle || 'online'}</div>
+        </div>
+      </div>`;
+  }).join('');
 }

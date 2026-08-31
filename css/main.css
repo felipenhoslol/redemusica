@@ -564,7 +564,49 @@ body {
 }
 
 .doodle-star.filled {
-  filter: drop-shadow(0 0 4px rgba(245, 166, 35, 0.45));
+  filter: drop-shadow(0 0 4px rgba(255, 184, 0, 0.55));
+}
+
+.doodle-star.half {
+  filter: drop-shadow(0 0 4px rgba(255, 184, 0, 0.4));
+}
+
+.doodle-star.empty {
+  opacity: 0.6;
+}
+
+/* Global Avatar 1:1 Aspect Ratio Enforcement */
+.avatar-circle-sm,
+.avatar-circle-md,
+.avatar-circle-lg,
+.sidebar-avatar,
+.profile-main-avatar,
+.creator-avatar,
+.post-author-avatar,
+.comment-avatar,
+.friend-avatar {
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  overflow: hidden !important;
+  object-fit: cover !important;
+}
+
+.avatar-circle-sm img,
+.avatar-circle-md img,
+.avatar-circle-lg img,
+.sidebar-avatar img,
+.profile-main-avatar img,
+.creator-avatar img,
+.post-author-avatar img,
+.comment-avatar img,
+.friend-avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+  display: block !important;
 }
 
 /* ═══════════════════════════════════════
