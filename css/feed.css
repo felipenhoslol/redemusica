@@ -45,20 +45,20 @@
   background: var(--bg-card);
   border: var(--border);
   border-radius: var(--radius-lg);
-  padding: 14px;
-  margin-bottom: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
 }
 
 .create-post-top {
   display: flex;
-  gap: 10px;
+  gap: 14px;
   align-items: flex-start;
 }
 
 .creator-avatar {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   aspect-ratio: 1 / 1 !important;
   border-radius: 50% !important;
   background: var(--purple-dark);
@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   border: 1px solid var(--purple-mid);
   overflow: hidden !important;
@@ -89,11 +89,12 @@
 
 .create-post-textarea {
   width: 100%;
-  min-height: 70px;
+  min-height: 80px;
   background: transparent;
   border: none;
   font-family: var(--font);
-  font-size: 0.95rem;
+  font-size: 1.02rem;
+  line-height: 1.5;
   color: var(--white);
   outline: none;
   resize: none;
@@ -102,32 +103,34 @@
 
 /* Attachments in creator */
 .creator-lyrics-box {
-  background: rgba(91, 45, 142, 0.1);
-  border: 1px dashed var(--purple-accent);
+  background: rgba(91, 45, 142, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.35);
   border-radius: var(--radius-md);
-  padding: 10px;
-  margin-top: 8px;
+  padding: 14px;
+  margin-top: 10px;
 }
 
 .creator-lyrics-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.78rem;
+  margin-bottom: 10px;
   color: var(--muted);
-  margin-bottom: 4px;
 }
 
 .creator-lyrics-textarea {
   width: 100%;
-  min-height: 44px;
-  background: transparent;
-  border: none;
+  min-height: 60px;
+  background: var(--bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-md);
   font-family: var(--font);
-  font-size: 1rem;
+  font-size: 1.02rem;
+  line-height: 1.5;
   color: var(--white);
   outline: none;
   resize: none;
+  padding: 10px 12px;
 }
 
 .creator-attached-song {
@@ -191,10 +194,9 @@
   align-items: center;
   justify-content: space-between;
   padding-top: 10px;
-  margin-top: 6px;
-  border-top: var(--border);
+  margin-top: 0;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .creator-attach-btns {
@@ -207,70 +209,85 @@
 .btn-attach {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 5px;
+  padding: 7px 12px;
   background: transparent;
-  border: var(--border);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
   border-radius: var(--radius-md);
   color: var(--muted);
   font-family: var(--font);
-  font-size: 0.75rem;
+  font-size: 0.84rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
 }
 
-.btn-attach:hover { border-color: var(--purple-accent); color: var(--white); }
+.btn-attach:hover { 
+  border-color: var(--purple-accent); 
+  color: var(--white);
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.btn-attach.active {
+  border-color: var(--purple-accent);
+  color: var(--white);
+  background: rgba(168, 85, 247, 0.15);
+}
 
 /* ─── Post Cards ─── */
-.feed-posts-list { display: flex; flex-direction: column; }
+.feed-posts-list { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 14px;
+}
 
 .post-card {
   background: var(--bg-card);
   border: var(--border);
-  border-bottom: none;
-  padding: 14px;
-  transition: background 0.15s;
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  transition: background 0.15s, border-color 0.15s;
   position: relative;
 }
 
-.post-card:first-child { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
-.post-card:last-child  { border-bottom: var(--border); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
-.post-card:only-child  { border-bottom: var(--border); border-radius: var(--radius-lg); }
-.post-card:hover { background: var(--bg-card-hover); }
+.post-card:hover { 
+  background: var(--bg-card-hover);
+  border-color: var(--purple-mid);
+}
 
 .post-card.pinned-post {
-  border-left: 3px solid var(--purple-accent);
+  border-left: 4px solid var(--purple-accent);
 }
 
 .pinned-label {
-  font-size: 0.7rem;
-  color: var(--purple-muted);
-  margin-bottom: 6px;
+  font-size: 0.76rem;
+  color: var(--purple-light);
+  font-weight: 700;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .post-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .post-author {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   cursor: pointer;
   text-decoration: none;
 }
 
 .post-author-avatar {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   aspect-ratio: 1 / 1 !important;
   border-radius: 50% !important;
   background: var(--purple-dark);
@@ -278,7 +295,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   border: 1px solid var(--purple-mid);
   overflow: hidden !important;
@@ -295,17 +312,17 @@
 }
 
 .post-author-name {
-  font-size: 0.88rem;
+  font-size: 0.98rem;
   font-weight: 700;
   color: var(--white);
 }
 
 .post-author-handle {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--muted);
 }
 
-.post-meta { font-size: 0.72rem; color: var(--dimmed); }
+.post-meta { font-size: 0.76rem; color: var(--dimmed); }
 
 /* Repost banner on top of post */
 .repost-header-banner {
@@ -390,10 +407,10 @@
 
 /* Post body */
 .post-text {
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: 1.02rem;
+  line-height: 1.55;
   color: var(--white);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   white-space: pre-wrap;
 }
 
@@ -404,13 +421,13 @@
   background: var(--bg-surface);
   border-left: 3px solid var(--purple-accent);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
-  margin-bottom: 8px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
 }
 
 .lyrics-card-compact .lyrics-text {
-  font-size: 1.05rem;
-  line-height: 1.35;
+  font-size: 1.15rem;
+  line-height: 1.4;
   color: var(--white);
   font-style: italic;
 }
@@ -418,27 +435,27 @@
 /* With-cover: small album art left, text right */
 .lyrics-card-cover {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: flex-start;
   background: var(--bg-surface);
   border: var(--border-accent);
   border-radius: var(--radius-md);
-  padding: 10px;
-  margin-bottom: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
 }
 
 .lyrics-cover-img {
-  width: 70px;
-  height: 70px;
-  min-width: 70px;
+  width: 80px;
+  height: 80px;
+  min-width: 80px;
   border-radius: var(--radius-md);
   object-fit: cover;
   border: 1px solid var(--purple-dark);
 }
 
 .lyrics-card-cover .lyrics-text {
-  font-size: 0.95rem;
-  line-height: 1.35;
+  font-size: 1.05rem;
+  line-height: 1.4;
   color: var(--white);
   font-style: italic;
 }
@@ -448,43 +465,40 @@
   position: relative;
   border-radius: var(--radius-md);
   overflow: hidden;
+  margin-bottom: 12px;
   min-height: 120px;
-  margin-bottom: 8px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
 }
 
-.lyrics-bg-image {
+.lyrics-card-fullbleed .lyrics-fullbleed-bg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(0.35) saturate(0.6);
-}
-
-.lyrics-fullbleed-content {
-  position: relative;
-  z-index: 1;
-  padding: 14px 16px;
-  width: 100%;
-  background: linear-gradient(transparent, rgba(0,0,0,0.6));
+  filter: blur(12px) brightness(0.3) saturate(1.3);
+  transform: scale(1.2);
 }
 
 .lyrics-card-fullbleed .lyrics-text {
-  font-size: 1rem;
-  line-height: 1.35;
+  position: relative;
+  z-index: 1;
+  font-size: 1.12rem;
+  line-height: 1.4;
   color: #ffffff;
   font-style: italic;
+  padding: 20px 24px;
 }
 
-/* Shared: song attribution */
-.lyrics-song-attr {
-  font-size: 0.72rem;
-  color: var(--purple-muted);
-  margin-top: 5px;
-  text-align: right;
-  display: block;
+.lyrics-song-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--purple-light);
+  margin-top: 8px;
 }
 
 /* Post rating with half-star support */
@@ -517,28 +531,28 @@
 .post-attached-song {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   justify-content: space-between;
-  background: var(--bg-input);
-  border: var(--border);
+  background: var(--bg-surface);
+  border: var(--border-accent);
   border-radius: var(--radius-md);
-  padding: 8px 10px;
-  margin-bottom: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
 }
 
-.post-song-info { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.post-song-cover { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
-.post-song-title { font-size: 0.82rem; font-weight: 700; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.post-song-artist { font-size: 0.72rem; color: var(--muted); }
+.post-song-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.post-song-cover { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+.post-song-title { font-size: 0.92rem; font-weight: 700; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.post-song-artist { font-size: 0.8rem; color: var(--muted); }
 
 /* Post image */
 .post-attached-image {
   width: 100%;
-  max-height: 360px;
+  max-height: 420px;
   border-radius: var(--radius-md);
   object-fit: cover;
   border: var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   display: block;
 }
 
@@ -546,23 +560,23 @@
 .post-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 10px;
   border-top: var(--border);
-  padding-top: 8px;
+  padding-top: 10px;
 }
 
 .btn-post-action {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 8px;
+  gap: 6px;
+  padding: 6px 12px;
   background: transparent;
   border: none;
   border-radius: var(--radius-md);
   color: var(--muted);
   font-family: var(--font);
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
@@ -570,7 +584,12 @@
   justify-content: center;
 }
 
-.btn-post-action:hover { background: rgba(91, 45, 142, 0.15); color: var(--white); }
+.btn-post-action svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-post-action:hover { background: rgba(91, 45, 142, 0.18); color: var(--white); }
 .btn-post-action.liked { color: var(--pink); }
 .btn-post-action.bookmarked { color: var(--purple-light); }
 .btn-post-action.reposted { color: #3eb489; }
@@ -618,13 +637,36 @@
   display: block;
 }
 
-.comment-content { flex: 1; background: var(--bg-surface); border-radius: var(--radius-md); padding: 5px 9px; }
-.comment-name { font-size: 0.75rem; font-weight: 700; color: var(--muted); }
-.comment-text { font-size: 0.82rem; color: var(--white); }
+.comment-content { flex: 1; min-width: 0; background: var(--bg-surface); border-radius: var(--radius-md); padding: 8px 12px; border: 1px solid rgba(255,255,255,0.04); }
+.comment-name { font-size: 0.78rem; font-weight: 700; color: var(--purple-light); }
+.comment-text { font-size: 0.84rem; color: var(--white); margin-top: 2px; }
 .comment-input-row { display: flex; gap: 6px; }
 
+/* ─── Rich Comment Attachments & Media ─── */
+.comment-attached-song {
+  transition: background 0.15s ease;
+}
+.comment-attached-song:hover {
+  background: rgba(157, 78, 221, 0.2) !important;
+}
+
+.comment-attached-media img {
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.comment-attached-media img:hover {
+  transform: scale(1.02);
+}
+
+.gif-picker-item:hover {
+  transform: scale(1.04);
+  border-color: var(--purple-accent) !important;
+  box-shadow: 0 4px 12px rgba(157, 78, 221, 0.3);
+}
+
 /* Tag pill */
-.post-tag { font-size: 0.7rem; color: var(--purple-light); margin-left: 4px; }
+.post-tag { font-size: 0.75rem; color: var(--purple-light); margin-left: 6px; font-weight: 700; }
 
 /* ─── Right Sidebar Widgets ─── */
 .sidebar-widget {
@@ -680,24 +722,85 @@
   overflow: hidden;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   padding: 14px;
-  min-height: 120px;
+  min-height: 125px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
-.lyric-widget-compact { padding: 12px 14px; }
-.lyric-widget-cover { display: flex; gap: 10px; padding: 10px 14px; }
-.lyric-widget-cover img { width: 56px; height: 56px; min-width: 56px; border-radius: 8px; object-fit: cover; }
-.lyric-widget-text { font-size: 0.9rem; line-height: 1.3; color: var(--white); font-style: italic; }
-.lyric-widget-attr { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+.lyric-widget-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(14px) brightness(0.25) saturate(1.4);
+  transform: scale(1.18);
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.4s ease;
+}
+
+.lyric-cover-art {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.lyric-cover-loader {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--purple-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: none;
+}
+
+.lyric-cover-art:hover {
+  transform: scale(1.05);
+  box-shadow: none;
+}
+
+.lyric-cover-art.playing {
+  border-color: var(--purple-light);
+  box-shadow: none;
+  animation: coverPulse 2s ease-in-out infinite;
+}
+
+.lyric-play-button.playing {
+  color: #ffffff !important;
+  background: var(--purple-primary) !important;
+  box-shadow: none;
+}
+
+@keyframes coverPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+.lyric-widget-compact { padding: 14px 16px; }
+.lyric-widget-cover { display: flex; gap: 12px; padding: 12px 16px; }
+.lyric-widget-cover img { width: 60px; height: 60px; min-width: 60px; border-radius: 8px; object-fit: cover; }
+.lyric-widget-text { font-size: 0.98rem; line-height: 1.38; color: var(--white); font-style: italic; }
+.lyric-widget-attr { font-size: 0.76rem; color: var(--muted); margin-top: 6px; }
 
 /* Online friends */
 .friend-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
+  gap: 12px;
+  padding: 10px 16px;
   cursor: pointer;
   transition: background 0.15s;
   border-bottom: var(--border);
@@ -709,14 +812,41 @@
 .friend-item .post-author-avatar,
 .friend-item img,
 .friend-avatar {
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
   aspect-ratio: 1 / 1 !important;
   border-radius: 50% !important;
   object-fit: cover !important;
   flex-shrink: 0 !important;
-  overflow: hidden !important;
 }
 
-.friend-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple-light); flex-shrink: 0; }
+.friend-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.friend-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friend-status {
+  font-size: 0.74rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friend-online-dot { 
+  width: 7px; 
+  height: 7px; 
+  border-radius: 50%; 
+  background: var(--purple-light); 
+  flex-shrink: 0; 
+}

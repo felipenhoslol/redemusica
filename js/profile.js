@@ -25,31 +25,73 @@ export function renderProfileView(container, targetUserId) {
     --profile-accent:       ${user.profileAccentColor || 'var(--purple-accent)'};
   `;
 
+  const artworkUrl = user.featuredSong?.artwork
+    ? user.featuredSong.artwork.replace(/100x100bb|60x60bb/, '600x600bb')
+    : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
+
   const featuredHtml = user.featuredSong ? `
     <div class="featured-song-box" style="${cssVars}">
-      <div class="featured-label">Destaque</div>
-      <img class="featured-vinyl" id="featured-vinyl-img"
-        src="${user.featuredSong.artwork || ''}"
-        alt="${user.featuredSong.title}"
-        onerror="this.style.display='none'">
-      <div class="featured-info">
-        <div class="featured-title">${user.featuredSong.title}</div>
-        <div class="featured-artist">${user.featuredSong.artist}</div>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center;">
+      <!-- Blurred Album Art Background -->
+      <div class="featured-bg-blur" style="background-image:url('${artworkUrl}');"></div>
+      <div class="featured-bg-overlay"></div>
+
+      <!-- Top Row Header -->
+      <div class="featured-top-row">
+        <div class="featured-label-pill">
+          ${ICONS.disc || '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>'}
+          <span>Música em Destaque</span>
+        </div>
         ${isMe ? `
-          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._editFeaturedSong()" title="Alterar música de destaque">
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.75rem;padding:3px 10px;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.18);color:#fff;" onclick="window._editFeaturedSong()" title="Alterar música de destaque">
             Alterar
           </button>
         ` : ''}
-        <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._playTrack(${JSON.stringify(user.featuredSong).replace(/"/g, '&quot;')})">
-          ${ICONS.play}
-        </button>
+      </div>
+
+      <!-- Main Content Row -->
+      <div class="featured-content-row">
+        <!-- Vinyl Stage: Realistic 90px Sleeve + 90px Spinning Vinyl Record -->
+        <div class="featured-vinyl-stage" onclick="window._playTrack(${JSON.stringify(user.featuredSong).replace(/"/g, '&quot;')})" title="Clique para reproduzir / pausar">
+          <!-- Album Sleeve Cover -->
+          <div class="featured-album-sleeve">
+            <img class="featured-sleeve-art"
+              src="${artworkUrl}"
+              alt="${user.featuredSong.title}"
+              onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'">
+            <div class="sleeve-edge-sheen"></div>
+          </div>
+
+          <!-- Realistic Vinyl Record Disc -->
+          <div class="featured-vinyl-disk" id="featured-vinyl-img">
+            <div class="vinyl-groove-rings"></div>
+            <div class="vinyl-light-sheen"></div>
+            <div class="vinyl-center-label">
+              <img class="vinyl-label-art"
+                src="${artworkUrl}"
+                alt=""
+                onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'">
+              <div class="vinyl-spindle-hole"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Info Details -->
+        <div class="featured-info">
+          <div class="featured-title" title="${user.featuredSong.title}">${user.featuredSong.title}</div>
+          <div class="featured-artist">${user.featuredSong.artist}</div>
+        </div>
+
+        <!-- Large Play Button -->
+        <div class="featured-actions">
+          <button class="featured-play-btn" onclick="window._playTrack(${JSON.stringify(user.featuredSong).replace(/"/g, '&quot;')})" title="Tocar música de destaque">
+            ${ICONS.play}
+          </button>
+        </div>
       </div>
     </div>` : (isMe ? `
-    <div class="featured-song-box empty" style="${cssVars};cursor:pointer;justify-content:center;padding:12px 16px;" onclick="window._editFeaturedSong()">
-      <span style="font-size:0.82rem;color:var(--purple-light);font-weight:700;display:flex;align-items:center;gap:6px;">
-        🎵 + Escolher Música em Destaque
+    <div class="featured-song-box empty" style="${cssVars};cursor:pointer;justify-content:center;padding:18px 20px;" onclick="window._editFeaturedSong()">
+      <span style="font-size:0.86rem;color:var(--purple-light);font-weight:700;display:flex;align-items:center;gap:8px;">
+        ${ICONS.disc || ICONS.music} + Escolher Música em Destaque (Disco de Vinil)
       </span>
     </div>` : '');
 
@@ -122,6 +164,7 @@ export function renderProfileView(container, targetUserId) {
             `}
           </div>
           <div class="profile-bio">${user.bio || ''}</div>
+          ${buildSocialsHtml(user, isMe)}
         </div>
         <div class="profile-stats-row">
           <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'following')">
@@ -136,15 +179,15 @@ export function renderProfileView(container, targetUserId) {
         ${showcaseHtml}
         <div class="profile-subtabs">
           <button class="profile-subtab-btn active" data-profile-tab="posts" onclick="window._switchProfileTab('posts', this)">Posts</button>
-          <button class="profile-subtab-btn" data-profile-tab="lista" onclick="window._switchProfileTab('lista', this)">Lista</button>
+          <button class="profile-subtab-btn" data-profile-tab="playlists" onclick="window._switchProfileTab('playlists', this)">Playlists</button>
           <button class="profile-subtab-btn" data-profile-tab="avaliados" onclick="window._switchProfileTab('avaliados', this)">Avaliados</button>
           ${isMe ? `<button class="profile-subtab-btn" data-profile-tab="salvos" onclick="window._switchProfileTab('salvos', this)">Salvos</button>` : ''}
         </div>
       </div>
 
       <!-- Sub-tab content -->
-      <div id="profile-tab-posts"   class="profile-subtab-content" style="margin-top:10px;"></div>
-      <div id="profile-tab-lista"   class="profile-subtab-content" style="display:none;margin-top:10px;"></div>
+      <div id="profile-tab-posts"     class="profile-subtab-content" style="margin-top:10px;"></div>
+      <div id="profile-tab-playlists" class="profile-subtab-content" style="display:none;margin-top:10px;"></div>
       <div id="profile-tab-avaliados" class="profile-subtab-content" style="display:none;margin-top:10px;"></div>
       ${isMe ? `<div id="profile-tab-salvos" class="profile-subtab-content" style="display:none;margin-top:10px;"></div>` : ''}
     </div>`;
@@ -195,23 +238,64 @@ export function renderProfileView(container, targetUserId) {
   };
 }
 
+function buildSocialsHtml(user, isMe) {
+  const insta = user.instagram || user.socials?.instagram || '';
+  const twitter = user.twitter || user.x || user.socials?.twitter || user.socials?.x || '';
+  const lastfm = user.lastfm || user.socials?.lastfm || (user.musicService === 'lastfm' ? user.spotifyUsername : '') || '';
+
+  const hasAny = Boolean(insta || twitter || lastfm);
+
+  if (!hasAny && !isMe) return '';
+
+  if (!hasAny && isMe) {
+    return `
+      <div class="profile-socials-row">
+        <button type="button" class="profile-social-add-btn" onclick="window._openProfileEdit()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Adicionar redes sociais (Instagram, X, Last.fm)</span>
+        </button>
+      </div>`;
+  }
+
+  const instaClean = insta.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '');
+  const twitterClean = twitter.replace(/^@/, '').replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//, '').replace(/\/$/, '');
+  const lastfmClean = lastfm.replace(/^@/, '').replace(/^https?:\/\/(www\.)?last\.fm\/user\//, '').replace(/\/$/, '');
+
+  return `
+    <div class="profile-socials-row">
+      ${instaClean ? `
+        <a href="https://instagram.com/${instaClean}" target="_blank" rel="noopener noreferrer" class="profile-social-pill instagram" title="Instagram de ${user.name || ''}">
+          ${ICONS.instagram}
+          <span>@${instaClean}</span>
+        </a>` : ''}
+
+      ${twitterClean ? `
+        <a href="https://x.com/${twitterClean}" target="_blank" rel="noopener noreferrer" class="profile-social-pill x-twitter" title="X (Twitter) de ${user.name || ''}">
+          ${ICONS.twitter}
+          <span>@${twitterClean}</span>
+        </a>` : ''}
+
+      ${lastfmClean ? `
+        <a href="https://www.last.fm/user/${lastfmClean}" target="_blank" rel="noopener noreferrer" class="profile-social-pill lastfm" title="Perfil Last.fm de ${user.name || ''}">
+          ${ICONS.lastfm}
+          <span>${lastfmClean}</span>
+        </a>` : ''}
+
+      ${isMe ? `
+        <button type="button" class="profile-social-edit-icon" onclick="window._openProfileEdit()" title="Editar redes sociais">
+          ${ICONS.edit || '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>'}
+        </button>` : ''}
+    </div>`;
+}
+
 function buildTopArtistsMonthHtml(user, isMe) {
   const topArtists = user.topArtistsMonth || (user.topArtist ? [user.topArtist] : []);
-  const service = user.musicService || 'spotify';
-  const serviceLabel = service === 'lastfm' ? 'Last.fm' : 'Spotify';
-  const serviceClass = service === 'lastfm' ? 'lastfm' : 'spotify';
+  const service = user.musicService || 'lastfm';
+  const serviceLabel = service === 'lastfm' ? 'Last.fm' : 'Artistas';
+  const serviceClass = service === 'lastfm' ? 'lastfm' : 'custom';
 
   if (!topArtists.length) {
-    if (!isMe) return '';
-    return `
-      <div class="top-artists-section">
-        <div style="background:var(--bg-card);border:1px dashed var(--purple-accent);border-radius:var(--radius-lg);padding:14px;text-align:center;cursor:pointer;transition:border-color 0.2s;" onclick="window._openSpotifyModal()">
-          <div style="font-size:1.4rem;margin-bottom:4px;">👑</div>
-          <div style="font-size:0.88rem;font-weight:700;color:var(--white)">Exibir Top 5 Artistas do Mês</div>
-          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Conecte seu Last.fm ou Spotify para destacar seus artistas mais escutados</div>
-          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="margin-top:10px;">Conectar Agora</button>
-        </div>
-      </div>`;
+    return '';
   }
 
   const top1 = topArtists[0];
@@ -221,13 +305,13 @@ function buildTopArtistsMonthHtml(user, isMe) {
     <div class="top-artists-section">
       <div class="top-artists-header">
         <div class="top-artists-title">
-          <span>👑 Top 5 Artistas do Mês</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;">${ICONS.crown} Top 5 Artistas do Mês</span>
           <span class="top-artists-service-badge ${serviceClass}">
             ${serviceLabel}
           </span>
         </div>
         ${isMe ? `
-          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openSpotifyModal()" style="font-size:0.72rem;padding:3px 8px;" title="Atualizar ou sincronizar">
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openSpotifyModal()" style="font-size:0.72rem;padding:3px 8px;" title="Atualizar ou sincronizar com Last.fm">
             Sincronizar
           </button>
         ` : ''}
@@ -236,7 +320,7 @@ function buildTopArtistsMonthHtml(user, isMe) {
       <!-- #1 Artist Spotlight -->
       ${top1 ? `
         <div class="top-artist-spotlight" onclick="window._searchArtistInCatalog('${top1.name.replace(/'/g, "\\'")}')" title="Clique para ver músicas de ${top1.name}">
-          <div class="spotlight-rank-crown">👑 #1 Mais Escutado</div>
+          <div class="spotlight-rank-crown" style="display:inline-flex;align-items:center;gap:4px;">${ICONS.crown} #1 Mais Escutado</div>
           <img class="spotlight-avatar" src="${top1.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" alt="${top1.name}" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'">
           <div class="spotlight-info">
             <div class="spotlight-title">${top1.name}</div>
@@ -279,8 +363,8 @@ function buildShowcaseHtml(user, isMe) {
       return `
         <div class="showcase-slot" title="${song.title} — ${song.artist}"
           onclick="window._playTrack(${JSON.stringify(song).replace(/"/g, '&quot;')})">
-          ${song.artwork ? `<img src="${song.artwork}" alt="${song.title}" loading="lazy">` : '<div class="showcase-slot-add">♪</div>'}
-          ${isMe ? `<button onclick="event.stopPropagation();window._removeShowcase('${song.id}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.8);border:none;color:#fff;font-size:10px;cursor:pointer;border-radius:3px;padding:1px 3px;">&times;</button>` : ''}
+          ${song.artwork ? `<img src="${song.artwork}" alt="${song.title}" loading="lazy">` : `<div class="showcase-slot-add" style="display:flex;align-items:center;justify-content:center;">${ICONS.music}</div>`}
+          ${isMe ? `<button onclick="event.stopPropagation();window._removeShowcase('${song.id}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.8);border:none;color:#fff;font-size:10px;cursor:pointer;border-radius:3px;padding:1px 3px;">${ICONS.close}</button>` : ''}
         </div>`;
     }
     return `<div class="showcase-slot" ${isMe ? `onclick="window._addToShowcase()"` : ''}>
@@ -336,33 +420,180 @@ function loadProfileTab(tabId, userId) {
 
     el.innerHTML = `<div class="feed-posts-list">${sorted.map(p => renderPostCard(p, { isMyProfile: isMe })).join('')}</div>`;
 
-  } else if (tabId === 'lista') {
-    const challenge = Storage.getActiveChallenge();
-    const answers = Storage.getChallengeAnswers(challenge.id, userId);
-    const questions = challenge.questions || [];
-    const answered = questions.filter(q => answers[q.id]);
+  } else if (tabId === 'playlists') {
+    const allPlaylists = Storage.getAllPlaylists ? Storage.getAllPlaylists() : [];
+    const userPlaylists = allPlaylists.filter(p => p.authorId === userId);
 
-    if (!answered.length) {
-      el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Lista vazia</div></div>`;
+    if (!userPlaylists.length) {
+      el.innerHTML = `
+        <div class="empty-state" style="padding:40px 20px;text-align:center;">
+          <div style="font-size:2rem;color:var(--purple-light);margin-bottom:8px;display:flex;justify-content:center;">${ICONS.playlist}</div>
+          <div class="empty-state-title" style="font-size:1rem;margin-bottom:6px;">Nenhuma playlist criada</div>
+          <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">${isMe ? 'Crie suas próprias playlists de músicas e compartilhe com a comunidade.' : 'Este usuário ainda não criou nenhuma playlist.'}</p>
+          ${isMe ? `
+            <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window.switchTab('playlists');window._openCreatePlaylistModal();">
+              ${ICONS.plus} Criar Playlist
+            </button>` : ''}
+        </div>`;
       return;
     }
 
-    el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:10px 0;">
-      ${answered.map(q => {
-        const ans = answers[q.id];
-        return `<div style="background:var(--bg-card);border:var(--border);border-radius:12px;overflow:hidden;cursor:pointer;" onclick="window._playTrack(${JSON.stringify(ans).replace(/"/g, '&quot;')})">
-          ${ans.artwork ? `<img src="${ans.artwork}" style="width:100%;aspect-ratio:1;object-fit:cover;" alt="">` : '<div style="aspect-ratio:1;background:var(--purple-dark);"></div>'}
-          <div style="padding:6px 8px;">
-            <div style="font-size:0.72rem;color:var(--muted)">${q.id}. ${q.title.length > 30 ? q.title.slice(0,28)+'...' : q.title}</div>
-            <div style="font-size:0.8rem;font-weight:700;color:var(--white);margin-top:2px;">${ans.title}</div>
-            <div style="font-size:0.68rem;color:var(--muted)">${ans.artist}</div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
+    el.innerHTML = `
+      <div class="profile-playlists-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;padding:10px 0;">
+        ${userPlaylists.map(pl => {
+          const songs = pl.songs || [];
+          const songsWithArt = songs.filter(s => !!s.artwork);
+          let coverHtml = '';
+          if (pl.coverUrl) {
+            coverHtml = `<img src="${pl.coverUrl}" alt="${pl.title}" style="width:100%;height:100%;object-fit:cover;">`;
+          } else if (songsWithArt.length >= 4) {
+            coverHtml = `
+              <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%;">
+                <img src="${songsWithArt[0].artwork}" style="width:100%;height:100%;object-fit:cover;">
+                <img src="${songsWithArt[1].artwork}" style="width:100%;height:100%;object-fit:cover;">
+                <img src="${songsWithArt[2].artwork}" style="width:100%;height:100%;object-fit:cover;">
+                <img src="${songsWithArt[3].artwork}" style="width:100%;height:100%;object-fit:cover;">
+              </div>`;
+          } else if (songsWithArt.length > 0) {
+            coverHtml = `<img src="${songsWithArt[0].artwork}" style="width:100%;height:100%;object-fit:cover;">`;
+          } else {
+            coverHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2b1548,#0d0b14);color:var(--purple-light);font-size:1.8rem;">${ICONS.playlist}</div>`;
+          }
+
+          return `
+            <div class="profile-playlist-card" onclick="window._goToSharedPlaylist('${pl.id}')" style="background:var(--bg-card);border:1px solid var(--border-accent);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform 0.2s ease, border-color 0.2s ease;display:flex;flex-direction:column;">
+              <div style="aspect-ratio:1;width:100%;background:#000;position:relative;overflow:hidden;">
+                ${coverHtml}
+                ${songs.length > 0 ? `
+                  <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="position:absolute;bottom:8px;right:8px;border-radius:50%;width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(0,0,0,0.6);" title="Tocar Playlist" onclick="event.stopPropagation();window._playEntirePlaylist('${pl.id}')">
+                    ${ICONS.play}
+                  </button>` : ''}
+              </div>
+              <div style="padding:10px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
+                <div>
+                  <div style="font-size:0.88rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pl.title}</div>
+                  ${pl.description ? `<div style="font-size:0.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${pl.description}</div>` : ''}
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:0.72rem;color:var(--purple-light);font-weight:600;">
+                  <span>${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}</span>
+                  <span style="color:var(--muted);font-weight:normal;">${pl.createdAt || ''}</span>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
 
   } else if (tabId === 'avaliados') {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Sem avaliações ainda</div></div>`;
+    // Collect all posts with ratings by this user
+    const allPosts = Storage.getFeedPosts('all');
+    const ratedPosts = allPosts.filter(p => p.authorId === userId && p.rating > 0 && (p.song || p.lyricsSong));
+
+    // Also collect challenge reviews created by this user
+    const allReviews = Storage.getAllReviews();
+    const challengeReviews = [];
+    Object.keys(allReviews).forEach(k => {
+      const rev = allReviews[k]?.[userId];
+      if (rev && rev.rating > 0) {
+        const parts = k.split('_');
+        const cid = rev.challengeId || parts[0];
+        const targetUid = rev.targetUserId || parts[1];
+        const qid = rev.questionId || parts[2];
+        const targetUser = Storage.getUserById(targetUid);
+        
+        let song = rev.song;
+        if (!song) {
+          const answers = Storage.getChallengeAnswers(cid, targetUid);
+          song = answers?.[qid];
+        }
+
+        if (song) {
+          challengeReviews.push({
+            id: `ch_rev_${k}`,
+            rating: rev.rating,
+            comment: rev.comment || '',
+            song: song,
+            targetUserName: targetUser?.name || 'Música Comparada',
+            createdAt: rev.createdAt || 'agora',
+            isChallengeReview: true
+          });
+        }
+      }
+    });
+
+    const allEvaluations = [
+      ...ratedPosts.map(p => ({
+        id: p.id,
+        rating: p.rating,
+        comment: p.text || '',
+        lyrics: p.lyrics || '',
+        song: p.song || { title: p.lyricsSong || 'Música', artist: '', artwork: p.lyricsArt || '' },
+        createdAt: p.createdAt || '',
+        isPost: true
+      })),
+      ...challengeReviews
+    ];
+
+    if (!allEvaluations.length) {
+      el.innerHTML = `
+        <div class="empty-state" style="padding:24px 14px;text-align:center;">
+          <div class="empty-state-title">Sem avaliações ainda</div>
+          <div class="empty-state-sub" style="font-size:0.78rem;color:var(--muted);margin-top:4px;">
+            Ao dar uma nota (estrelas) para uma música em um post ou na aba de comparar, ela aparecerá aqui.
+          </div>
+        </div>`;
+      return;
+    }
+
+    el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">
+        ${allEvaluations.map(item => {
+          const s = item.song || {};
+          const trackObj = {
+            title: s.title || 'Música',
+            artist: s.artist || '',
+            artwork: s.artwork || '',
+            previewUrl: s.previewUrl || ''
+          };
+          return `
+            <div class="rated-song-card" style="background:var(--bg-card);border:var(--border);border-radius:var(--radius-lg);padding:12px 14px;display:flex;gap:12px;align-items:flex-start;transition:background 0.15s;">
+              <img src="${s.artwork || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" 
+                   alt="${s.title || ''}" 
+                   style="width:54px;height:54px;min-width:54px;border-radius:8px;object-fit:cover;border:1px solid rgba(255,255,255,0.1);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);"
+                   onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})"
+                   title="Ouvir prévia">
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
+                  <div style="min-width:0;flex:1;">
+                    <div style="font-size:0.9rem;font-weight:800;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})" title="Clique para ouvir">
+                      ${s.title || 'Sem título'}
+                    </div>
+                    <div style="font-size:0.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      ${s.artist || 'Artista desconhecido'} ${item.targetUserName ? `· <span style="color:var(--purple-light);">Lista de ${item.targetUserName}</span>` : ''}
+                    </div>
+                  </div>
+                  <div class="post-rating-display" style="margin:0;padding:2px 8px;flex-shrink:0;">
+                    ${renderRatingStars(item.rating, 14)}
+                    <span style="font-size:0.8rem;font-weight:800;">${item.rating.toFixed(1)}</span>
+                  </div>
+                </div>
+                ${item.comment ? `
+                  <div style="font-size:0.82rem;color:var(--white);background:var(--bg-surface);border-radius:6px;padding:6px 10px;margin-top:6px;border-left:2.5px solid var(--purple-accent);">
+                    "${item.comment}"
+                  </div>` : ''}
+                ${item.lyrics ? `
+                  <div style="font-size:0.75rem;color:var(--purple-light);font-style:italic;margin-top:4px;">
+                    "${item.lyrics}"
+                  </div>` : ''}
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:0.7rem;color:var(--purple-muted);">
+                  <span>${item.isChallengeReview ? '⭐ Avaliação em Comparar' : (item.createdAt || '')}</span>
+                  <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})">
+                    ${ICONS.play} Ouvir
+                  </button>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
 
   } else if (tabId === 'salvos' && isMe) {
     const saved = Storage.getUserBookmarkedPosts();
@@ -398,7 +629,7 @@ export function renderProfileEditModal() {
       <!-- LIVE PREVIEW SECTION -->
       <div class="profile-edit-preview-section">
         <div class="profile-edit-preview-title">
-          <span>✨ Pré-visualização em Tempo Real</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;">${ICONS.sparkles} Pré-visualização em Tempo Real</span>
           <span style="font-size:0.65rem;opacity:0.7;">Atualiza instantaneamente</span>
         </div>
         <div id="live-profile-preview" class="profile-preview-card" style="background:${user.profileBgColor || '#130c1e'};color:${user.profileTextColor || '#ffffff'};">
@@ -417,9 +648,20 @@ export function renderProfileEditModal() {
             <div id="preview-status-el" class="preview-status" style="color:${user.profileStatusColor || '#bda2db'};border-color:${user.profileStatusColor || '#bda2db'}">
               ${user.status || 'Status do perfil'}
             </div>
+            <div id="preview-socials-el" class="profile-socials-row" style="margin-top:6px;gap:6px;"></div>
             ${user.featuredSong ? `
-              <div id="preview-featured-el" class="preview-featured" style="background:${user.profileFeaturedColor || '#0a0610'};border-left:3px solid ${user.profileAccentColor || '#3a165a'};margin-top:6px;border-radius:6px;">
-                🎵 <strong>${user.featuredSong.title}</strong> — <span style="opacity:0.7;">${user.featuredSong.artist}</span>
+              <div id="preview-featured-el" class="preview-featured" style="background:${user.profileFeaturedColor || '#0a0610'};border-left:3px solid ${user.profileAccentColor || '#3a165a'};margin-top:6px;border-radius:6px;display:flex;align-items:center;gap:6px;padding:6px 10px;">
+                ${ICONS.music} <span><strong>${user.featuredSong.title}</strong> — <span style="opacity:0.7;">${user.featuredSong.artist}</span></span>
+              </div>
+            ` : ''}
+            ${(user.topArtistsMonth?.length || user.topArtist) ? `
+              <div id="preview-top-artist-el" class="top-artist-spotlight" style="margin-top:8px;padding:8px 10px;border-radius:10px;cursor:default;">
+                <div class="spotlight-rank-crown" style="font-size:0.64rem;padding:1px 6px;">${ICONS.crown} Top Artista</div>
+                <img class="spotlight-avatar" src="${(user.topArtistsMonth?.[0] || user.topArtist)?.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" style="width:44px;height:44px;min-width:44px;" alt="">
+                <div class="spotlight-info">
+                  <div class="spotlight-title" style="font-size:0.86rem;">${(user.topArtistsMonth?.[0] || user.topArtist)?.name || 'Artista'}</div>
+                  <div class="spotlight-genre" style="font-size:0.68rem;">${(user.topArtistsMonth?.[0] || user.topArtist)?.genre || 'Top Artista do Mês'}</div>
+                </div>
               </div>
             ` : ''}
           </div>
@@ -465,15 +707,62 @@ export function renderProfileEditModal() {
         <textarea id="edit-bio" class="doodle-input" rows="2" placeholder="Fale sobre você...">${user.bio || ''}</textarea>
       </div>
 
-      <div>
-        <label class="form-label">Foto de Perfil (URL ou Emoji/Letra)</label>
-        <input id="edit-avatar" class="doodle-input" value="${user.avatar || ''}" placeholder="https://... ou emoji">
+      <!-- REDES SOCIAIS -->
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:0.85rem;font-weight:800;color:var(--white);display:flex;align-items:center;gap:6px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--purple-light);"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+          <span>Redes Sociais & Perfis de Música</span>
+        </div>
+
+        <div>
+          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
+            <span style="color:#e1306c;">📸</span> Instagram (usuário ou link)
+          </label>
+          <input id="edit-instagram" class="doodle-input" value="${user.instagram || user.socials?.instagram || ''}" placeholder="@usuario ou https://instagram.com/usuario">
+        </div>
+
+        <div>
+          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
+            <span style="color:#fff;">✖️</span> X / Twitter (usuário ou link)
+          </label>
+          <input id="edit-twitter" class="doodle-input" value="${user.twitter || user.x || user.socials?.twitter || ''}" placeholder="@usuario ou https://x.com/usuario">
+        </div>
+
+        <div>
+          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
+            <span style="color:#ff5555;">🎵</span> Last.fm (usuário ou link)
+          </label>
+          <input id="edit-lastfm" class="doodle-input" value="${user.lastfm || user.socials?.lastfm || (user.musicService === 'lastfm' ? user.spotifyUsername : '') || ''}" placeholder="usuario_lastfm">
+        </div>
       </div>
 
       <div>
-        <label class="form-label">Banner do Perfil (URL da imagem)</label>
+        <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Foto de Perfil</span>
+          <span style="font-size:0.72rem;color:var(--muted);font-weight:normal;">URL, Arquivo ou Emoji</span>
+        </label>
+        <div style="display:flex;gap:8px;">
+          <input id="edit-avatar" class="doodle-input" value="${user.avatar || ''}" placeholder="https://... ou emoji">
+          <label class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;" title="Escolher imagem do dispositivo">
+            ${ICONS.image || ''}
+            <span>Dispositivo</span>
+            <input type="file" id="edit-avatar-file" accept="image/*" style="display:none;" onchange="window._handleAvatarUpload(event)">
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Banner do Perfil</span>
+          <span style="font-size:0.72rem;color:var(--muted);font-weight:normal;">URL ou Arquivo</span>
+        </label>
         <div style="display:flex;gap:8px;">
           <input id="edit-banner" class="doodle-input" value="${user.bannerUrl || ''}" placeholder="https://...">
+          <label class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;" title="Escolher imagem do dispositivo">
+            ${ICONS.image || ''}
+            <span>Dispositivo</span>
+            <input type="file" id="edit-banner-file" accept="image/*" style="display:none;" onchange="window._handleBannerUpload(event)">
+          </label>
           <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('edit-banner').value='';window._updateLiveProfilePreview();">
             Limpar
           </button>
@@ -547,6 +836,11 @@ export function renderProfileEditModal() {
 
     preview.style.background = bg;
     preview.style.color = text;
+    preview.style.setProperty('--profile-card-bg', bg);
+    preview.style.setProperty('--profile-accent', accent);
+    preview.style.setProperty('--profile-text-color', text);
+    preview.style.setProperty('--profile-status-color', status);
+    preview.style.setProperty('--profile-featured-bg', featured);
 
     const bannerEl = document.getElementById('preview-banner-el');
     if (bannerEl) {
@@ -580,6 +874,14 @@ export function renderProfileEditModal() {
       featEl.style.background = featured;
       featEl.style.borderLeftColor = accent;
     }
+
+    const socialsEl = document.getElementById('preview-socials-el');
+    if (socialsEl) {
+      const insta = document.getElementById('edit-instagram')?.value?.trim() || '';
+      const twit = document.getElementById('edit-twitter')?.value?.trim() || '';
+      const lfm = document.getElementById('edit-lastfm')?.value?.trim() || '';
+      socialsEl.innerHTML = buildSocialsHtml({ instagram: insta, twitter: twit, lastfm: lfm, name: name || 'Usuário' }, false);
+    }
   };
 
   // Presets definition
@@ -603,8 +905,32 @@ export function renderProfileEditModal() {
     window._updateLiveProfilePreview();
   };
 
+  window._handleAvatarUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const input = document.getElementById('edit-avatar');
+      if (input) input.value = e.target.result;
+      window._updateLiveProfilePreview?.();
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window._handleBannerUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const input = document.getElementById('edit-banner');
+      if (input) input.value = e.target.result;
+      window._updateLiveProfilePreview?.();
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Attach live preview event listeners
-  const inputIds = ['color-bg', 'color-accent', 'color-text', 'color-status', 'color-featured', 'color-theme', 'edit-name', 'edit-handle', 'edit-avatar', 'edit-banner'];
+  const inputIds = ['color-bg', 'color-accent', 'color-text', 'color-status', 'color-featured', 'color-theme', 'edit-name', 'edit-handle', 'edit-avatar', 'edit-banner', 'edit-instagram', 'edit-twitter', 'edit-lastfm'];
   inputIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -613,15 +939,28 @@ export function renderProfileEditModal() {
     }
   });
 
+  window._updateLiveProfilePreview();
   openModal('profile-edit-modal');
 
   window._saveProfileEdit = () => {
+    const instaVal = document.getElementById('edit-instagram')?.value?.trim() || '';
+    const twitVal = document.getElementById('edit-twitter')?.value?.trim() || '';
+    const lastfmVal = document.getElementById('edit-lastfm')?.value?.trim() || '';
+
     const updates = {
       name:                 document.getElementById('edit-name')?.value?.trim() || user.name,
       handle:               document.getElementById('edit-handle')?.value?.trim() || user.handle,
       avatar:               document.getElementById('edit-avatar')?.value?.trim() || user.avatar,
       bio:                  document.getElementById('edit-bio')?.value?.trim() || '',
       bannerUrl:            document.getElementById('edit-banner')?.value?.trim() || '',
+      instagram:            instaVal,
+      twitter:              twitVal,
+      lastfm:               lastfmVal,
+      socials: {
+        instagram: instaVal,
+        twitter: twitVal,
+        lastfm: lastfmVal
+      },
       profileBgColor:       document.getElementById('color-bg')?.value || user.profileBgColor,
       profileAccentColor:   document.getElementById('color-accent')?.value || user.profileAccentColor,
       profileTextColor:     document.getElementById('color-text')?.value || user.profileTextColor,

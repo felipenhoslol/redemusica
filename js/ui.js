@@ -22,6 +22,7 @@ export function closeDoodleModal(modalId) {
 }
 
 export function showDoodleToast(msg) { showToast(msg); }
+export { showToast, openModal, closeModal };
 
 window.openDoodleModal = openDoodleModal;
 window.closeDoodleModal = closeDoodleModal;
@@ -45,6 +46,7 @@ export function openSearchModalForQuestion(challengeId, questionId) {
   resetSearchModal();
   openDoodleModal('search-modal');
 }
+window.openSearchModalForQuestion = openSearchModalForQuestion;
 
 export function openSearchModalForFeed() {
   currentSearchTarget = { type: 'feed' };
@@ -100,6 +102,29 @@ export function openSearchModalForShowcase() {
   resetSearchModal();
   openDoodleModal('search-modal');
 }
+
+export function openSearchModalForPlaylist(playlistId) {
+  currentSearchTarget = { type: 'playlist', playlistId };
+  const titleEl = document.getElementById('search-modal-title');
+  const noteRow = document.getElementById('search-modal-note-row');
+  if (titleEl) titleEl.innerHTML = 'Adicionar Música à Playlist';
+  if (noteRow) noteRow.style.display = 'block';
+
+  resetSearchModal();
+  openDoodleModal('search-modal');
+}
+
+export function openSearchModalForComment(postId) {
+  currentSearchTarget = { type: 'comment', postId };
+  const titleEl = document.getElementById('search-modal-title');
+  const noteRow = document.getElementById('search-modal-note-row');
+  if (titleEl) titleEl.innerHTML = 'Anexar Música ao Comentário';
+  if (noteRow) noteRow.style.display = 'none';
+
+  resetSearchModal();
+  openDoodleModal('search-modal');
+}
+
 
 function resetSearchModal() {
   const input = document.getElementById('search-input');
@@ -175,6 +200,7 @@ window._selectTrackFromModal = (track) => {
     // Re-render grid if visible
     const grid = document.getElementById('questions-grid');
     if (grid) renderMusicAskGrid(grid);
+    if (window._refreshCompareView) window._refreshCompareView();
 
   } else if (target.type === 'feed') {
     window._setCreatorSong?.(track);
@@ -190,12 +216,27 @@ window._selectTrackFromModal = (track) => {
     window._refreshProfile?.();
 
   } else if (target.type === 'chat') {
-    const { attachSongToDM } = import('./chat.js').then(m => m.attachSongToDM(track));
+    import('./chat.js').then(m => {
+      m.attachSongToChat(track);
+      showToast(`Música "${track.title}" anexada ao chat!`);
+    });
 
   } else if (target.type === 'showcase') {
     const ok = storage.addToShowcase(track);
     showToast(ok ? `Adicionado à vitrine: ${track.title}` : 'Vitrine cheia (máx. 5)');
     window._refreshProfile?.();
+
+  } else if (target.type === 'playlist') {
+    const noteEl = document.getElementById('search-modal-note');
+    const note = noteEl ? noteEl.value.trim() : '';
+    storage.addSongToPlaylist(target.playlistId, track, note);
+    showToast(`"${track.title}" adicionada à playlist!`);
+    window._refreshPlaylistDetails?.(target.playlistId);
+    window._refreshPlaylists?.();
+
+  } else if (target.type === 'comment') {
+    window._setCommentSong?.(target.postId, track);
+    showToast(`Música "${track.title}" anexada ao comentário!`);
   }
 };
 
@@ -219,24 +260,28 @@ export function renderMusicAskGrid(container, challengeId, userId) {
   const cards = questions.map(q => {
     const ans = answers[q.id];
     const hasAns = !!ans;
+    const myReview = hasAns ? storage.getSongReviews(uid, cid, q.id)[storage.getActiveUserId()] : null;
+
     return `
       <div class="q-card${hasAns ? ' answered' : ''}" onclick="${isMe ? `window._openQuestion('${cid}',${q.id})` : ''}">
         <div class="q-card-cover">
-          ${hasAns && ans.artwork ? `<img src="${ans.artwork}" alt="${ans.title}" loading="lazy">` : `<span style="font-size:1.8rem;color:var(--dimmed)">♪</span>`}
+          ${hasAns && ans.artwork ? `<img src="${ans.artwork}" alt="${ans.title}" loading="lazy">` : `<span style="color:var(--dimmed);display:flex;align-items:center;justify-content:center;">${ICONS.music}</span>`}
         </div>
-        ${hasAns ? `<div class="q-card-answered-badge">ok</div>` : ''}
+        ${hasAns ? `<div class="q-card-answered-badge">${ICONS.check}</div>` : ''}
         <div class="q-card-info">
           <div class="q-number">${q.id}.</div>
           <div class="q-title">${q.title}</div>
           ${hasAns ? `<div style="font-size:0.72rem;color:var(--white);font-weight:700">${ans.title}</div>
                       <div style="font-size:0.65rem;color:var(--muted)">${ans.artist}</div>` : ''}
         </div>
-        ${hasAns && isMe ? `
+        ${hasAns ? `
           <div class="q-card-actions">
-            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._postAnswer('${cid}',${q.id})" title="Postar no feed">
-              ${ICONS.feed}
+            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._openReview('${uid}','${cid}','${q.id}')" title="${myReview ? `Avaliado com nota ${myReview.rating.toFixed(1)}★ (Clique para editar)` : 'Avaliar música'}" style="${myReview ? 'color:#ffb800;' : 'color:var(--purple-light);'}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="${myReview ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
             </button>
-            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._playTrack(${JSON.stringify(ans).replace(/"/g, '&quot;')})" title="Preview">
+            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._playTrack(${JSON.stringify(ans).replace(/"/g, '&quot;')})" title="Ouvir música">
               ${ICONS.play}
             </button>
           </div>` : ''}
@@ -266,89 +311,387 @@ window._postAnswer = (challengeId, questionId) => {
 };
 
 // ──────────────────────────────────────────
-// COMPARE VIEW
+// COMPARE VIEW (MULTI-CHALLENGE & BATTLE UI)
 // ──────────────────────────────────────────
 
 export function renderCompareView(container) {
   const users = storage.getAllUsers();
   const activeUser = storage.getActiveUser();
-  const challenge = storage.getActiveChallenge();
-  const questions = challenge.questions || [];
+  const allChallenges = storage.getAllChallenges();
 
-  let compareUserId = users.find(u => u.id !== activeUser.id)?.id;
+  let selectedChallengeId = storage.getActiveChallengeId() || allChallenges[0]?.id || 'classic_30';
+  let compareUserId = users.find(u => u.id !== activeUser.id)?.id || users[0]?.id;
+  let activeFilter = 'all'; // 'all' | 'both' | 'my' | 'theirs' | 'reviewed'
+
+  function getAvatarMarkup(user, size = 44) {
+    if (!user) return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;">U</div>`;
+    const isImg = user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:') || user.avatar.startsWith('/'));
+    if (isImg) {
+      return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;"><img src="${user.avatar}" alt="${user.name}"></div>`;
+    }
+    return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;">${user.avatar || user.name?.[0] || 'U'}</div>`;
+  }
 
   function buildHtml() {
+    const currentChallenge = allChallenges.find(c => c.id === selectedChallengeId) || allChallenges[0];
+    const questions = currentChallenge?.questions || [];
     const compareUser = storage.getUserById(compareUserId);
-    const myAnswers = storage.getChallengeAnswers(challenge.id, activeUser.id);
-    const theirAnswers = storage.getChallengeAnswers(challenge.id, compareUserId);
-    const answered = questions.filter(q => myAnswers[q.id] || theirAnswers[q.id]);
 
-    const selectorHtml = users
-      .filter(u => u.id !== activeUser.id)
-      .map(u => `
-        <div class="compare-user-card${compareUserId === u.id ? ' selected' : ''}" onclick="compareUserId='${u.id}';buildHtml();">
-          <div class="compare-user-avatar">${u.avatar || u.name[0]}</div>
-          <div style="font-size:0.82rem;font-weight:700;color:var(--white)">${u.name}</div>
-          <div style="font-size:0.7rem;color:var(--muted)">${u.handle || ''}</div>
-        </div>`).join('');
+    const myAnswers = storage.getChallengeAnswers(selectedChallengeId, activeUser.id);
+    const theirAnswers = storage.getChallengeAnswers(selectedChallengeId, compareUserId);
 
-    const rowsHtml = answered.map(q => {
-      const my = myAnswers[q.id];
-      const their = theirAnswers[q.id];
-      const myReview = storage.getSongReviews(activeUser.id, challenge.id, q.id)[compareUserId];
-      const theirReview = storage.getSongReviews(compareUserId, challenge.id, q.id)[activeUser.id];
+    // Challenges Selector Pills
+    const challengesPillsHtml = allChallenges.map(c => {
+      const qCount = c.questions?.length || 0;
+      const isActive = c.id === selectedChallengeId;
+      const icon = c.id.includes('30') ? ICONS.fire : (c.id.includes('10') ? ICONS.star : (c.id.includes('night') ? ICONS.moon : ICONS.disc));
+      return `
+        <button type="button" class="compare-challenge-pill${isActive ? ' active' : ''}" onclick="window._setCompareChallenge('${c.id}')">
+          <span>${icon}</span>
+          <span>${c.title}</span>
+          <span class="compare-challenge-pill-count">${qCount}</span>
+        </button>
+      `;
+    }).join('');
 
-      const cell = (ans) => !ans ? `<div class="compare-song-cell"><span style="color:var(--dimmed);font-size:0.75rem">—</span></div>` : `
-        <div class="compare-song-cell" style="cursor:pointer" onclick="window._playTrack(${JSON.stringify(ans).replace(/"/g, '&quot;')})">
-          ${ans.artwork ? `<img class="compare-song-cover" src="${ans.artwork}" alt="">` : '<div class="compare-song-cover" style="background:var(--purple-dark);"></div>'}
-          <div class="compare-song-title">${ans.title}</div>
-          <div class="compare-song-artist">${ans.artist}</div>
-        </div>`;
+    // User Selection Cards
+    const otherUsers = users.filter(u => u.id !== activeUser.id);
+    const selectorHtml = otherUsers.map(u => {
+      const uAnswers = storage.getChallengeAnswers(selectedChallengeId, u.id);
+      const uCount = Object.keys(uAnswers).length;
+      const totalQ = questions.length || 1;
+      const affinityData = storage.calculateMusicalAffinity(activeUser.id, u.id);
+      const isSelected = compareUserId === u.id;
 
-      const reviewBtnMy = their ? `
-        <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openReview('${compareUserId}','${challenge.id}','${q.id}')">
-          ${myReview ? renderRatingStars(myReview.rating, 16) : '+ Avaliar'}
-        </button>` : '';
+      const affinityMarkup = affinityData.hasEnoughData
+        ? `<span class="compare-user-affinity-badge" title="${affinityData.sharedArtists.length} artistas em comum">${ICONS.sparkles} ${affinityData.percentage}% sintonia</span>`
+        : `<span style="font-size:0.66rem;color:var(--muted);">Calculando sintonia...</span>`;
 
       return `
-        <div class="compare-row">
-          <div class="compare-question-label">${q.id}. ${q.title.length > 30 ? q.title.slice(0,28)+'…' : q.title}</div>
-          ${cell(my)}
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-            ${cell(their)}
-            ${reviewBtnMy}
+        <div class="compare-user-card${isSelected ? ' selected' : ''}" onclick="window._setCompareUser('${u.id}')">
+          ${getAvatarMarkup(u, 40)}
+          <div class="compare-user-info">
+            <div class="compare-user-name">${u.name}</div>
+            <div class="compare-user-handle">${u.handle || ''}</div>
+            <div class="compare-user-meta-row">
+              <span class="compare-user-prog-badge">${uCount}/${totalQ}</span>
+              ${affinityMarkup}
+            </div>
           </div>
+          ${isSelected ? `<div style="color:var(--purple-light);display:flex;align-items:center;">${ICONS.check}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    // If no compare user
+    if (!compareUser) {
+      container.innerHTML = `
+        <div class="compare-wrap">
+          <div class="page-header">
+            <div>
+              <div class="page-title" style="display:flex;align-items:center;gap:8px;">
+                ${ICONS.compare}
+                <span>Comparar Listas</span>
+              </div>
+              <div class="page-sub">Selecione uma lista e um usuário para comparar respostas</div>
+            </div>
+          </div>
+          <div class="compare-challenges-bar">${challengesPillsHtml}</div>
+          <div class="compare-selector">${selectorHtml}</div>
+          <div class="empty-state"><div class="empty-state-sub">Nenhum amigo encontrado para comparar.</div></div>
         </div>`;
+      return;
+    }
+
+    // Compute Stats for Selected Pair
+    const bothAnswered = questions.filter(q => myAnswers[q.id] && theirAnswers[q.id]);
+    const myAnsweredCount = Object.keys(myAnswers).length;
+    const theirAnsweredCount = Object.keys(theirAnswers).length;
+    const reviewedByMe = questions.filter(q => theirAnswers[q.id] && storage.getSongReviews(compareUserId, selectedChallengeId, q.id)[activeUser.id]);
+    
+    // Average rating given
+    let totalRatings = 0;
+    let ratingCount = 0;
+    reviewedByMe.forEach(q => {
+      const rev = storage.getSongReviews(compareUserId, selectedChallengeId, q.id)[activeUser.id];
+      if (rev && rev.rating) { totalRatings += rev.rating; ratingCount++; }
+    });
+    const avgRating = ratingCount > 0 ? (totalRatings / ratingCount).toFixed(1) : '—';
+    const totalQ = questions.length || 1;
+    const affinityData = storage.calculateMusicalAffinity(activeUser.id, compareUserId);
+
+    // Filter questions
+    let filteredQuestions = questions;
+    if (activeFilter === 'both') {
+      filteredQuestions = questions.filter(q => myAnswers[q.id] && theirAnswers[q.id]);
+    } else if (activeFilter === 'my') {
+      filteredQuestions = questions.filter(q => myAnswers[q.id]);
+    } else if (activeFilter === 'theirs') {
+      filteredQuestions = questions.filter(q => theirAnswers[q.id]);
+    } else if (activeFilter === 'reviewed') {
+      filteredQuestions = questions.filter(q => {
+        const rev1 = theirAnswers[q.id] && storage.getSongReviews(compareUserId, selectedChallengeId, q.id)[activeUser.id];
+        const rev2 = myAnswers[q.id] && storage.getSongReviews(activeUser.id, selectedChallengeId, q.id)[compareUserId];
+        return rev1 || rev2;
+      });
+    }
+
+    // Render Question Battle Cards
+    const battleCardsHtml = filteredQuestions.map(q => {
+      const mySong = myAnswers[q.id];
+      const theirSong = theirAnswers[q.id];
+
+      const myReview = theirSong ? storage.getSongReviews(compareUserId, selectedChallengeId, q.id)[activeUser.id] : null;
+      const theirReview = mySong ? storage.getSongReviews(activeUser.id, selectedChallengeId, q.id)[compareUserId] : null;
+
+      // My Side
+      let mySideHtml = '';
+      if (mySong) {
+        const mySelfReview = storage.getSongReviews(activeUser.id, selectedChallengeId, q.id)[activeUser.id];
+        mySideHtml = `
+          <div class="compare-choice-box">
+            <div class="compare-choice-header">
+              <span>Sua Escolha</span>
+              <span style="color:var(--purple-light);">#${q.id}</span>
+            </div>
+            <div class="compare-song-stage">
+              <div class="compare-song-cover-wrap" onclick="window._playTrack(${JSON.stringify(mySong).replace(/"/g, '&quot;')})" title="Ouvir música">
+                ${mySong.artwork ? `<img src="${mySong.artwork}" alt="${mySong.title}">` : '<div style="width:100%;height:100%;background:var(--purple-dark);"></div>'}
+                <div class="compare-song-play-overlay">${ICONS.play}</div>
+              </div>
+              <div class="compare-song-details">
+                <div class="compare-song-title" title="${mySong.title}">${mySong.title}</div>
+                <div class="compare-song-artist" title="${mySong.artist}">${mySong.artist}</div>
+              </div>
+            </div>
+
+            <!-- Self Rating / Note -->
+            ${mySelfReview ? `
+              <div class="compare-review-pill-btn" onclick="window._openReview('${activeUser.id}','${selectedChallengeId}','${q.id}')" title="Editar sua nota / comentário">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <span style="color:#ffb800;display:inline-flex;align-items:center;">${ICONS.star}</span>
+                  <span style="font-weight:800;color:#ffb800;font-size:0.82rem;">${mySelfReview.rating.toFixed(1)}</span>
+                  <span style="font-size:0.68rem;color:var(--muted);">(Sua nota)</span>
+                  ${mySelfReview.comment ? `<span style="font-size:0.7rem;color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${mySelfReview.comment}"</span>` : ''}
+                </div>
+                <span style="font-size:0.68rem;color:var(--muted);display:flex;align-items:center;">${ICONS.edit}</span>
+              </div>
+            ` : `
+              <button type="button" class="compare-rate-now-btn" style="border-style:dashed;color:var(--purple-light);border-color:var(--border);background:transparent;" onclick="window._openReview('${activeUser.id}','${selectedChallengeId}','${q.id}')">
+                ${ICONS.star} <span>Dar sua nota</span>
+              </button>
+            `}
+
+            <!-- Received Rating from Friend (if any) -->
+            ${theirReview ? `
+              <div class="compare-received-badge-pill" title="${compareUser.name}: \"${theirReview.comment || ''}\"">
+                <span>Nota de ${compareUser.name.split(' ')[0]}:</span>
+                <span style="font-weight:800;color:#ffb800;display:inline-flex;align-items:center;gap:2px;">${ICONS.star} ${theirReview.rating.toFixed(1)}</span>
+                ${theirReview.comment ? `<span style="font-size:0.68rem;opacity:0.8;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${theirReview.comment}"</span>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      } else {
+        mySideHtml = `
+          <div class="compare-choice-box empty">
+            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Você ainda não respondeu este item</div>
+            <button type="button" class="compare-add-song-btn" onclick="window._openQuestion('${selectedChallengeId}','${q.id}')">
+              ${ICONS.plus} <span>Escolher Música</span>
+            </button>
+          </div>
+        `;
+      }
+
+      // Their Side
+      let theirSideHtml = '';
+      if (theirSong) {
+        theirSideHtml = `
+          <div class="compare-choice-box">
+            <div class="compare-choice-header">
+              <span>${compareUser.name}</span>
+              <span style="color:var(--purple-light);">#${q.id}</span>
+            </div>
+            <div class="compare-song-stage">
+              <div class="compare-song-cover-wrap" onclick="window._playTrack(${JSON.stringify(theirSong).replace(/"/g, '&quot;')})" title="Ouvir música">
+                ${theirSong.artwork ? `<img src="${theirSong.artwork}" alt="${theirSong.title}">` : '<div style="width:100%;height:100%;background:var(--purple-dark);"></div>'}
+                <div class="compare-song-play-overlay">${ICONS.play}</div>
+              </div>
+              <div class="compare-song-details">
+                <div class="compare-song-title" title="${theirSong.title}">${theirSong.title}</div>
+                <div class="compare-song-artist" title="${theirSong.artist}">${theirSong.artist}</div>
+              </div>
+            </div>
+            ${myReview ? `
+              <div class="compare-review-pill-btn" onclick="window._openReview('${compareUserId}','${selectedChallengeId}','${q.id}')" title="Editar sua avaliação">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <span style="color:#ffb800;display:inline-flex;align-items:center;">${ICONS.star}</span>
+                  <span style="font-weight:800;color:#ffb800;font-size:0.82rem;">${myReview.rating.toFixed(1)}</span>
+                  ${myReview.comment ? `<span style="font-size:0.7rem;color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">"${myReview.comment}"</span>` : ''}
+                </div>
+                <span style="font-size:0.68rem;color:var(--muted);display:flex;align-items:center;">${ICONS.edit}</span>
+              </div>
+            ` : `
+              <button type="button" class="compare-rate-now-btn" onclick="window._openReview('${compareUserId}','${selectedChallengeId}','${q.id}')">
+                ${ICONS.star} <span>Avaliar Música</span>
+              </button>
+            `}
+          </div>
+        `;
+      } else {
+        theirSideHtml = `
+          <div class="compare-choice-box empty">
+            <div style="font-size:0.75rem;color:var(--muted);">${compareUser.name} ainda não respondeu este item</div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="compare-battle-card">
+          <div class="compare-q-header">
+            <div class="compare-q-title-wrap">
+              <span class="compare-q-badge">DIA ${q.id}</span>
+              <div>
+                <div class="compare-q-title">${q.title}</div>
+                ${q.subtitle ? `<div class="compare-q-sub">${q.subtitle}</div>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="compare-q-grid">
+            ${mySideHtml}
+            ${theirSideHtml}
+          </div>
+        </div>
+      `;
     }).join('');
 
     container.innerHTML = `
       <div class="compare-wrap">
-        <div class="page-header">
+        <!-- Page Header -->
+        <div class="page-header" style="margin-bottom:0;">
           <div>
-            <div class="page-title">Comparar Listas</div>
-            <div class="page-sub">Compare suas escolhas com as de outros</div>
+            <div class="page-title" style="display:flex;align-items:center;gap:8px;">
+              ${ICONS.compare}
+              <span>Comparar Listas & Desafios</span>
+            </div>
+            <div class="page-sub">Escolha uma lista musical e um usuário para comparar respostas e avaliar escolhas</div>
           </div>
         </div>
-        <div class="compare-selector">${selectorHtml}</div>
-        ${!compareUser ? '<div class="empty-state"><div class="empty-state-sub">Selecione um usuário para comparar.</div></div>' : `
-          <div class="compare-table">
-            <div class="compare-table-header">
-              <span>Pergunta</span>
-              <span>${activeUser.name}</span>
-              <span>${compareUser.name}</span>
-            </div>
-            ${rowsHtml || '<div style="padding:20px;text-align:center;color:var(--muted)">Sem respostas para comparar.</div>'}
-          </div>`}
-      </div>`;
 
-    // rebind the onclick for selector cards
-    container.querySelectorAll('.compare-user-card').forEach(card => {
-      const uid = card.querySelector('.compare-user-avatar') ? users.find(u => card.textContent.includes(u.name))?.id : null;
-    });
+        <!-- Challenge Selection Pills -->
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label class="form-label" style="font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;">1. Desafio:</label>
+          <div class="compare-challenges-bar">${challengesPillsHtml}</div>
+        </div>
+
+        <!-- Friends Selection Grid -->
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label class="form-label" style="font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;">2. Usuário para Comparar:</label>
+          <div class="compare-selector">${selectorHtml}</div>
+        </div>
+
+        <!-- Matchup Insights Header -->
+        <div class="compare-battle-header">
+          <div class="battle-pair-col">
+            <div class="battle-avatars-wrap">
+              ${getAvatarMarkup(activeUser, 44)}
+              <div class="battle-avatar-item target">
+                ${compareUser.avatar && (compareUser.avatar.startsWith('http') || compareUser.avatar.startsWith('data:') || compareUser.avatar.startsWith('/'))
+                  ? `<img src="${compareUser.avatar}" alt="${compareUser.name}">`
+                  : `<span>${compareUser.avatar || compareUser.name?.[0] || 'U'}</span>`}
+              </div>
+            </div>
+            <div>
+              <div style="font-size:0.9rem;font-weight:700;color:var(--white);display:flex;align-items:center;gap:6px;">
+                <span>Você</span>
+                <span style="color:var(--purple-light);">${ICONS.compare}</span>
+                <span>${compareUser.name}</span>
+              </div>
+              ${affinityData.hasEnoughData ? `
+                <div style="font-size:0.74rem;color:var(--purple-light);font-weight:600;display:flex;align-items:center;gap:5px;margin-top:2px;">
+                  ${ICONS.fire}
+                  <span>${affinityData.percentage}% de Sintonia Musical</span>
+                </div>
+                <div style="font-size:0.68rem;color:var(--muted);margin-top:1px;">
+                  ${affinityData.sharedArtists.length > 0
+                    ? `Artistas em comum: ${affinityData.sharedArtists.map(a => a.charAt(0).toUpperCase() + a.slice(1)).slice(0, 3).join(', ')}${affinityData.sharedArtists.length > 3 ? '...' : ''}`
+                    : (affinityData.sharedGenres.length > 0 ? `Gêneros compatíveis: ${affinityData.sharedGenres.slice(0, 2).join(', ')}` : 'Calculado por histórico e respostas')}
+                </div>
+              ` : `
+                <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">
+                  <span>Respondam mais músicas para calcular a sintonia</span>
+                </div>
+              `}
+            </div>
+          </div>
+
+          <div class="battle-stats-row">
+            <div class="battle-stat-chip">
+              <span class="battle-stat-value">${bothAnswered.length}</span>
+              <span class="battle-stat-label">Em Comum</span>
+            </div>
+            <div class="battle-stat-chip">
+              <span class="battle-stat-value" style="color:#ffb800;">${ICONS.star} ${avgRating}</span>
+              <span class="battle-stat-label">Média Notas</span>
+            </div>
+            <div class="battle-stat-chip">
+              <span class="battle-stat-value">${myAnsweredCount}/${totalQ}</span>
+              <span class="battle-stat-label">Suas</span>
+            </div>
+            <div class="battle-stat-chip">
+              <span class="battle-stat-value">${theirAnsweredCount}/${totalQ}</span>
+              <span class="battle-stat-label">${compareUser.name.split(' ')[0]}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="compare-filter-bar">
+          <button type="button" class="compare-filter-btn${activeFilter === 'all' ? ' active' : ''}" onclick="window._setCompareFilter('all')">
+            Todas (${questions.length})
+          </button>
+          <button type="button" class="compare-filter-btn${activeFilter === 'both' ? ' active' : ''}" onclick="window._setCompareFilter('both')">
+            Ambos Responderam (${bothAnswered.length})
+          </button>
+          <button type="button" class="compare-filter-btn${activeFilter === 'my' ? ' active' : ''}" onclick="window._setCompareFilter('my')">
+            Apenas Você (${myAnsweredCount})
+          </button>
+          <button type="button" class="compare-filter-btn${activeFilter === 'theirs' ? ' active' : ''}" onclick="window._setCompareFilter('theirs')">
+            Apenas ${compareUser.name.split(' ')[0]} (${theirAnsweredCount})
+          </button>
+          <button type="button" class="compare-filter-btn${activeFilter === 'reviewed' ? ' active' : ''}" onclick="window._setCompareFilter('reviewed')">
+            Avaliadas (${reviewedByMe.length})
+          </button>
+        </div>
+
+        <!-- Questions Battle Cards List -->
+        <div class="compare-battle-list">
+          ${battleCardsHtml || '<div style="padding:32px 20px;text-align:center;color:var(--muted);background:var(--bg-card);border-radius:8px;">Nenhuma música encontrada com este filtro.</div>'}
+        </div>
+      </div>
+    `;
   }
 
-  // Expose buildHtml so inline onclick works
-  window.buildHtml = buildHtml;
+  // Global window handlers for interaction
+  window._setCompareChallenge = (cId) => {
+    selectedChallengeId = cId;
+    buildHtml();
+  };
+
+  window._setCompareUser = (uId) => {
+    compareUserId = uId;
+    buildHtml();
+  };
+
+  window._setCompareFilter = (filterKey) => {
+    activeFilter = filterKey;
+    buildHtml();
+  };
+
+  window._refreshCompareView = () => {
+    buildHtml();
+  };
+
   buildHtml();
 }
 
@@ -361,77 +704,103 @@ window._openReview = (targetUserId, challengeId, questionId) => {
 // ──────────────────────────────────────────
 
 function renderReviewModal(targetUserId, challengeId, questionId) {
+  const activeUser = storage.getActiveUser();
+  const isSelf = targetUserId === activeUser.id;
   const targetUser = storage.getUserById(targetUserId);
   const challenge = storage.getAllChallenges().find(c => c.id === challengeId);
-  const q = challenge?.questions?.find(q2 => String(q2.id) === String(questionId));
+  const qObj = challenge?.questions?.find(q => String(q.id) === String(questionId));
   const ans = storage.getChallengeAnswers(challengeId, targetUserId)[questionId];
-  const existingReview = storage.getSongReviews(targetUserId, challengeId, questionId)[storage.getActiveUserId()];
+  const existingReview = storage.getSongReviews(targetUserId, challengeId, questionId)[activeUser.id];
 
-  currentReviewRating = existingReview?.rating || 4.0;
+  let currentReviewRating = existingReview?.rating || (ans?.rating || 4.5);
 
   const modal = document.getElementById('review-modal');
   if (!modal) return;
 
-  modal.querySelector('.modal-header h3').textContent = `Avaliar: ${ans?.title || 'Música'}`;
-  modal.querySelector('.modal-body').innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      ${ans ? `
-        <div style="display:flex;gap:10px;align-items:center;background:var(--bg-input);border:var(--border);border-radius:10px;padding:10px;">
-          ${ans.artwork ? `<img src="${ans.artwork}" style="width:50px;height:50px;border-radius:8px;object-fit:cover;">` : ''}
-          <div>
-            <div style="font-weight:700;color:var(--white)">${ans.title}</div>
-            <div style="font-size:0.78rem;color:var(--muted)">${ans.artist}</div>
-            <div style="font-size:0.72rem;color:var(--muted)">Lista de ${targetUser?.name}</div>
-          </div>
-        </div>` : ''}
-      <div>
-        <label class="form-label">Nota (${currentReviewRating.toFixed(1)})</label>
-        <div id="review-stars" style="display:flex;gap:4px;padding:6px 0;">
-          ${renderReviewStars(currentReviewRating)}
-        </div>
-      </div>
-      <div>
-        <label class="form-label">Opinião (opcional)</label>
-        <textarea id="review-comment" class="doodle-input" rows="3" placeholder="O que você acha desta música...">${existingReview?.comment || ''}</textarea>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button class="doodle-btn doodle-btn-ghost" onclick="closeDoodleModal('review-modal')">Cancelar</button>
-        <button class="doodle-btn doodle-btn-primary" onclick="window._submitReview('${targetUserId}','${challengeId}','${questionId}')">Enviar Avaliação</button>
-      </div>
-    </div>`;
+  const renderModalContent = () => {
+    modal.querySelector('.modal-header h3').textContent = isSelf ? `Minha Nota: ${ans?.title || 'Música'}` : `Avaliar: ${ans?.title || 'Música'}`;
+    modal.querySelector('.modal-body').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        ${ans ? `
+          <div style="display:flex;gap:12px;align-items:center;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;">
+            ${ans.artwork ? `<img src="${ans.artwork}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;">` : ''}
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:800;font-size:0.95rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ans.title}</div>
+              <div style="font-size:0.8rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ans.artist}</div>
+              <div style="font-size:0.74rem;color:var(--muted);margin-top:2px;">
+                ${isSelf ? `Sua escolha para: <strong>${qObj?.title || 'este item'}</strong>` : `Resposta de <strong>${targetUser?.name || 'Usuário'}</strong>`}
+              </div>
+            </div>
+            <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${JSON.stringify(ans).replace(/"/g, '&quot;')})" title="Ouvir música">
+              ${ICONS.play}
+            </button>
+          </div>` : ''}
 
+        <!-- Rating Box -->
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <label class="form-label" style="font-weight:700;color:var(--white);margin:0;font-size:0.88rem;">${isSelf ? 'Sua Nota Pessoal:' : 'Sua Nota para a Música:'}</label>
+            <span style="font-size:0.88rem;font-weight:800;color:#ffb800;background:rgba(255,184,0,0.12);border:1px solid rgba(255,184,0,0.3);padding:2px 10px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
+              ${ICONS.star} ${currentReviewRating.toFixed(1)}
+            </span>
+          </div>
+
+          <!-- Interactive 5 Stars with Half-Star Click Zones -->
+          <div id="review-stars-row" style="display:flex;gap:8px;align-items:center;justify-content:center;padding:8px 0;">
+            ${[1, 2, 3, 4, 5].map(n => {
+              const fill = currentReviewRating >= n ? 1 : (currentReviewRating >= n - 0.5 ? 0.5 : 0);
+              return `
+                <div style="position:relative;display:inline-block;cursor:pointer;line-height:0;transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'" title="Nota ${n}">
+                  ${getStarSVG(fill, 32)}
+                  <div onclick="window._setReviewRating(${n - 0.5})" style="position:absolute;top:0;left:0;width:50%;height:100%;z-index:2;" title="Nota ${n - 0.5}"></div>
+                  <div onclick="window._setReviewRating(${n})" style="position:absolute;top:0;right:0;width:50%;height:100%;z-index:2;" title="Nota ${n}.0"></div>
+                </div>`;
+            }).join('')}
+          </div>
+
+          <!-- Quick Rating Presets -->
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:8px;">
+            ${[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0].map(p => `
+              <button type="button" onclick="window._setReviewRating(${p})" style="padding:3px 8px;font-size:0.74rem;font-weight:700;background:${currentReviewRating === p ? 'rgba(255,184,0,0.25)' : 'var(--bg-input)'};border:1.5px solid ${currentReviewRating === p ? '#ffb800' : 'var(--border)'};color:${currentReviewRating === p ? '#ffb800' : 'var(--muted)'};border-radius:6px;cursor:pointer;transition:all 0.15s ease;">
+                ${p.toFixed(1)}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Non-resizable Fixed Textarea -->
+        <div>
+          <label class="form-label" style="font-weight:700;color:var(--white);margin-bottom:6px;display:block;">Opinião / Comentário (opcional):</label>
+          <textarea id="review-comment" class="doodle-input" rows="3" placeholder="O que você achou da escolha desta música..." style="resize:none !important;width:100% !important;box-sizing:border-box !important;min-height:80px !important;max-height:80px !important;font-size:0.86rem;padding:8px 12px;border-radius:8px;line-height:1.4;">${existingReview?.comment || ''}</textarea>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+          <button class="doodle-btn doodle-btn-secondary" onclick="closeDoodleModal('review-modal')">Cancelar</button>
+          <button class="doodle-btn doodle-btn-primary" onclick="window._submitReview('${targetUserId}','${challengeId}','${questionId}')">Salvar Avaliação</button>
+        </div>
+      </div>`;
+  };
+
+  window._setReviewRating = (val) => {
+    currentReviewRating = val;
+    renderModalContent();
+  };
+
+  window._submitReview = (tUserId, cId, qId) => {
+    const comment = document.getElementById('review-comment')?.value || '';
+    storage.saveSongReview(tUserId, cId, qId, currentReviewRating, comment, ans);
+    closeDoodleModal('review-modal');
+    showToast(`Avaliação salva: ${currentReviewRating.toFixed(1)} estrelas`);
+    const compareContainer = document.getElementById('compare-view-content');
+    if (compareContainer) renderCompareView(compareContainer);
+    const challengeGrid = document.getElementById('musicask-grid');
+    if (challengeGrid) renderMusicAskGrid(challengeGrid, cId, tUserId);
+  };
+
+  renderModalContent();
   openDoodleModal('review-modal');
 }
-
-function renderReviewStars(rating) {
-  return [1,2,3,4,5].map(n => `
-    <button style="background:transparent;border:none;cursor:pointer;display:flex;align-items:center;gap:0;"
-      onclick="window._setReviewRating(${n})" onmouseover="window._hoverReviewStar(${n})" onmouseout="window._hoverReviewStar(0)">
-      ${getStarSVG(rating >= n ? 1 : rating >= n - 0.5 ? 0.5 : 0, 30)}
-    </button>
-    <button style="background:transparent;border:none;cursor:pointer;margin-left:-26px;clip-path:inset(0 50% 0 0);opacity:0.7;"
-      onclick="window._setReviewRating(${n - 0.5})">
-      ${getStarSVG(rating >= n - 0.5 ? 0.5 : 0, 30)}
-    </button>`).join('');
-}
-
-window._setReviewRating = (val) => {
-  currentReviewRating = val;
-  const starsEl = document.getElementById('review-stars');
-  if (starsEl) starsEl.innerHTML = renderReviewStars(val);
-};
-
-window._hoverReviewStar = () => {};
-
-window._submitReview = (targetUserId, challengeId, questionId) => {
-  const comment = document.getElementById('review-comment')?.value || '';
-  storage.saveSongReview(targetUserId, challengeId, questionId, currentReviewRating, comment);
-  closeDoodleModal('review-modal');
-  showToast(`Avaliação enviada: ${currentReviewRating.toFixed(1)} estrelas`);
-  // Re-render compare
-  const compareContainer = document.getElementById('compare-view-content');
-  if (compareContainer) renderCompareView(compareContainer);
-};
 
 // ──────────────────────────────────────────
 // CHALLENGE PILLS

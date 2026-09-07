@@ -14,7 +14,114 @@ const STORAGE_KEYS = {
   BOOKMARKS: 'rmsn_bookmarks_v5',
   NOTIFICATIONS: 'rmsn_notifications_v5',
   BLOCKED: 'rmsn_blocked_v5',
+  PLAYLISTS: 'rmsn_playlists_v5',
 };
+
+const INITIAL_PLAYLISTS = [
+  {
+    id: 'pl_sample_1',
+    title: 'Madrugadas & Melancolia',
+    description: 'Músicas para ouvir de fone no escuro às 3 da manhã.',
+    coverUrl: '',
+    authorId: 'user_me',
+    createdAt: 'há 2 dias',
+    likes: ['user_clara', 'user_lucas'],
+    songs: [
+      {
+        id: 'itunes_yellow',
+        title: 'Yellow',
+        artist: 'Coldplay',
+        album: 'Parachutes',
+        artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+        previewUrl: '',
+        duration: '4:29',
+        note: 'A introdução dessa música me desmonta todo dia.'
+      },
+      {
+        id: 'itunes_starboy',
+        title: 'Starboy',
+        artist: 'The Weeknd',
+        album: 'Starboy',
+        artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80',
+        previewUrl: '',
+        duration: '3:50',
+        note: 'Synthwave perfeito.'
+      },
+      {
+        id: 'itunes_creep',
+        title: 'Creep',
+        artist: 'Radiohead',
+        album: 'Pablo Honey',
+        artwork: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80',
+        previewUrl: '',
+        duration: '3:56',
+        note: 'Clássico imortal.'
+      }
+    ]
+  },
+  {
+    id: 'pl_sample_2',
+    title: 'MPB, Café & Poesia',
+    description: 'Letras brasileiras profundas para desacelerar o coração.',
+    coverUrl: '',
+    authorId: 'user_clara',
+    createdAt: 'há 4 dias',
+    likes: ['user_me'],
+    songs: [
+      {
+        id: 'itunes_aguas_de_marco',
+        title: 'Águas de Março',
+        artist: 'Elis Regina & Tom Jobim',
+        album: 'Elis & Tom',
+        artwork: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80',
+        previewUrl: '',
+        duration: '3:32',
+        note: 'A maior gravação da história da música brasileira.'
+      },
+      {
+        id: 'itunes_baby',
+        title: 'Baby',
+        artist: 'Gal Costa',
+        album: 'Gal Costa',
+        artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80',
+        previewUrl: '',
+        duration: '3:35',
+        note: 'Você precisa saber da piscina...'
+      }
+    ]
+  },
+  {
+    id: 'pl_sample_3',
+    title: 'Post-Punk & 80s Underground',
+    description: 'Guitarras frias, baixos marcantes e nostalgia analógica.',
+    coverUrl: '',
+    authorId: 'user_lucas',
+    createdAt: 'há 1 semana',
+    likes: ['user_me', 'user_clara'],
+    songs: [
+      {
+        id: 'itunes_love_will_tear',
+        title: 'Love Will Tear Us Apart',
+        artist: 'Joy Division',
+        album: 'Substance',
+        artwork: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80',
+        previewUrl: '',
+        duration: '3:25',
+        note: 'A linha de baixo mais icônica do pós-punk.'
+      },
+      {
+        id: 'itunes_smiths_light',
+        title: 'There Is a Light That Never Goes Out',
+        artist: 'The Smiths',
+        album: 'The Queen Is Dead',
+        artwork: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
+        previewUrl: '',
+        duration: '4:03',
+        note: 'Poesia pura.'
+      }
+    ]
+  }
+];
 
 const INITIAL_USERS = [
   {
@@ -31,6 +138,9 @@ const INITIAL_USERS = [
     profileFeaturedColor: '#0a0610',
     bio: 'Viciado em descobrir músicas novas e postar letras de madrugada.',
     status: 'ouvindo pós-punk no volume máximo',
+    instagram: 'voce.music',
+    twitter: 'voce_music',
+    lastfm: 'voce_scrobbles',
     pinnedPostId: null,
     songShowcase: [],
     spotifyConnected: true,
@@ -74,6 +184,9 @@ const INITIAL_USERS = [
     profileFeaturedColor: '#0a0610',
     bio: 'MPB, Indie e café. Letras que doem no coração.',
     status: 'analisando letras antigas',
+    instagram: 'clara.vibes',
+    twitter: 'clara_mpb',
+    lastfm: 'clara_scrobbles',
     pinnedPostId: null,
     songShowcase: [],
     spotifyConnected: true,
@@ -109,10 +222,12 @@ const INITIAL_USERS = [
     profileFeaturedColor: '#0a0610',
     bio: 'Pós-punk dos anos 80, guitarras distorcidas e vinis velhos.',
     status: 'procurando fitas cassete raras',
+    instagram: 'lucas.wave',
+    twitter: 'lucas_postpunk',
+    lastfm: 'lucas_darkwave',
     pinnedPostId: null,
     songShowcase: [],
-    spotifyConnected: true,
-    musicService: 'spotify',
+    musicService: 'lastfm',
     spotifyUsername: 'lucas_vinyl',
     topArtist: {
       rank: 1,
@@ -251,6 +366,9 @@ export function initStorage() {
   }
   if (!localStorage.getItem(STORAGE_KEYS.BLOCKED)) {
     localStorage.setItem(STORAGE_KEYS.BLOCKED, JSON.stringify({}));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.PLAYLISTS)) {
+    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(INITIAL_PLAYLISTS));
   }
 
   // Prepopulate sample challenge answers
@@ -540,6 +658,8 @@ export function createPost(postData) {
     tag: postData.tag || '#música',
     rating: typeof postData.rating === 'number' ? postData.rating : 0,
     song: postData.song || null,
+    playlist: postData.playlist || null,
+    playlistId: postData.playlistId || (postData.playlist?.id || null),
     imageUrl: postData.imageUrl || '',
     likes: [],
     comments: [],
@@ -612,21 +732,40 @@ export function toggleRepostPost(postId) {
   }
 }
 
-export function addCommentToPost(postId, text) {
-  if (!text || !text.trim()) return;
+export function addCommentToPost(postId, commentData) {
+  let text = '';
+  let song = null;
+  let imageUrl = '';
+  let gifUrl = '';
+
+  if (typeof commentData === 'string') {
+    text = commentData.trim();
+  } else if (commentData && typeof commentData === 'object') {
+    text = (commentData.text || '').trim();
+    song = commentData.song || null;
+    imageUrl = commentData.imageUrl || '';
+    gifUrl = commentData.gifUrl || '';
+  }
+
+  if (!text && !song && !imageUrl && !gifUrl) return null;
+
   const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
   const activeUser = getActiveUser();
   const post = posts.find(p => p.id === postId);
   if (post) {
     if (!Array.isArray(post.comments)) post.comments = [];
-    post.comments.push({
-      id: 'c_' + Date.now(),
+    const newComment = {
+      id: 'c_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       userId: activeUser.id,
       userName: activeUser.name,
       userAvatar: activeUser.avatar || 'U',
-      text: text.trim(),
+      text: text,
+      song: song,
+      imageUrl: imageUrl,
+      gifUrl: gifUrl,
       createdAt: 'agora'
-    });
+    };
+    post.comments.push(newComment);
     addNotification(post.authorId, {
       type: 'comment',
       fromUserId: activeUser.id,
@@ -636,7 +775,27 @@ export function addCommentToPost(postId, text) {
       createdAt: new Date().toISOString()
     });
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    return newComment;
   }
+  return null;
+}
+
+export function deleteComment(postId, commentId) {
+  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const activeUser = getActiveUser();
+  const post = posts.find(p => p.id === postId);
+  if (post && Array.isArray(post.comments)) {
+    const idx = post.comments.findIndex(c => c.id === commentId);
+    if (idx !== -1) {
+      const comment = post.comments[idx];
+      if (comment.userId === activeUser.id || post.authorId === activeUser.id) {
+        post.comments.splice(idx, 1);
+        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export function pinPost(postId) {
@@ -751,12 +910,24 @@ export function getChatMessages(userId1, userId2) {
   } catch { return []; }
 }
 
-export function sendMessage(fromUserId, toUserId, text, song = null) {
+export function sendMessage(fromUserId, toUserId, text, song = null, imageUrl = '', gifUrl = '', replyTo = null, link = null) {
   try {
     const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
     const now = new Date();
     const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const newMsg = { id: 'msg_' + Date.now(), fromUserId, toUserId, text: text.trim(), song, createdAt: timeStr };
+    const newMsg = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      fromUserId,
+      toUserId,
+      text: (text || '').trim(),
+      song: song || null,
+      imageUrl: imageUrl || '',
+      gifUrl: gifUrl || '',
+      link: link || null,
+      replyTo: replyTo || null,
+      edited: false,
+      createdAt: timeStr
+    };
     all.push(newMsg);
     localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
     addNotification(toUserId, {
@@ -768,6 +939,29 @@ export function sendMessage(fromUserId, toUserId, text, song = null) {
     });
     return newMsg;
   } catch (e) { console.error(e); }
+}
+
+export function editMessage(messageId, newText) {
+  try {
+    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
+    const msg = all.find(m => m.id === messageId);
+    if (msg) {
+      msg.text = (newText || '').trim();
+      msg.edited = true;
+      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+      return msg;
+    }
+  } catch (e) { console.error(e); }
+  return null;
+}
+
+export function deleteMessage(messageId) {
+  try {
+    let all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
+    all = all.filter(m => m.id !== messageId);
+    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+    return true;
+  } catch (e) { console.error(e); return false; }
 }
 
 export function getUnreadMessageCount(userId = getActiveUserId()) {
@@ -792,17 +986,28 @@ export function getSongReviews(targetUserId, challengeId, questionId) {
   return all[key] || {};
 }
 
-export function saveSongReview(targetUserId, challengeId, questionId, rating, comment) {
+export function saveSongReview(targetUserId, challengeId, questionId, rating, comment, song = null) {
   const all = getAllReviews();
   const activeUser = getActiveUser();
   const key = `${challengeId}_${targetUserId}_${questionId}`;
   if (!all[key]) all[key] = {};
+
+  // Lookup song from challenge answers if not provided
+  if (!song) {
+    const answers = getChallengeAnswers(challengeId, targetUserId);
+    song = answers?.[questionId] || null;
+  }
+
   all[key][activeUser.id] = {
     reviewerId: activeUser.id,
     reviewerName: activeUser.name,
     reviewerAvatar: activeUser.avatar || 'U',
     rating: parseFloat(rating),
-    comment: comment.trim(),
+    comment: (comment || '').trim(),
+    song: song || null,
+    targetUserId: targetUserId,
+    challengeId: challengeId,
+    questionId: questionId,
     createdAt: 'agora'
   };
   localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(all));
@@ -810,10 +1015,272 @@ export function saveSongReview(targetUserId, challengeId, questionId, rating, co
     type: 'review',
     fromUserId: activeUser.id,
     fromName: activeUser.name,
-    text: `avaliou uma de suas músicas com ${parseFloat(rating).toFixed(1)}`,
+    text: `avaliou uma de suas músicas com ${parseFloat(rating).toFixed(1)} estrelas`,
     createdAt: new Date().toISOString()
   });
   return all[key][activeUser.id];
+}
+
+// ──────────────────────────────────────────
+//  PLAYLISTS
+// ──────────────────────────────────────────
+
+export function getAllPlaylists() {
+  try {
+    const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYLISTS));
+    if (Array.isArray(list)) return list;
+    return INITIAL_PLAYLISTS;
+  } catch {
+    return INITIAL_PLAYLISTS;
+  }
+}
+
+export function getPlaylistById(id) {
+  const all = getAllPlaylists();
+  return all.find(p => p.id === id) || null;
+}
+
+export function createPlaylist({ title, description = '', coverUrl = '' }) {
+  const all = getAllPlaylists();
+  const activeUser = getActiveUser();
+  const newPl = {
+    id: 'pl_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    title: title.trim(),
+    description: description.trim(),
+    coverUrl: coverUrl.trim(),
+    authorId: activeUser.id,
+    createdAt: 'agora mesmo',
+    likes: [],
+    songs: []
+  };
+  all.unshift(newPl);
+  localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+  return newPl;
+}
+
+export function updatePlaylist(id, updates) {
+  const all = getAllPlaylists();
+  const idx = all.findIndex(p => p.id === id);
+  if (idx !== -1) {
+    all[idx] = { ...all[idx], ...updates, updatedAt: 'editado agora' };
+    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+    return all[idx];
+  }
+  return null;
+}
+
+export function deletePlaylist(id) {
+  const all = getAllPlaylists();
+  const filtered = all.filter(p => p.id !== id);
+  localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(filtered));
+  return true;
+}
+
+export function addSongToPlaylist(playlistId, track, note = '') {
+  const all = getAllPlaylists();
+  const pl = all.find(p => p.id === playlistId);
+  if (!pl) return null;
+  if (!Array.isArray(pl.songs)) pl.songs = [];
+
+  const songEntry = {
+    id: track.id || ('trk_' + Date.now()),
+    title: track.title,
+    artist: track.artist,
+    album: track.album || '',
+    artwork: track.artwork || '',
+    previewUrl: track.previewUrl || '',
+    duration: track.duration || '0:00',
+    note: note ? note.trim() : '',
+    addedAt: new Date().toISOString()
+  };
+
+  pl.songs.push(songEntry);
+  localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+  return songEntry;
+}
+
+export function removeSongFromPlaylist(playlistId, songIndex) {
+  const all = getAllPlaylists();
+  const pl = all.find(p => p.id === playlistId);
+  if (!pl || !Array.isArray(pl.songs)) return false;
+  if (songIndex >= 0 && songIndex < pl.songs.length) {
+    pl.songs.splice(songIndex, 1);
+    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+    return true;
+  }
+  return false;
+}
+
+export function reorderPlaylistSongs(playlistId, fromIndex, toIndex) {
+  const all = getAllPlaylists();
+  const pl = all.find(p => p.id === playlistId);
+  if (!pl || !Array.isArray(pl.songs)) return false;
+  if (fromIndex < 0 || fromIndex >= pl.songs.length || toIndex < 0 || toIndex >= pl.songs.length) return false;
+  const [moved] = pl.songs.splice(fromIndex, 1);
+  pl.songs.splice(toIndex, 0, moved);
+  localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+  return true;
+}
+
+export function toggleLikePlaylist(playlistId) {
+  const all = getAllPlaylists();
+  const activeUser = getActiveUser();
+  const pl = all.find(p => p.id === playlistId);
+  if (pl) {
+    if (!Array.isArray(pl.likes)) pl.likes = [];
+    const idx = pl.likes.indexOf(activeUser.id);
+    if (idx === -1) {
+      pl.likes.push(activeUser.id);
+      if (pl.authorId !== activeUser.id) {
+        addNotification(pl.authorId, {
+          type: 'like_playlist',
+          fromUserId: activeUser.id,
+          fromName: activeUser.name,
+          text: `curtiu sua playlist "${pl.title}"`,
+          createdAt: new Date().toISOString()
+        });
+      }
+    } else {
+      pl.likes.splice(idx, 1);
+    }
+    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+    return pl;
+  }
+  return null;
+}
+
+// ──────────────────────────────────────────
+//  REAL MUSICAL AFFINITY / COMPATIBILITY ENGINE
+// ──────────────────────────────────────────
+
+export function calculateMusicalAffinity(userId1, userId2) {
+  const user1 = getUserById(userId1);
+  const user2 = getUserById(userId2);
+  if (!user1 || !user2) return { hasEnoughData: false, percentage: 0 };
+
+  const allChallenges = getAllChallenges();
+  
+  // 1. Gather all songs and artists for User 1
+  const tracks1 = [];
+  const artists1 = new Set();
+  const genres1 = new Set();
+
+  allChallenges.forEach(c => {
+    const ans = getChallengeAnswers(c.id, userId1);
+    Object.values(ans).forEach(s => {
+      if (s && s.title) {
+        tracks1.push(s);
+        if (s.artist) artists1.add(s.artist.toLowerCase().trim());
+        if (s.genre) genres1.add(s.genre.toLowerCase().trim());
+      }
+    });
+  });
+
+  if (user1.featuredSong?.artist) artists1.add(user1.featuredSong.artist.toLowerCase().trim());
+  if (user1.topArtists && Array.isArray(user1.topArtists)) {
+    user1.topArtists.forEach(a => { if (a?.name) artists1.add(a.name.toLowerCase().trim()); });
+  }
+
+  // 2. Gather all songs and artists for User 2
+  const tracks2 = [];
+  const artists2 = new Set();
+  const genres2 = new Set();
+
+  allChallenges.forEach(c => {
+    const ans = getChallengeAnswers(c.id, userId2);
+    Object.values(ans).forEach(s => {
+      if (s && s.title) {
+        tracks2.push(s);
+        if (s.artist) artists2.add(s.artist.toLowerCase().trim());
+        if (s.genre) genres2.add(s.genre.toLowerCase().trim());
+      }
+    });
+  });
+
+  if (user2.featuredSong?.artist) artists2.add(user2.featuredSong.artist.toLowerCase().trim());
+  if (user2.topArtists && Array.isArray(user2.topArtists)) {
+    user2.topArtists.forEach(a => { if (a?.name) artists2.add(a.name.toLowerCase().trim()); });
+  }
+
+  // Check if there is enough data
+  if (artists1.size === 0 || artists2.size === 0) {
+    return {
+      hasEnoughData: false,
+      percentage: 0,
+      reason: 'Ainda sem respostas suficientes para calcular a sintonia'
+    };
+  }
+
+  // 3. Shared artists
+  const sharedArtists = [];
+  artists1.forEach(a => {
+    if (artists2.has(a)) sharedArtists.push(a);
+  });
+
+  // 4. Shared genres
+  const sharedGenres = [];
+  genres1.forEach(g => {
+    if (genres2.has(g)) sharedGenres.push(g);
+  });
+
+  // 5. Shared exact tracks
+  const sharedTracks = [];
+  tracks1.forEach(t1 => {
+    const t1Clean = (t1.title || '').toLowerCase().trim();
+    const match = tracks2.find(t2 => (t2.title || '').toLowerCase().trim() === t1Clean);
+    if (match && !sharedTracks.includes(t1.title)) sharedTracks.push(t1.title);
+  });
+
+  // 6. Mutual ratings given
+  const allReviews = getAllReviews();
+  let ratingSum = 0;
+  let ratingCount = 0;
+  
+  Object.values(allReviews).forEach(questionReviews => {
+    if (questionReviews[userId1] && questionReviews[userId1].targetUserId === userId2) {
+      ratingSum += questionReviews[userId1].rating;
+      ratingCount++;
+    }
+    if (questionReviews[userId2] && questionReviews[userId2].targetUserId === userId1) {
+      ratingSum += questionReviews[userId2].rating;
+      ratingCount++;
+    }
+  });
+
+  // Weighted calculation
+  const minArtistPool = Math.min(artists1.size, artists2.size);
+  const artistScore = minArtistPool > 0 ? (sharedArtists.length / minArtistPool) * 100 : 0;
+
+  const minGenrePool = Math.min(genres1.size, genres2.size);
+  const genreScore = minGenrePool > 0 ? (sharedGenres.length / minGenrePool) * 100 : (sharedArtists.length > 0 ? 50 : 20);
+
+  const minTrackPool = Math.min(tracks1.length, tracks2.length);
+  const trackScore = minTrackPool > 0 ? (sharedTracks.length / minTrackPool) * 100 : 0;
+
+  let finalPercentage;
+  let avgRating = ratingCount > 0 ? (ratingSum / ratingCount).toFixed(1) : null;
+
+  if (ratingCount > 0) {
+    const ratingScore = (ratingSum / ratingCount / 5.0) * 100;
+    finalPercentage = Math.round(artistScore * 0.40 + genreScore * 0.25 + trackScore * 0.15 + ratingScore * 0.20);
+  } else {
+    finalPercentage = Math.round(artistScore * 0.55 + genreScore * 0.30 + trackScore * 0.15);
+  }
+
+  // Baseline calibration: clamp between 10% and 100%
+  finalPercentage = Math.min(100, Math.max(12, finalPercentage));
+
+  return {
+    hasEnoughData: true,
+    percentage: finalPercentage,
+    sharedArtists,
+    sharedGenres,
+    sharedTracks,
+    avgRating,
+    ratingCount,
+    totalAnswers1: tracks1.length,
+    totalAnswers2: tracks2.length
+  };
 }
 
 // ──────────────────────────────────────────
@@ -827,3 +1294,4 @@ export function getUserChallengeAnswers(userId = getActiveUserId()) {
 export function getQuestions() {
   return getActiveChallenge().questions;
 }
+

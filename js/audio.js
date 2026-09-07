@@ -102,12 +102,31 @@ class AudioController {
       return;
     }
 
-    // If same track is playing, toggle pause
-    if (this.currentTrack && (this.currentTrack.id === trackData.id || this.currentTrack.previewUrl === trackData.previewUrl)) {
+    // If same track is playing, toggle pause / play / restart
+    const isCurrent = this.currentTrack && (
+      (this.currentTrack.id && trackData.id && String(this.currentTrack.id) === String(trackData.id)) ||
+      (this.currentTrack.previewUrl && trackData.previewUrl && this.currentTrack.previewUrl === trackData.previewUrl) ||
+      (this.currentTrack.title && trackData.title &&
+       this.currentTrack.title.trim().toLowerCase() === trackData.title.trim().toLowerCase() &&
+       this.currentTrack.artist && trackData.artist &&
+       this.currentTrack.artist.trim().toLowerCase() === trackData.artist.trim().toLowerCase())
+    );
+
+    if (isCurrent) {
       if (this.isPlaying) {
         this.audio.pause();
       } else {
-        this.audio.play().catch(e => console.warn('Play error:', e));
+        if (this.audio.ended || (this.audio.duration && this.audio.currentTime >= this.audio.duration - 0.5)) {
+          this.audio.currentTime = 0;
+        }
+        const playPromise = this.audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            console.warn('Play error:', e);
+            this.isPlaying = false;
+            this._emit('pause', this.currentTrack);
+          });
+        }
       }
       return;
     }
@@ -133,7 +152,17 @@ class AudioController {
     if (this.isPlaying) {
       this.audio.pause();
     } else {
-      this.audio.play().catch(e => console.warn('Play error:', e));
+      if (this.audio.ended || (this.audio.duration && this.audio.currentTime >= this.audio.duration - 0.5)) {
+        this.audio.currentTime = 0;
+      }
+      const playPromise = this.audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(e => {
+          console.warn('Play error:', e);
+          this.isPlaying = false;
+          this._emit('pause', this.currentTrack);
+        });
+      }
     }
   }
 

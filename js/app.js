@@ -1,4 +1,3 @@
-// App.js — Main entry point: routing, sidebar, global event handlers
 import { initStorage, getActiveUser, getAllUsers, getUserById,
          toggleFollow, isFollowing, toggleLikePost, toggleRepostPost,
          toggleBookmark, addCommentToPost, pinPost, deletePost,
@@ -6,7 +5,7 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
          createPost, setFeaturedSong, addToShowcase, removeFromShowcase,
          getUnreadNotificationCount, getFeedPosts, getChallengeAnswers,
          getActiveChallengeId, getChallengeAnswers as getAnswers,
-         updateUserMusicStats } from './storage.js';
+         updateUserMusicStats, getAllPlaylists, getPlaylistById } from './storage.js';
 
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
@@ -27,6 +26,7 @@ import {
   openModal, closeModal, showToast
 } from './profile.js';
 import { openDMWindow, closeDMWindow, toggleDMWindow, initChatBindings } from './chat.js';
+import { renderPlaylistsTab } from './playlists.js';
 
 // ──────────────────────────────────────────
 // INIT
@@ -84,6 +84,12 @@ function renderSidebar() {
       <button class="nav-item" id="nav-search-tab" onclick="switchTab('search')">
         ${ICONS.search} <span>Pesquisar</span>
       </button>
+      <button class="nav-item" id="nav-playlists" onclick="switchTab('playlists')">
+        ${ICONS.playlist} <span>Playlists</span>
+      </button>
+      <button class="nav-item" id="nav-chat" onclick="switchTab('chat')">
+        ${ICONS.chat} <span>Chat</span>
+      </button>
       <button class="nav-item" id="nav-desafios" onclick="switchTab('desafios')">
         ${ICONS.music} <span>Desafios</span>
       </button>
@@ -128,17 +134,36 @@ function switchTab(tabName) {
   document.querySelectorAll('.tab-view-content').forEach(el => el.classList.remove('active'));
 
   switch (tabName) {
-    case 'feed':     renderFeedTab();     break;
-    case 'search':   renderSearchTab();   break;
-    case 'desafios': renderDesafiosTab(); break;
-    case 'comparar': renderCompararTab(); break;
-    case 'profile':  renderProfileTab();  break;
+    case 'feed':        renderFeedTab();      break;
+    case 'search':      renderSearchTab();    break;
+    case 'playlists':   renderPlaylistsTab(document.getElementById('tab-playlists')); break;
+    case 'chat':        renderChatTab();      break;
+    case 'desafios':    renderDesafiosTab();  break;
+    case 'comparar':    renderCompararTab();  break;
+    case 'profile':     renderProfileTab();   break;
   }
 
   const el = document.getElementById(`tab-${tabName}`);
   if (el) el.classList.add('active');
 
+  // Floating DM button visibility
+  const dmFab = document.getElementById('dm-fab');
+  if (dmFab) {
+    if (tabName === 'chat') {
+      dmFab.style.display = 'none';
+      closeDMWindow();
+    } else {
+      dmFab.style.display = 'flex';
+    }
+  }
+
   window.switchTab = switchTab;
+}
+
+function renderChatTab() {
+  const tab = document.getElementById('tab-chat');
+  if (!tab) return;
+  import('./chat.js').then(c => c.renderChatTab(tab));
 }
 
 // ──────────────────────────────────────────
@@ -199,7 +224,7 @@ function renderFeedTab() {
         <div class="sidebar-widget">
           <div class="widget-header">
             <div style="display:flex;align-items:center;gap:6px;">
-              <span style="color:#ff5555;">🔥</span>
+              <span style="color:#ff5555;display:inline-flex;align-items:center;">${ICONS.fire}</span>
               <span>Tendências (Last.fm)</span>
             </div>
             <span style="font-size:0.68rem;color:var(--purple-light);font-weight:700;">Global</span>
@@ -474,14 +499,40 @@ function bindGlobalHandlers() {
   };
 
   // Toggle comments
-  window._toggleComments = (postId) => {
-    const el = document.getElementById(`comments-${postId}`);
-    if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+  window._toggleComments = (postId, btn, event) => {
+    if (event) event.stopPropagation();
+
+    let postCard = btn ? btn.closest('.post-card') : null;
+    if (!postCard) {
+      const cards = Array.from(document.querySelectorAll(`.post-card[data-post-id="${postId}"]`));
+      postCard = cards.find(c => c.offsetParent !== null) || cards[0];
+    }
+    if (!postCard) return;
+
+    const commentsSection = postCard.querySelector('.post-comments-section');
+    if (!commentsSection) return;
+
+    const isHidden = window.getComputedStyle(commentsSection).display === 'none' || commentsSection.style.display === 'none' || !commentsSection.style.display;
+    commentsSection.style.display = isHidden ? 'flex' : 'none';
+
+    if (isHidden) {
+      const input = commentsSection.querySelector('.doodle-input');
+      if (input) setTimeout(() => input.focus(), 50);
+    }
   };
 
   // Submit comment
-  window._submitComment = (postId) => {
-    const input = document.getElementById(`comment-input-${postId}`);
+  window._submitComment = (postId, btn) => {
+    if (window._submitRichComment) {
+      window._submitRichComment(postId, btn);
+      return;
+    }
+    let postCard = btn ? btn.closest('.post-card') : null;
+    if (!postCard) {
+      const cards = Array.from(document.querySelectorAll(`.post-card[data-post-id="${postId}"]`));
+      postCard = cards.find(c => c.offsetParent !== null) || cards[0];
+    }
+    const input = postCard ? postCard.querySelector('.doodle-input') : document.getElementById(`comment-input-${postId}`);
     const text = input?.value?.trim();
     if (!text) return;
     addCommentToPost(postId, text);
@@ -591,33 +642,61 @@ function bindGlobalHandlers() {
     if (!wasOpen) dropdown.style.display = 'block';
   };
 
+  // Cache for resolved iTunes tracks to avoid repeated network requests
+  const _trackSearchCache = new Map();
+
   // Play track via globalAudio with dynamic iTunes search & HD artwork enrichment
   window._playTrack = async (track) => {
     if (!track) return;
 
-    if (!track.previewUrl) {
-      const q = `${track.title || ''} ${track.artist || ''}`.trim();
-      if (q) {
+    // Check if this track is already active in globalAudio
+    const cur = globalAudio.getCurrentTrack();
+    const isSameTrack = cur && (
+      (track.id && cur.id && String(track.id) === String(cur.id)) ||
+      (track.previewUrl && cur.previewUrl && track.previewUrl === cur.previewUrl) ||
+      (track.title && cur.title && track.title.trim().toLowerCase() === cur.title.trim().toLowerCase() &&
+       track.artist && cur.artist && track.artist.trim().toLowerCase() === cur.artist.trim().toLowerCase())
+    );
+
+    if (isSameTrack) {
+      globalAudio.playTrack(cur);
+      return;
+    }
+
+    let trackToPlay = { ...track };
+    const cacheKey = `${track.title || ''} ${track.artist || ''}`.trim().toLowerCase();
+
+    if (!trackToPlay.previewUrl && cacheKey) {
+      if (_trackSearchCache.has(cacheKey)) {
+        const cached = _trackSearchCache.get(cacheKey);
+        trackToPlay = { ...trackToPlay, ...cached };
+      } else {
         showToast(`Buscando áudio de "${track.title || 'Música'}" no iTunes...`);
         try {
-          const results = await searchTracks(q, 1);
+          const results = await searchTracks(cacheKey, 1);
           if (results && results.length > 0) {
             const enriched = {
-              ...track,
+              ...trackToPlay,
               previewUrl: results[0].previewUrl,
-              artwork: results[0].artwork || track.artwork,
-              duration: results[0].duration || track.duration
+              artwork: results[0].artwork || trackToPlay.artwork,
+              duration: results[0].duration || trackToPlay.duration,
+              id: results[0].id || trackToPlay.id
             };
-            globalAudio.playTrack(enriched);
+            _trackSearchCache.set(cacheKey, enriched);
+            trackToPlay = enriched;
+          } else {
+            showToast(`Prévia não encontrada para "${track.title}".`);
             return;
           }
         } catch (e) {
           console.warn('iTunes track enrichment error:', e);
+          showToast(`Erro ao buscar áudio no iTunes.`);
+          return;
         }
       }
     }
 
-    globalAudio.playTrack(track);
+    globalAudio.playTrack(trackToPlay);
   };
 
   window._togglePlayerPlay = () => globalAudio.togglePlayPause();
@@ -691,8 +770,8 @@ function bindGlobalHandlers() {
       });
     }
 
-    if (!text && !lyrics && !window._pendingCreatorSong) {
-      showToast('Escreva algo ou anexe uma música/letra.');
+    if (!text && !lyrics && !window._pendingCreatorSong && !window._pendingCreatorImage) {
+      showToast('Escreva algo ou anexe uma música, foto ou letra.');
       return;
     }
 
@@ -708,15 +787,22 @@ function bindGlobalHandlers() {
         lyricsCardStyle,
         tag,
         rating: finalRating,
+        imageUrl: window._pendingCreatorImage || '',
         song: window._pendingCreatorSong || null,
+        playlist: window._pendingCreatorPlaylist || null,
+        playlistId: window._pendingCreatorPlaylist?.id || null
       });
 
       // Cleanup creator
       if (textEl) textEl.value = '';
       window._pendingCreatorSong = null;
+      window._pendingCreatorPlaylist = null;
+      window._pendingCreatorImage = null;
       window._pendingCreatorRating = 0;
       if (window._creatorRemoveLyrics) window._creatorRemoveLyrics();
       if (window._removeCreatorSong) window._removeCreatorSong();
+      if (window._removeCreatorPlaylist) window._removeCreatorPlaylist();
+      if (window._removeCreatorImage) window._removeCreatorImage();
       if (ratingBox) {
         ratingBox.style.display = 'none';
         if (m.creatorState) m.creatorState.rating = 0;
@@ -752,6 +838,100 @@ function bindGlobalHandlers() {
     if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   };
 
+  // Creator attach playlist
+  window._creatorOpenPlaylistPicker = () => {
+    const modal = document.getElementById('playlist-picker-modal');
+    if (!modal) return;
+    const body = modal.querySelector('.modal-body');
+    const user = getActiveUser();
+    const all = getAllPlaylists();
+    
+    // Put user playlists first
+    const myPlaylists = all.filter(p => p.authorId === user.id);
+    const otherPlaylists = all.filter(p => p.authorId !== user.id);
+    const sorted = [...myPlaylists, ...otherPlaylists];
+
+    if (!sorted.length) {
+      body.innerHTML = `
+        <div style="text-align:center;padding:30px 10px;color:var(--muted);">
+          <div style="font-size:2rem;color:var(--purple-light);margin-bottom:8px;">${ICONS.playlist}</div>
+          <p style="margin-bottom:14px;font-size:0.88rem;">Nenhuma playlist encontrada.</p>
+          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="closeDoodleModal('playlist-picker-modal');switchTab('playlists');window._openCreatePlaylistModal();">
+            Criar Nova Playlist
+          </button>
+        </div>`;
+    } else {
+      body.innerHTML = `
+        <div style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">
+          Selecione uma playlist para anexar ao seu post:
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding-right:4px;">
+          ${sorted.map(pl => {
+            const isMine = pl.authorId === user.id;
+            const songs = pl.songs || [];
+            const coverArt = pl.coverUrl || (songs.find(s => !!s.artwork)?.artwork || '');
+            const safePlJson = JSON.stringify(pl).replace(/"/g, '&quot;');
+            return `
+              <div class="playlist-picker-item" onclick="window._setCreatorPlaylist(${safePlJson})" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:10px;cursor:pointer;transition:all 0.15s ease;">
+                <div style="width:46px;height:46px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                  ${coverArt ? `<img src="${coverArt}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:0.88rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pl.title}</div>
+                  <div style="font-size:0.75rem;color:var(--purple-light);">${isMine ? 'Sua playlist' : 'Da comunidade'} &bull; ${songs.length} faixas</div>
+                </div>
+                <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="flex-shrink:0;">
+                  Selecionar
+                </button>
+              </div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    openDoodleModal('playlist-picker-modal');
+  };
+
+  window._setCreatorPlaylist = (pl) => {
+    window._pendingCreatorPlaylist = pl;
+    closeDoodleModal('playlist-picker-modal');
+    const el = document.getElementById('creator-playlist-attach');
+    if (!el) return;
+    const songs = pl.songs || [];
+    const coverArt = pl.coverUrl || (songs.find(s => !!s.artwork)?.artwork || '');
+
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div class="creator-attached-playlist" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:linear-gradient(135deg,rgba(30,16,52,0.85),rgba(12,8,20,0.95));border:1px solid var(--purple-accent);border-radius:10px;margin-top:10px;">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <div style="width:40px;height:40px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+            ${coverArt ? `<img src="${coverArt}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
+          </div>
+          <div style="min-width:0;">
+            <div style="font-size:0.7rem;font-weight:800;color:var(--purple-light);text-transform:uppercase;">Playlist Anexada</div>
+            <div style="font-size:0.86rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pl.title}</div>
+          </div>
+        </div>
+        <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="color:#ff5555;" onclick="window._removeCreatorPlaylist()">Remover</button>
+      </div>`;
+
+    const sel = document.getElementById('creator-tag');
+    if (sel && sel.value === '#música') {
+      sel.value = '#recomendo';
+    }
+    showToast(`Playlist "${pl.title}" anexada!`);
+  };
+
+  window._removeCreatorPlaylist = () => {
+    window._pendingCreatorPlaylist = null;
+    const el = document.getElementById('creator-playlist-attach');
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  };
+
+  window._goToSharedPlaylist = (playlistId) => {
+    switchTab('playlists');
+    window._viewPlaylist?.(playlistId);
+  };
+
   // Creator search for song
   window._creatorOpenSearch = () => {
     openSearchModalForFeed();
@@ -778,21 +958,103 @@ function bindGlobalHandlers() {
     window._refreshProfile();
   };
   window._editAvatar = () => {
-    const current = getActiveUser().avatar || '';
-    const url = prompt('Insira a URL da foto de perfil ou um emoji/letra:', current);
-    if (url !== null) {
-      import('./storage.js').then(m => {
-        m.updateUser(m.getActiveUserId(), { avatar: url.trim() });
-        showToast('Foto de perfil atualizada!');
-        // Update sidebar avatar
-        const sidebarAvatar = document.querySelector('.sidebar-avatar');
-        if (sidebarAvatar) {
-          const isImg = url.startsWith('http') || url.startsWith('data:') || url.startsWith('/');
-          sidebarAvatar.innerHTML = isImg ? `<img src="${url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : (url || 'V');
-        }
-        window._refreshProfile();
-      });
+    const user = getActiveUser();
+    let modal = document.getElementById('avatar-modal');
+    if (!modal) return;
+
+    const body = document.getElementById('avatar-modal-body');
+    if (body) {
+      const isImg = user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:') || user.avatar.startsWith('/'));
+      const initialAvatarHtml = isImg
+        ? `<img id="avatar-modal-preview-img" src="${user.avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+        : `<span id="avatar-modal-preview-text" style="font-size:36px;font-weight:800;color:var(--purple-light);">${user.avatar || user.name[0]}</span>`;
+
+      body.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <!-- Live Avatar Preview -->
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+            <div id="avatar-modal-preview-box" style="width:90px;height:90px;border-radius:50%;background:var(--purple-dark);border:3px solid var(--purple-accent);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+              ${initialAvatarHtml}
+            </div>
+            <span style="font-size:0.75rem;color:var(--muted);">Prévia da Foto</span>
+          </div>
+
+          <!-- Upload from Device -->
+          <div>
+            <label class="form-label" style="font-weight:700;margin-bottom:6px;display:block;">Enviar do Dispositivo:</label>
+            <label class="doodle-btn doodle-btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;cursor:pointer;font-weight:700;">
+              ${ICONS.image || ''}
+              <span>Escolher foto do computador / celular</span>
+              <input type="file" id="avatar-modal-file" accept="image/*" style="display:none;" onchange="window._handleDirectAvatarUpload(event)">
+            </label>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+            <span style="font-size:0.75rem;color:var(--muted);font-weight:700;">OU LINK DA WEB / EMOJI</span>
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+          </div>
+
+          <!-- URL or Emoji Input -->
+          <div>
+            <label class="form-label">URL da Foto ou Letra/Emoji</label>
+            <div style="display:flex;gap:8px;">
+              <input id="avatar-modal-input" class="doodle-input" value="${user.avatar || ''}" placeholder="https://exemplo.com/foto.jpg ou emoji" oninput="window._previewAvatarModal(this.value)">
+              <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('avatar-modal-input').value='';window._previewAvatarModal('');">Limpar</button>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+            <button type="button" class="doodle-btn doodle-btn-ghost" onclick="window.closeModal('avatar-modal')">Cancelar</button>
+            <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._saveAvatarModal()">Salvar Foto</button>
+          </div>
+        </div>`;
     }
+
+    window.openModal('avatar-modal');
+  };
+
+  window._handleDirectAvatarUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const input = document.getElementById('avatar-modal-input');
+      if (input) input.value = dataUrl;
+      window._previewAvatarModal(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window._previewAvatarModal = (val) => {
+    const box = document.getElementById('avatar-modal-preview-box');
+    if (!box) return;
+    const clean = (val || '').trim();
+    const isImg = clean.startsWith('http') || clean.startsWith('data:') || clean.startsWith('/');
+    if (isImg) {
+      box.innerHTML = `<img src="${clean}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    } else {
+      const fallback = clean || getActiveUser().name?.[0] || 'V';
+      box.innerHTML = `<span style="font-size:36px;font-weight:800;color:var(--purple-light);">${fallback}</span>`;
+    }
+  };
+
+  window._saveAvatarModal = () => {
+    const input = document.getElementById('avatar-modal-input');
+    const val = (input?.value || '').trim() || getActiveUser().name?.[0] || 'V';
+    import('./storage.js').then(m => {
+      m.updateUser(m.getActiveUserId(), { avatar: val });
+      window.closeModal('avatar-modal');
+      showToast('Foto de perfil atualizada!');
+      const sidebarAvatar = document.querySelector('.sidebar-avatar');
+      if (sidebarAvatar) {
+        const isImg = val.startsWith('http') || val.startsWith('data:') || val.startsWith('/');
+        sidebarAvatar.innerHTML = isImg ? `<img src="${val}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : val;
+      }
+      window._refreshProfile?.();
+    });
   };
 
   window._openBannerModal = () => {
@@ -810,9 +1072,25 @@ function bindGlobalHandlers() {
             <div id="banner-modal-preview" style="height:120px;border-radius:12px;overflow:hidden;border:var(--border);background-size:cover;background-position:center;${user.bannerUrl ? `background-image:url('${user.bannerUrl}');` : `background:linear-gradient(135deg, ${user.themeColor || '#130c1e'}, #000);`}"></div>
           </div>
 
+          <!-- Upload from Device -->
+          <div>
+            <label class="form-label" style="font-weight:700;margin-bottom:6px;display:block;">Enviar do Dispositivo:</label>
+            <label class="doodle-btn doodle-btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;cursor:pointer;font-weight:700;">
+              ${ICONS.image || ''}
+              <span>Escolher banner do computador / celular</span>
+              <input type="file" id="banner-modal-file" accept="image/*" style="display:none;" onchange="window._handleDirectBannerUpload(event)">
+            </label>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+            <span style="font-size:0.75rem;color:var(--muted);font-weight:700;">OU LINK DA WEB</span>
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+          </div>
+
           <!-- URL Input -->
           <div>
-            <label class="form-label">URL da Imagem</label>
+            <label class="form-label">URL da Imagem da Web</label>
             <div style="display:flex;gap:8px;">
               <input id="banner-modal-input" class="doodle-input" value="${user.bannerUrl || ''}" placeholder="Cole o link da imagem (ex: https://...)" oninput="window._previewBannerModal(this.value)">
               <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('banner-modal-input').value='';window._previewBannerModal('');">Limpar</button>
@@ -823,17 +1101,17 @@ function bindGlobalHandlers() {
           <div>
             <label class="form-label" style="margin-bottom:6px;">Ou escolha um tema estético:</label>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #1f0d3d, #4b1248);cursor:pointer;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80')">
-                🌆 Synthwave Neon
+              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #1f0d3d, #4b1248);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80')">
+                ${ICONS.sparkles} Synthwave Neon
               </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #09132b, #1d3557);cursor:pointer;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1200&auto=format&fit=crop&q=80')">
-                🎧 Studio Vinyl
+              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #09132b, #1d3557);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1200&auto=format&fit=crop&q=80')">
+                ${ICONS.headphones} Studio Vinyl
               </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #10002b, #3c096c);cursor:pointer;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1200&auto=format&fit=crop&q=80')">
-                ✨ Deep Nebula
+              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #10002b, #3c096c);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1200&auto=format&fit=crop&q=80')">
+                ${ICONS.disc} Deep Nebula
               </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #0d1b2a, #1b263b);cursor:pointer;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80')">
-                🖤 Dark Minimal
+              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #0d1b2a, #1b263b);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80')">
+                ${ICONS.moon} Dark Minimal
               </div>
             </div>
           </div>
@@ -847,6 +1125,19 @@ function bindGlobalHandlers() {
     }
 
     window.openModal('banner-modal');
+  };
+
+  window._handleDirectBannerUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const input = document.getElementById('banner-modal-input');
+      if (input) input.value = dataUrl;
+      window._previewBannerModal(dataUrl);
+    };
+    reader.readAsDataURL(file);
   };
 
   window._previewBannerModal = (val) => {
@@ -906,8 +1197,7 @@ function bindGlobalHandlers() {
   };
 
   window._setMusicServiceTab = (service) => {
-    currentMusicServiceTab = service;
-    const btnSp = document.getElementById('tab-btn-spotify');
+    currentMusicServiceTab = service === 'picker' ? 'picker' : 'lastfm';
     const btnLm = document.getElementById('tab-btn-lastfm');
     const btnPk = document.getElementById('tab-btn-picker');
     const inputMode = document.getElementById('service-input-mode');
@@ -916,25 +1206,18 @@ function bindGlobalHandlers() {
     const hint = document.getElementById('music-service-hint');
 
     // Reset styles
-    [btnSp, btnLm, btnPk].forEach(b => { if (b) b.className = 'doodle-btn doodle-btn-secondary doodle-btn-sm'; });
+    [btnLm, btnPk].forEach(b => { if (b) b.className = 'doodle-btn doodle-btn-secondary doodle-btn-sm'; });
 
-    if (service === 'picker') {
+    if (currentMusicServiceTab === 'picker') {
       if (btnPk) btnPk.className = 'doodle-btn doodle-btn-primary doodle-btn-sm';
       if (inputMode) inputMode.style.display = 'none';
       if (pickerMode) pickerMode.style.display = 'block';
     } else {
+      if (btnLm) btnLm.className = 'doodle-btn doodle-btn-primary doodle-btn-sm';
       if (inputMode) inputMode.style.display = 'block';
       if (pickerMode) pickerMode.style.display = 'none';
-
-      if (service === 'spotify') {
-        if (btnSp) btnSp.className = 'doodle-btn doodle-btn-primary doodle-btn-sm';
-        if (label) label.textContent = 'Nome de usuário no Spotify ou perfil';
-        if (hint) hint.innerHTML = 'Dica: Conecta ao perfil e busca seus <strong>Top 5 Artistas</strong> favoritos.';
-      } else {
-        if (btnLm) btnLm.className = 'doodle-btn doodle-btn-primary doodle-btn-sm';
-        if (label) label.textContent = 'Nome de usuário no Last.fm (scrobbles)';
-        if (hint) hint.innerHTML = 'Dica: Busca seus <strong>Top 5 Artistas do Mês</strong> e scrobbles reais em tempo real via Last.fm API.';
-      }
+      if (label) label.textContent = 'Nome de usuário no Last.fm (scrobbles)';
+      if (hint) hint.innerHTML = 'Dica: Busca seus <strong>Top 5 Artistas do Mês</strong> e scrobbles reais em tempo real via Last.fm API.';
     }
   };
 
@@ -1045,7 +1328,7 @@ function bindGlobalHandlers() {
       }
 
       updateUserMusicStats(activeUser.id, {
-        service: 'spotify',
+        service: 'custom',
         username: activeUser.handle || 'me',
         topArtist: tempPickerArtists[0],
         topArtistsMonth: tempPickerArtists,
@@ -1063,25 +1346,20 @@ function bindGlobalHandlers() {
     }
 
     if (!username) {
-      showToast('Digite seu nome de usuário ou termo.');
+      showToast('Digite seu nome de usuário do Last.fm.');
       return;
     }
 
     if (btn) {
-      btn.textContent = 'Buscando scrobbles na API...';
+      btn.textContent = 'Buscando scrobbles na API do Last.fm...';
       btn.disabled = true;
     }
 
     try {
-      let result = null;
-      if (currentMusicServiceTab === 'lastfm') {
-        result = await fetchLastFmUserTop(username);
-      } else {
-        result = await syncSpotifyAccount(username);
-      }
+      const result = await fetchLastFmUserTop(username);
 
       updateUserMusicStats(activeUser.id, {
-        service: currentMusicServiceTab,
+        service: 'lastfm',
         username: username,
         topArtist: result.topArtist,
         topArtistsMonth: result.topArtistsMonth,
@@ -1089,7 +1367,7 @@ function bindGlobalHandlers() {
       });
 
       closeModal('spotify-modal');
-      showToast(`Top 5 Artistas vinculados com sucesso via ${currentMusicServiceTab === 'lastfm' ? 'Last.fm' : 'Spotify'}!`);
+      showToast('Top 5 Artistas vinculados com sucesso via Last.fm!');
       
       if (activeTab !== 'profile') {
         switchTab('profile');
@@ -1097,7 +1375,7 @@ function bindGlobalHandlers() {
         renderProfileTab(activeUser.id);
       }
     } catch (err) {
-      showToast(err.message || 'Erro ao sincronizar. Verifique o usuário informado.');
+      showToast(err.message || 'Erro ao buscar no Last.fm. Verifique o usuário informado.');
     } finally {
       if (btn) {
         btn.textContent = 'Sincronizar Artistas';
@@ -1121,9 +1399,16 @@ function bindGlobalHandlers() {
     if (activeTab === 'profile') renderProfileTab(currentProfileUserId);
   };
 
-  // DM
-  window._openDMWith = (userId) => openDMWindow(userId);
-  document.getElementById('dm-fab')?.addEventListener('click', () => toggleDMWindow());
+  // DM & Chat
+  window._openDMWith = (userId) => {
+    switchTab('chat');
+    import('./chat.js').then(c => {
+      window._selectChatContact?.(userId);
+    });
+  };
+  document.getElementById('dm-fab')?.addEventListener('click', () => {
+    toggleDMWindow();
+  });
 
   // Close options dropdowns on outside click
   document.addEventListener('click', (e) => {

@@ -9,8 +9,8 @@
  */
 export function generateTextPlaylist(profile, questions, answers) {
   const answeredCount = Object.keys(answers).length;
-  let text = `🎵 Desafio Music Ask 30 Dias — ${profile.name}\n`;
-  text += `📊 Progresso: ${answeredCount}/${questions.length} músicas\n`;
+  let text = `Desafio Music Ask 30 Dias — ${profile.name}\n`;
+  text += `Progresso: ${answeredCount}/${questions.length} músicas\n`;
   text += `═══════════════════════════════════════\n\n`;
 
   questions.forEach((q, idx) => {
@@ -19,15 +19,15 @@ export function generateTextPlaylist(profile, questions, answers) {
     if (song) {
       text += `${num}. [${q.title}]\n   ▶ ${song.title} — ${song.artist}\n`;
       if (song.userNote) {
-        text += `   💬 "${song.userNote}"\n`;
+        text += `   "${song.userNote}"\n`;
       }
     } else {
-      text += `${num}. [${q.title}]\n   ⏳ (Pendente)\n`;
+      text += `${num}. [${q.title}]\n   (Pendente)\n`;
     }
     text += `\n`;
   });
 
-  text += `═══════════════════════════════════════\nFeito no Music Ask App 🎧`;
+  text += `═══════════════════════════════════════\nFeito no Music Ask`;
   return text;
 }
 
@@ -47,9 +47,10 @@ function loadImage(src) {
       fallback.onload = () => resolve(fallback);
       fallback.onerror = () => reject(new Error('Image failed'));
       fallback.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
-        <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+        <svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
           <rect width="100%" height="100%" fill="#1a1d2e"/>
-          <text x="50%" y="50%" fill="#a0aec0" font-size="40" font-family="sans-serif" text-anchor="middle" dominant-baseline="middle">🎵</text>
+          <circle cx="100" cy="100" r="40" fill="none" stroke="#a0aec0" stroke-width="8"/>
+          <circle cx="100" cy="100" r="14" fill="#a0aec0"/>
         </svg>
       `);
     };
@@ -126,10 +127,12 @@ export async function renderShareCanvas(canvas, profile, questions, answers, for
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Avatar emoji
-  ctx.font = '36px sans-serif';
+  // Avatar Initial
+  ctx.font = '700 28px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
-  ctx.fillText(profile.avatar || '🎧', userBoxX + 45, headerY + 62);
+  const avatarLetter = (profile.avatar && !profile.avatar.startsWith('http') ? profile.avatar : (profile.name?.[0] || 'U')).slice(0, 2);
+  ctx.fillText(avatarLetter, userBoxX + 45, headerY + 60);
 
   // User Name & Progress
   const answeredCount = Object.keys(answers).length;
@@ -143,94 +146,157 @@ export async function renderShareCanvas(canvas, profile, questions, answers, for
   ctx.fillText(`${answeredCount} de ${questions.length} faixas selecionadas`, userBoxX + 90, headerY + 72);
   ctx.restore();
 
-  // 3. Grid of selected songs
-  // In Story mode we can display top 12 or 16 nicely spaced items or a compact 30 items
-  const itemsToShow = isStory ? questions.slice(0, 15) : questions.slice(0, 8);
-  const startY = 220;
+  // 3. Grid of selected songs (Adaptive layout filling canvas without empty space)
+  const startY = isStory ? 200 : 180;
+  const availableH = height - startY - 70;
 
-  // Render list or cards
-  const cardHeight = isStory ? 95 : 85;
-  const cardGap = isStory ? 14 : 12;
+  if (isStory) {
+    // In Story mode (1920px height)
+    const isTwoCol = questions.length > 15;
+    const maxItems = isTwoCol ? 30 : 15;
+    const itemsToShow = questions.slice(0, maxItems);
+    const count = itemsToShow.length || 1;
 
-  for (let i = 0; i < itemsToShow.length; i++) {
-    const q = itemsToShow[i];
-    const song = answers[q.id];
-    const itemY = startY + (i * (cardHeight + cardGap));
+    if (!isTwoCol) {
+      const cardHeight = Math.min(100, Math.max(82, Math.floor((availableH - (count * 10)) / count)));
+      const cardGap = Math.floor((availableH - (count * cardHeight)) / Math.max(1, count - 1));
 
-    // Card background
-    ctx.save();
-    ctx.fillStyle = 'rgba(20, 25, 45, 0.7)';
-    roundRect(ctx, 80, itemY, width - 160, cardHeight, 16);
-    ctx.fill();
-    ctx.strokeStyle = song ? 'rgba(0, 242, 254, 0.3)' : 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Number index badge
-    const badgeGrad = ctx.createLinearGradient(95, itemY + 15, 95 + 40, itemY + 55);
-    badgeGrad.addColorStop(0, '#9d4edd');
-    badgeGrad.addColorStop(1, '#00f2fe');
-    ctx.fillStyle = badgeGrad;
-    roundRect(ctx, 95, itemY + 18, 38, 38, 10);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 18px "Plus Jakarta Sans", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${i + 1}`, 114, itemY + 43);
-
-    // Album art thumbnail
-    const thumbX = 145;
-    const thumbY = itemY + 12;
-    const thumbSize = cardHeight - 24;
-
-    if (song && song.artwork) {
-      try {
-        const coverImg = await loadImage(song.artwork);
-        ctx.save();
-        roundRect(ctx, thumbX, thumbY, thumbSize, thumbSize, 10);
-        ctx.clip();
-        ctx.drawImage(coverImg, thumbX, thumbY, thumbSize, thumbSize);
-        ctx.restore();
-      } catch (err) {
-        drawFallbackThumb(ctx, thumbX, thumbY, thumbSize);
+      for (let i = 0; i < count; i++) {
+        const q = itemsToShow[i];
+        const song = answers[q.id];
+        const itemY = startY + (i * (cardHeight + cardGap));
+        await drawShareSongCard(ctx, q, song, i + 1, 80, itemY, width - 160, cardHeight, true);
       }
     } else {
-      drawFallbackThumb(ctx, thumbX, thumbY, thumbSize);
+      const colW = (width - 160 - 18) / 2;
+      const rowsPerCol = Math.ceil(count / 2);
+      const cardHeight = Math.min(88, Math.floor((availableH - (rowsPerCol * 10)) / rowsPerCol));
+      const cardGap = Math.floor((availableH - (rowsPerCol * cardHeight)) / Math.max(1, rowsPerCol - 1));
+
+      for (let i = 0; i < count; i++) {
+        const q = itemsToShow[i];
+        const song = answers[q.id];
+        const col = i < rowsPerCol ? 0 : 1;
+        const rowIdx = i < rowsPerCol ? i : (i - rowsPerCol);
+        const cardX = 80 + col * (colW + 18);
+        const cardY = startY + (rowIdx * (cardHeight + cardGap));
+        await drawShareSongCard(ctx, q, song, i + 1, cardX, cardY, colW, cardHeight, false);
+      }
     }
+  } else {
+    // In Square mode (1080px height)
+    const isTwoCol = questions.length > 6;
+    const maxItems = isTwoCol ? 12 : 6;
+    const itemsToShow = questions.slice(0, maxItems);
+    const count = itemsToShow.length || 1;
 
-    // Text content
-    const textStartX = thumbX + thumbSize + 20;
-    const maxTextWidth = width - 160 - textStartX - 20;
+    if (!isTwoCol) {
+      const cardHeight = Math.min(96, Math.max(78, Math.floor((availableH - (count * 8)) / count)));
+      const cardGap = Math.floor((availableH - (count * cardHeight)) / Math.max(1, count - 1));
 
-    ctx.textAlign = 'left';
-
-    // Question title
-    ctx.font = '600 19px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = '#8f9bb3';
-    ctx.fillText(truncateText(ctx, `${q.icon} ${q.title}`, maxTextWidth), textStartX, itemY + 36);
-
-    // Song info
-    if (song) {
-      ctx.font = '700 23px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(truncateText(ctx, `${song.title} — ${song.artist}`, maxTextWidth), textStartX, itemY + 68);
+      for (let i = 0; i < count; i++) {
+        const q = itemsToShow[i];
+        const song = answers[q.id];
+        const itemY = startY + (i * (cardHeight + cardGap));
+        await drawShareSongCard(ctx, q, song, i + 1, 80, itemY, width - 160, cardHeight, true);
+      }
     } else {
-      ctx.font = 'italic 500 21px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.fillText('Nenhuma música escolhida ainda', textStartX, itemY + 68);
-    }
+      const colW = (width - 160 - 16) / 2;
+      const rowsPerCol = Math.ceil(count / 2);
+      const cardHeight = Math.min(84, Math.floor((availableH - (rowsPerCol * 8)) / rowsPerCol));
+      const cardGap = Math.floor((availableH - (rowsPerCol * cardHeight)) / Math.max(1, rowsPerCol - 1));
 
-    ctx.restore();
+      for (let i = 0; i < count; i++) {
+        const q = itemsToShow[i];
+        const song = answers[q.id];
+        const col = i < rowsPerCol ? 0 : 1;
+        const rowIdx = i < rowsPerCol ? i : (i - rowsPerCol);
+        const cardX = 80 + col * (colW + 16);
+        const cardY = startY + (rowIdx * (cardHeight + cardGap));
+        await drawShareSongCard(ctx, q, song, i + 1, cardX, cardY, colW, cardHeight, false);
+      }
+    }
   }
 
   // 4. Footer Brand
   ctx.save();
-  const footerY = height - 70;
-  ctx.font = '600 20px "Plus Jakarta Sans", sans-serif';
+  const footerY = height - 40;
+  ctx.font = '600 18px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
   ctx.textAlign = 'center';
-  ctx.fillText('🎧 Crie sua lista no Music Ask • Compartilhe com seus amigos', width / 2, footerY);
+  ctx.fillText('Crie sua lista no Music Ask • Compartilhe com seus amigos', width / 2, footerY);
+  ctx.restore();
+}
+
+async function drawShareSongCard(ctx, q, song, index, x, y, cardWidth, cardHeight, isSingleCol = true) {
+  // Card background
+  ctx.save();
+  ctx.fillStyle = 'rgba(20, 25, 45, 0.72)';
+  roundRect(ctx, x, y, cardWidth, cardHeight, 14);
+  ctx.fill();
+  ctx.strokeStyle = song ? 'rgba(0, 242, 254, 0.28)' : 'rgba(255, 255, 255, 0.06)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Number index badge
+  const badgeSize = cardHeight > 80 ? 36 : 30;
+  const badgeX = x + 12;
+  const badgeY = y + (cardHeight - badgeSize) / 2;
+
+  const badgeGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize);
+  badgeGrad.addColorStop(0, '#9d4edd');
+  badgeGrad.addColorStop(1, '#00f2fe');
+  ctx.fillStyle = badgeGrad;
+  roundRect(ctx, badgeX, badgeY, badgeSize, badgeSize, 8);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `800 ${cardHeight > 80 ? '16px' : '14px'} "Plus Jakarta Sans", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${index}`, badgeX + (badgeSize / 2), badgeY + (badgeSize / 2) + 5);
+
+  // Album art thumbnail
+  const thumbSize = cardHeight - 20;
+  const thumbX = badgeX + badgeSize + 10;
+  const thumbY = y + 10;
+
+  if (song && song.artwork) {
+    try {
+      const coverImg = await loadImage(song.artwork);
+      ctx.save();
+      roundRect(ctx, thumbX, thumbY, thumbSize, thumbSize, 8);
+      ctx.clip();
+      ctx.drawImage(coverImg, thumbX, thumbY, thumbSize, thumbSize);
+      ctx.restore();
+    } catch {
+      drawFallbackThumb(ctx, thumbX, thumbY, thumbSize);
+    }
+  } else {
+    drawFallbackThumb(ctx, thumbX, thumbY, thumbSize);
+  }
+
+  // Text content
+  const textStartX = thumbX + thumbSize + 14;
+  const maxTextWidth = cardWidth - (textStartX - x) - 14;
+
+  ctx.textAlign = 'left';
+
+  // Question title
+  ctx.font = `600 ${cardHeight > 80 ? '17px' : '14px'} "Plus Jakarta Sans", sans-serif`;
+  ctx.fillStyle = '#8f9bb3';
+  ctx.fillText(truncateText(ctx, `${q.title}`, maxTextWidth), textStartX, y + (cardHeight * 0.40));
+
+  // Song info
+  if (song) {
+    ctx.font = `700 ${cardHeight > 80 ? '20px' : '16px'} "Plus Jakarta Sans", sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(truncateText(ctx, `${song.title} — ${song.artist}`, maxTextWidth), textStartX, y + (cardHeight * 0.74));
+  } else {
+    ctx.font = `italic 500 ${cardHeight > 80 ? '17px' : '14px'} "Plus Jakarta Sans", sans-serif`;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillText('Pendente', textStartX, y + (cardHeight * 0.74));
+  }
+
   ctx.restore();
 }
 
@@ -239,9 +305,17 @@ function drawFallbackThumb(ctx, x, y, size) {
   ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
   roundRect(ctx, x, y, size, size, 10);
   ctx.fill();
-  ctx.font = '28px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('🎵', x + size / 2, y + size / 2 + 10);
+  ctx.strokeStyle = '#a0aec0';
+  ctx.lineWidth = 2;
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * 0.3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * 0.1, 0, Math.PI * 2);
+  ctx.fillStyle = '#a0aec0';
+  ctx.fill();
   ctx.restore();
 }
 
