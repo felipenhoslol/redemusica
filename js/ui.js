@@ -913,65 +913,6 @@ export function renderNotificationsPanel(container) {
 // GLOBAL SEARCH (users + music)
 // ──────────────────────────────────────────
 
-export function initGlobalSearch() {
-  const input = document.getElementById('global-search-input');
-  if (!input) return;
-
-  const sectionLabel = (text) => `<div style="font-size:0.72rem;color:var(--muted);padding:6px 12px;border-bottom:var(--border)">${text}</div>`;
-  let timer = null;
-  let seq = 0; // only the latest query may write results
-
-  input.addEventListener('input', () => {
-    clearTimeout(timer);
-    const q = input.value.trim();
-    const resultsEl = document.getElementById('global-search-results');
-    if (!resultsEl) return;
-    const mySeq = ++seq;
-    if (q.length < 2) { resultsEl.innerHTML = ''; return; }
-
-    timer = setTimeout(async () => {
-      // Users are local: show them right away
-      const ql = q.toLowerCase();
-      const matchedUsers = storage.getAllUsers().filter(u =>
-        u.name.toLowerCase().includes(ql) || (u.handle || '').toLowerCase().includes(ql)
-      );
-      const usersHtml = matchedUsers.length
-        ? sectionLabel('Usuários') + matchedUsers.map(u => `
-            <div class="search-result-item" onclick="window._goToProfile('${u.id}')">
-              <div class="post-author-avatar" style="width:32px;height:32px;font-size:13px;">${avatarInner(u.avatar, u.name)}</div>
-              <div>
-                <div class="search-result-title">${esc(u.name)}</div>
-                <div class="search-result-artist">${esc(u.handle || '')}</div>
-              </div>
-            </div>`).join('')
-        : '';
-      resultsEl.innerHTML = usersHtml + sectionLabel('Músicas') +
-        `<div style="padding:12px;color:var(--muted);font-size:0.85rem;">Buscando músicas…</div>`;
-
-      // Tracks come from the network: append when they arrive, unless a newer query started
-      let tracksHtml = '';
-      try {
-        const tracks = await searchTracks(q);
-        if (tracks?.length) {
-          tracksHtml = sectionLabel('Músicas') + tracks.slice(0, 4).map(t => `
-            <div class="search-result-item" onclick="window._playTrack(${jsArg(t)})">
-              <img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="" onerror="this.style.display='none'">
-              <div>
-                <div class="search-result-title">${esc(t.title)}</div>
-                <div class="search-result-artist">${esc(t.artist)}</div>
-              </div>
-              ${t.previewUrl ? `<button style="background:transparent;border:none;color:var(--purple-light);cursor:pointer;padding:4px;" aria-label="Tocar ${esc(t.title)}" onclick="event.stopPropagation();window._playTrack(${jsArg(t)})">${ICONS.play}</button>` : ''}
-            </div>`).join('');
-        }
-      } catch (err) {
-        console.warn('Global track search failed:', err);
-      }
-      if (mySeq !== seq) return;
-      resultsEl.innerHTML = (usersHtml + tracksHtml) || `<div style="padding:16px;text-align:center;color:var(--muted)">Nenhum resultado.</div>`;
-    }, 350);
-  });
-}
-
 // ──────────────────────────────────────────
 // PLAYER BAR RENDER
 // ──────────────────────────────────────────

@@ -159,6 +159,42 @@ export function pullNow() {
   return pulling;
 }
 
+// ─── search ─────────────────────────────────────────────────────────────────
+
+// PostgREST filter strings treat , ( ) as syntax and * % as wildcards: keep only what the person meant to search
+const cleanTerm = (q) => q.replace(/[,()*%\\:"']/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+
+export const isSyncing = () => Boolean(me) && !disabled;
+
+/** People whose name or @handle contains the term. */
+export async function searchPeople(q, limit = 30) {
+  const term = cleanTerm(q.replace(/^@/, ''));
+  if (!isSyncing() || term.length < 1) return null;
+  const rows = await must(getSupabase().from('profiles').select(PROFILE_FIELDS)
+    .eq('banned', false)
+    .or(`name.ilike.*${term}*,handle.ilike.*${term}*`)
+    .limit(limit));
+  Storage.mergeRemoteProfiles(rows);
+  return rows.map(r => r.id);
+}
+
+/** Posts whose text, lyric, song, artist or #tag contains the term; results also land in the cache. */
+export async function searchPosts(q, limit = 40) {
+  const term = cleanTerm(q);
+  if (!isSyncing() || term.length < 2) return null;
+  const fields = ['body->>text', 'body->>lyrics', 'body->>lyricsSong', 'body->>tag', 'body->song->>title', 'body->song->>artist', 'body->playlist->>title'];
+  const rows = await must(getSupabase().from('posts')
+    .select(`id, author_id, body, edited, created_at,
+      post_likes(user_id), post_reposts(user_id),
+      post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS}))`)
+    .or(fields.map(f => `${f}.ilike.*${term}*`).join(','))
+    .order('created_at', { ascending: false })
+    .limit(limit));
+  const posts = rows.map(fromRow);
+  Storage.upsertPostsCache(posts);
+  return posts;
+}
+
 // ─── push ───────────────────────────────────────────────────────────────────
 
 function write(task, failMessage) {

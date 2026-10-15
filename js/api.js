@@ -33,9 +33,13 @@ export function getHighResArtwork(url, size = 600) {
  * @param {number} limit 
  * @returns {Promise<any>}
  */
-async function fetchItunesData(term, limit = 25) {
+async function fetchItunesData(term, limit = 25, entity = 'song') {
   const cleanTerm = term.trim();
-  const directUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTerm)}&media=music&entity=song&limit=${limit}`;
+  const directUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTerm)}&media=music&entity=${entity}&limit=${limit}&country=BR`;
+  return fetchItunesUrl(directUrl);
+}
+
+async function fetchItunesUrl(directUrl) {
 
   // Strategy 1: Direct native fetch (supported by Apple with Access-Control-Allow-Origin: *)
   try {
@@ -91,26 +95,80 @@ export async function searchTracks(query, limit = 25) {
     return [];
   }
 
-  return data.results.map((item) => {
-    const duration = formatDuration(item.trackTimeMillis);
-    const artwork = getHighResArtwork(item.artworkUrl100 || item.artworkUrl60, 600);
-    const releaseYear = item.releaseDate ? new Date(item.releaseDate).getFullYear() : '';
+  return data.results.filter(item => item.wrapperType === 'track' || item.kind === 'song').map(toTrack);
+}
 
-    return {
-      id: item.trackId ? String(item.trackId) : `custom_${Date.now()}_${Math.random()}`,
-      title: item.trackName || 'Sem título',
-      artist: item.artistName || 'Artista desconhecido',
-      album: item.collectionName || '',
-      artwork: artwork || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-      artworkThumb: item.artworkUrl100 || item.artworkUrl60 || '',
-      previewUrl: item.previewUrl || '',
-      duration: duration,
-      durationMs: item.trackTimeMillis || 0,
-      releaseYear: releaseYear,
-      genre: item.primaryGenreName || 'Música',
-      itunesUrl: item.trackViewUrl || ''
-    };
-  });
+function toTrack(item) {
+  return {
+    id: item.trackId ? String(item.trackId) : `custom_${Date.now()}_${Math.random()}`,
+    title: item.trackName || 'Sem título',
+    artist: item.artistName || 'Artista desconhecido',
+    artistId: item.artistId ? String(item.artistId) : '',
+    album: item.collectionName || '',
+    albumId: item.collectionId ? String(item.collectionId) : '',
+    artwork: getHighResArtwork(item.artworkUrl100 || item.artworkUrl60, 600),
+    artworkThumb: item.artworkUrl100 || item.artworkUrl60 || '',
+    previewUrl: item.previewUrl || '',
+    duration: formatDuration(item.trackTimeMillis),
+    durationMs: item.trackTimeMillis || 0,
+    releaseYear: item.releaseDate ? new Date(item.releaseDate).getFullYear() : '',
+    genre: item.primaryGenreName || 'Música',
+    itunesUrl: item.trackViewUrl || ''
+  };
+}
+
+/** Artists on iTunes (no photos there: callers fill them with getArtistImage). */
+export async function searchArtists(query, limit = 20) {
+  if (!query?.trim()) return [];
+  const data = await fetchItunesData(query, limit, 'musicArtist');
+  return (data?.results || []).filter(r => r.artistId).map(r => ({
+    id: String(r.artistId),
+    name: r.artistName,
+    genre: r.primaryGenreName || ''
+  }));
+}
+
+function toAlbum(r) {
+  return {
+    id: String(r.collectionId),
+    title: r.collectionName,
+    artist: r.artistName,
+    artwork: getHighResArtwork(r.artworkUrl100 || r.artworkUrl60, 400),
+    year: r.releaseDate ? new Date(r.releaseDate).getFullYear() : '',
+    trackCount: r.trackCount || 0,
+    genre: r.primaryGenreName || ''
+  };
+}
+
+export async function searchAlbums(query, limit = 24) {
+  if (!query?.trim()) return [];
+  const data = await fetchItunesData(query, limit, 'album');
+  return (data?.results || []).filter(r => r.collectionId).map(toAlbum);
+}
+
+/** An artist's most popular songs and albums. */
+export async function lookupArtist(artistId) {
+  const [songs, albums] = await Promise.all([
+    fetchItunesUrl(`https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=song&limit=25&country=BR`),
+    fetchItunesUrl(`https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=album&limit=24&country=BR`)
+  ]);
+  return {
+    songs: (songs?.results || []).filter(r => r.wrapperType === 'track').map(toTrack),
+    albums: (albums?.results || []).filter(r => r.wrapperType === 'collection').map(toAlbum)
+  };
+}
+
+/** Album info plus its tracklist, in order. */
+export async function lookupAlbum(albumId) {
+  const data = await fetchItunesUrl(`https://itunes.apple.com/lookup?id=${encodeURIComponent(albumId)}&entity=song&country=BR`);
+  const results = data?.results || [];
+  const info = results.find(r => r.wrapperType === 'collection');
+  return {
+    album: info ? toAlbum(info) : null,
+    tracks: results.filter(r => r.wrapperType === 'track')
+      .sort((a, b) => (a.discNumber - b.discNumber) || (a.trackNumber - b.trackNumber))
+      .map(r => ({ ...toTrack(r), trackNumber: r.trackNumber }))
+  };
 }
 
 // Last.fm: see lastfm.js

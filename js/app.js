@@ -17,6 +17,7 @@ import { openFeedbackModal } from './feedback.js';
 import { openDisplaySettings, initDisplay } from './display.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { startSync, stopSync, pullNow } from './sync.js';
+import { renderSearchPage, openSearch } from './search.js';
 import { renderAdminTab } from './admin.js';
 import { renderDailyLyric } from './dailyLyric.js';
 import { searchTracks } from './api.js';
@@ -26,7 +27,7 @@ import {
   initSearchModal, openSearchModalForFeed, openSearchModalForLyrics, openSearchModalForFeaturedSong,
   openSearchModalForChat, openSearchModalForShowcase,
   renderMusicAskGrid, renderChallengePills, renderCompareView,
-  renderNotificationsPanel, renderPlayerBar, initGlobalSearch
+  renderNotificationsPanel, renderPlayerBar
 } from './ui.js';
 import {
   renderPostCreator, renderFeed,
@@ -69,7 +70,6 @@ function startApp() {
   renderSidebar();
   renderPlayerBar();
   initSearchModal();
-  initGlobalSearch();
   initChatBindings();
   bindGlobalHandlers();
   renderNotifBadge();
@@ -97,8 +97,6 @@ function refreshFromServer() {
     const feedPosts = document.getElementById('feed-posts');
     const typing = feedPosts?.contains(active) || [...(feedPosts?.querySelectorAll('input, textarea') || [])].some(el => el.value);
     if (feedPosts && !typing) renderFeed(feedPosts, feedFilterMode);
-  } else if (activeTab === 'search') {
-    if (!document.getElementById('tab-search')?.contains(active)) renderSearchTab();
   }
 }
 
@@ -338,53 +336,7 @@ function renderFeedTab() {
 
 function renderSearchTab() {
   const tab = document.getElementById('tab-search');
-  if (!tab) return;
-
-  tab.innerHTML = `
-    <div style="max-width:600px;margin:0 auto;">
-      <div class="page-header">
-        <div class="page-title">Pesquisar</div>
-      </div>
-      <div class="global-search-container">
-        <div class="global-search-wrap">
-          ${ICONS.search}
-          <input id="global-search-input" class="global-search-input" placeholder="Pesquisar músicas e usuários...">
-        </div>
-      </div>
-      <div id="global-search-results"></div>
-
-      <hr class="separator-line" style="margin:20px 0;">
-
-      <div style="margin-bottom:10px;">
-        <div class="page-title" style="font-size:0.95rem;margin-bottom:10px;">Usuários</div>
-        <div id="all-users-list"></div>
-      </div>
-    </div>`;
-
-  initGlobalSearch();
-  renderAllUsersList();
-}
-
-function renderAllUsersList() {
-  const container = document.getElementById('all-users-list');
-  if (!container) return;
-  const activeUser = getActiveUser();
-  const users = getAllUsers().filter(u => u.id !== activeUser.id);
-
-  container.innerHTML = users.map(u => {
-    const fol = isFollowing(u.id);
-    return `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);margin-bottom:8px;cursor:pointer;" onclick="window._goToProfile('${u.id}')">
-        <div class="post-author-avatar" style="width:38px;height:38px;font-size:16px;">${avatarInner(u.avatar, u.name)}</div>
-        <div style="flex:1;">
-          <div style="font-size:0.9rem;font-weight:700;color:var(--white)">${esc(u.name)}</div>
-          <div style="font-size:0.75rem;color:var(--muted)">${esc(u.handle||'')} &bull; ${esc(u.bio?.slice(0,40) || '')}</div>
-        </div>
-        <button class="doodle-btn doodle-btn-follow doodle-btn-sm${fol ? ' following' : ''}" data-follow-id="${u.id}" onclick="event.stopPropagation();window._toggleFollow('${u.id}')">
-          ${fol ? 'Seguindo' : 'Seguir'}
-        </button>
-      </div>`;
-  }).join('');
+  if (tab) renderSearchPage(tab);
 }
 
 // ──────────────────────────────────────────
@@ -761,17 +713,7 @@ function bindGlobalHandlers() {
 
 
   // Global helper to search for artist songs in iTunes catalog
-  window._searchArtistInCatalog = (artistName) => {
-    switchTab('search');
-    setTimeout(() => {
-      const inp = document.getElementById('global-search-input');
-      if (inp) {
-        inp.value = artistName;
-        inp.dispatchEvent(new Event('input', { bubbles: true }));
-        inp.focus();
-      }
-    }, 120);
-  };
+  window._searchArtistInCatalog = (artistName) => openSearch(artistName);
 
   // Submit post
   window._submitPost = () => {

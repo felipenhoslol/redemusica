@@ -148,6 +148,16 @@ export function replacePostsCache(posts, keepIds = []) {
   localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify([...pending, ...posts]));
 }
 
+/** Add or refresh posts fetched outside the feed (e.g. search results) without dropping the others. */
+export function upsertPostsCache(posts) {
+  const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  posts.forEach(p => {
+    const i = current.findIndex(c => c.id === p.id);
+    if (i === -1) current.push(p); else current[i] = p;
+  });
+  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(current));
+}
+
 /** Add or refresh other people's public profiles in the local user list. */
 export function mergeRemoteProfiles(profiles) {
   const users = getAllUsers();

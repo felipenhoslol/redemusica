@@ -192,19 +192,6 @@ export function renderProfileView(container, targetUserId) {
   // Load default tab
   loadProfileTab('posts', user.id);
 
-  // Global helper to search for artist songs in the app
-  window._searchArtistInCatalog = (artistName) => {
-    if (window._switchTabFn) {
-      window._switchTabFn('search');
-      setTimeout(() => {
-        const inp = document.getElementById('global-search-input');
-        if (inp) {
-          inp.value = artistName;
-          inp.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      }, 100);
-    }
-  };
 
   // Inline status editing
   window._startEditStatus = () => {
