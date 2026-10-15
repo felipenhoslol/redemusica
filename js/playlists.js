@@ -103,11 +103,11 @@ export function renderPlaylistsTab(containerEl) {
               ${ICONS.playlist}
               <span>Playlists</span>
             </div>
-            <div class="page-sub">Crie suas próprias listas de músicas sem perguntas, organize suas faixas e compartilhe.</div>
+            <div class="page-sub">Monte listas com as suas músicas e compartilhe no feed.</div>
           </div>
           <button class="doodle-btn doodle-btn-primary" onclick="window._openCreatePlaylistModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;font-weight:700;">
             ${ICONS.plus}
-            <span>Nova Playlist</span>
+            <span>Nova playlist</span>
           </button>
         </div>
       </div>
@@ -119,7 +119,7 @@ export function renderPlaylistsTab(containerEl) {
             Todas (${allPlaylists.length})
           </button>
           <button class="playlist-pill${currentFilter === 'mine' ? ' active' : ''}" onclick="window._setPlaylistFilter('mine')">
-            Minhas Playlists (${allPlaylists.filter(p => p.authorId === activeUser.id).length})
+            Minhas (${allPlaylists.filter(p => p.authorId === activeUser.id).length})
           </button>
           <button class="playlist-pill${currentFilter === 'community' ? ' active' : ''}" onclick="window._setPlaylistFilter('community')">
             Comunidade (${allPlaylists.filter(p => p.authorId !== activeUser.id).length})
@@ -453,10 +453,10 @@ function renderEmptyPlaylistsState() {
   return `
     <div class="playlists-empty-state">
       <div class="empty-icon">${ICONS.playlist}</div>
-      <h3>Nenhuma playlist encontrada</h3>
-      <p>Crie sua primeira lista de músicas personalizadas e adicione suas faixas favoritas!</p>
+      <h3>Nenhuma playlist por aqui</h3>
+      <p>Junte as músicas que você mais ouve numa lista e compartilhe com quem segue você.</p>
       <button class="doodle-btn doodle-btn-primary" onclick="window._openCreatePlaylistModal()" style="margin-top:10px;">
-        ${ICONS.plus} Criar Minha Primeira Playlist
+        ${ICONS.plus} Criar playlist
       </button>
     </div>
   `;

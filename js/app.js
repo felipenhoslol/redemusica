@@ -68,6 +68,7 @@ function startApp() {
   if (appStarted) return;
   appStarted = true;
   renderSidebar();
+  renderMobileNav();
   renderPlayerBar();
   initSearchModal();
   initChatBindings();
@@ -184,6 +185,106 @@ function sidebarUserHtml(user) {
 function refreshSidebarUser() {
   const el = document.getElementById('nav-profile');
   if (el) el.innerHTML = sidebarUserHtml(getActiveUser());
+  renderMobileNav();
+}
+
+// ──────────────────────────────────────────
+// PHONE NAVIGATION: bottom tab bar + "você" sheet (the sidebar is hidden below 700px)
+// ──────────────────────────────────────────
+
+const MOBILE_TABS = ['feed', 'search', 'notif', 'chat'];
+
+function renderMobileNav() {
+  const user = getActiveUser();
+  let bar = document.getElementById('mobile-tabbar');
+  if (!bar) {
+    bar = document.createElement('nav');
+    bar.id = 'mobile-tabbar';
+    bar.className = 'mobile-tabbar';
+    bar.setAttribute('aria-label', 'Navegação');
+    document.body.appendChild(bar);
+  }
+  const unread = getUnreadNotificationCount();
+  bar.innerHTML = `
+    <button type="button" class="mobile-tab" data-tab="feed" aria-label="Início">${ICONS.feed}</button>
+    <button type="button" class="mobile-tab" data-tab="search" aria-label="Pesquisar">${ICONS.search}</button>
+    <button type="button" class="mobile-tab mobile-tab-post" data-action="post" aria-label="Postar">${ICONS.plus}</button>
+    <button type="button" class="mobile-tab" data-tab="notif" aria-label="Notificações">${ICONS.bell}${unread ? `<span class="mobile-badge">${unread > 9 ? '9+' : unread}</span>` : ''}</button>
+    <button type="button" class="mobile-tab" data-tab="chat" aria-label="Chat">${ICONS.chat}</button>
+    <button type="button" class="mobile-tab mobile-tab-me" data-action="me" aria-label="Você: perfil e mais opções" aria-haspopup="dialog">
+      <span class="post-author-avatar">${avatarInner(user.avatar, user.name)}</span>
+    </button>`;
+  bar.onclick = (e) => {
+    const b = e.target.closest('.mobile-tab');
+    if (!b) return;
+    // Notifications open as a page on phones: any other tab closes it
+    const notifOpen = document.getElementById('notif-overlay')?.classList.contains('active');
+    if (notifOpen && b.dataset.tab !== 'notif') toggleNotifPanel();
+    if (b.dataset.action === 'post') window._composeNew();
+    else if (b.dataset.action === 'me') openMeSheet();
+    else if (b.dataset.tab === 'notif') toggleNotifPanel();
+    else switchTab(b.dataset.tab);
+  };
+  syncMobileNav();
+}
+
+function syncMobileNav() {
+  // The avatar stands for your own profile and everything in the "você" sheet
+  const meActive = (activeTab === 'profile' && currentProfileUserId === getActiveUser().id)
+    || ['playlists', 'desafios', 'comparar', 'admin'].includes(activeTab);
+  document.querySelectorAll('#mobile-tabbar .mobile-tab').forEach(b => {
+    const on = b.dataset.tab ? b.dataset.tab === activeTab : (b.dataset.action === 'me' && meActive);
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+}
+
+function openMeSheet() {
+  const user = getActiveUser();
+  let sheet = document.getElementById('me-sheet');
+  if (!sheet) {
+    sheet = document.createElement('div');
+    sheet.id = 'me-sheet';
+    sheet.className = 'me-sheet';
+    document.body.appendChild(sheet);
+  }
+  const item = (action, icon, label, current) => `
+    <button type="button" class="me-sheet-item${current ? ' active' : ''}" data-go="${action}">${icon}<span>${label}</span></button>`;
+  sheet.innerHTML = `
+    <div class="me-sheet-scrim" data-close></div>
+    <div class="me-sheet-panel" role="dialog" aria-modal="true" aria-label="Você">
+      <div class="me-sheet-grip" aria-hidden="true"></div>
+      <button type="button" class="me-sheet-user" data-go="profile">
+        <span class="post-author-avatar">${avatarInner(user.avatar, user.name)}</span>
+        <span><strong>${esc(user.name)}</strong><small>${esc(user.handle || '')} · ver perfil</small></span>
+      </button>
+      <div class="me-sheet-list">
+        ${item('playlists', ICONS.playlist, 'Playlists', activeTab === 'playlists')}
+        ${item('desafios', ICONS.star, 'Desafios', activeTab === 'desafios' || activeTab === 'comparar')}
+        ${auth.isAdmin ? item('admin', ICONS.shield, 'Admin', activeTab === 'admin') : ''}
+        ${item('display', ICONS.palette, 'Exibição')}
+        ${item('feedback', ICONS.feedback, 'Enviar feedback')}
+        ${item('logout', ICONS.logout, 'Sair da conta')}
+      </div>
+    </div>`;
+  const close = () => { sheet.classList.remove('open'); document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  sheet.onclick = (e) => {
+    if (e.target.closest('[data-close]')) return close();
+    const go = e.target.closest('[data-go]')?.dataset.go;
+    if (!go) return;
+    close();
+    if (go === 'profile') window._goToProfile(getActiveUser().id);
+    else if (go === 'display') window._openDisplay();
+    else if (go === 'feedback') window._openFeedback();
+    else if (go === 'logout') window._logout();
+    else switchTab(go);
+  };
+  document.addEventListener('keydown', onKey);
+  requestAnimationFrame(() => {
+    sheet.classList.add('open');
+    sheet.querySelector('.me-sheet-user')?.focus({ preventScroll: true });
+  });
 }
 window._refreshSidebarUser = refreshSidebarUser;
 
@@ -217,6 +318,7 @@ function switchTab(tabName) {
 
   const el = document.getElementById(`tab-${tabName}`);
   if (el) el.classList.add('active');
+  syncMobileNav();
 
   // Floating DM button visibility
   const dmFab = document.getElementById('dm-fab');
@@ -401,6 +503,7 @@ function renderProfileTab(userId) {
   currentProfileUserId = uid;
 
   renderProfileView(tab, uid);
+  syncMobileNav();
 }
 
 // ──────────────────────────────────────────
@@ -419,6 +522,11 @@ function toggleNotifPanel() {
     overlay.classList.add('active');
     setCatMood('alert', 1400);
     renderNotifBadge(); // clear badge
+  }
+  // Phone tab bar: the bell is the current "page" while the panel is open
+  syncMobileNav();
+  if (!isActive) {
+    document.querySelectorAll('#mobile-tabbar .mobile-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'notif'));
   }
 }
 
@@ -440,6 +548,11 @@ function renderNotifBadge() {
   } else if (badge) {
     badge.remove();
   }
+  const mobileBell = document.querySelector('#mobile-tabbar [data-tab="notif"]');
+  if (mobileBell) {
+    mobileBell.querySelector('.mobile-badge')?.remove();
+    if (count > 0) mobileBell.insertAdjacentHTML('beforeend', `<span class="mobile-badge">${count > 9 ? '9+' : count}</span>`);
+  }
 }
 
 // ──────────────────────────────────────────
@@ -452,7 +565,8 @@ function bindGlobalHandlers() {
   window._openDisplay = () => openDisplaySettings();
   window._composeNew = () => {
     switchTab('feed');
-    requestAnimationFrame(() => document.getElementById('creator-text')?.focus());
+    window.scrollTo({ top: 0 });
+    setTimeout(() => document.getElementById('creator-text')?.focus(), 0);
   };
   window._logout = () => { stopSync(); logout(); };
 

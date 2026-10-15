@@ -187,16 +187,9 @@ export function renderChatTab(container = document.getElementById('tab-chat')) {
       <!-- Chat Header with Sair button -->
       <div class="chat-tab-header">
         <div>
-          <div class="chat-tab-header-title">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--purple-light);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            <span>Chat & Mensagens</span>
-          </div>
-          <div class="chat-tab-header-sub">Converse, compartilhe músicas, envie imagens e GIFs em tempo real</div>
+          <div class="chat-tab-header-title"><span>Mensagens</span></div>
+          <div class="chat-tab-header-sub">Converse e compartilhe músicas, fotos e GIFs.</div>
         </div>
-        <button class="chat-tab-exit-btn" onclick="window.switchTab('feed')" title="Voltar ao Feed">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-          <span>Sair do Chat</span>
-        </button>
       </div>
 
       <!-- Main Body -->
@@ -204,7 +197,7 @@ export function renderChatTab(container = document.getElementById('tab-chat')) {
         <!-- Sidebar Contacts Column -->
         <div class="chat-tab-sidebar">
           <div class="chat-tab-search-box">
-            <input class="doodle-input" id="chat-contact-search-input" placeholder="Buscar contatos ou amigos..." style="width:100%;font-size:0.84rem;padding:7px 12px;" oninput="window._filterChatContacts(this.value)">
+            <input class="doodle-input" id="chat-contact-search-input" placeholder="Buscar pessoas" style="width:100%;font-size:0.84rem;padding:7px 12px;" oninput="window._filterChatContacts(this.value)">
           </div>
           <div class="chat-tab-contacts-list" id="chat-tab-contacts-list"></div>
         </div>
@@ -217,8 +210,9 @@ export function renderChatTab(container = document.getElementById('tab-chat')) {
 
   renderChatTabContacts();
 
-  // If there's no active contact selected, pick the first contact with history or leave null
-  if (!activeContactId) {
+  // On wide screens open the most recent conversation; phones start on the contact list
+  const isPhone = window.matchMedia('(max-width: 700px)').matches;
+  if (!activeContactId && !isPhone) {
     const contacts = getSortedContacts();
     const activeUser = Storage.getActiveUser();
     const firstWithMessages = contacts.find(c => Storage.getChatMessages(activeUser.id, c.id).length > 0);
@@ -230,6 +224,7 @@ export function renderChatTab(container = document.getElementById('tab-chat')) {
   }
 
   renderChatTabMain(activeContactId);
+  container.querySelector('.chat-tab-container')?.classList.toggle('has-conversation', Boolean(activeContactId));
 }
 
 function renderChatTabContacts() {
@@ -290,7 +285,7 @@ function renderChatTabMain(contactId) {
         </div>
         <h3 style="font-size:1.25rem;font-weight:800;color:var(--white);">Selecione uma conversa</h3>
         <p style="color:var(--muted);font-size:0.9rem;max-width:400px;line-height:1.5;">
-          Escolha um contato na lista à esquerda para conversar, ouvir prévias de músicas e compartilhar fotos e GIFs.
+          Escolha alguém na lista para conversar e trocar músicas, fotos e GIFs.
         </p>
       </div>`;
     return;
@@ -309,22 +304,19 @@ function renderChatTabMain(contactId) {
   container.innerHTML = `
     <!-- Conversation Header -->
     <div class="chat-main-header">
-      <div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="window._goToProfile('${contact.id}')" title="Ver perfil de ${esc(contact.name)}">
+      <button type="button" class="chat-back-btn" onclick="window._closeChatConversation()" aria-label="Voltar para as conversas">${ICONS.chevronLeft}</button>
+      <div style="display:flex;align-items:center;gap:12px;cursor:pointer;flex:1;min-width:0;" onclick="window._goToProfile('${contact.id}')" title="Ver perfil de ${esc(contact.name)}">
         <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:var(--purple-dark);display:flex;align-items:center;justify-content:center;font-weight:800;border:1.5px solid var(--purple-accent);">
           ${cAvatarHtml}
         </div>
         <div>
           <div style="font-size:1rem;font-weight:800;color:var(--white);">${esc(contact.name)}</div>
-          <div style="font-size:0.75rem;color:var(--purple-light);display:flex;align-items:center;gap:6px;">
-            <span>${esc(contact.handle || '')}</span>
-            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>
-            <span style="color:var(--accent);">Conectado</span>
-          </div>
+          <div style="font-size:0.8rem;color:var(--text-2);">${esc(contact.handle || '')}</div>
         </div>
       </div>
-      <div>
+      <div class="chat-profile-btn">
         <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="window._goToProfile('${contact.id}')">
-          Ver Perfil
+          Ver perfil
         </button>
       </div>
     </div>
@@ -799,6 +791,15 @@ export function initChatBindings() {
     activeContactId = id;
     renderChatTabContacts();
     renderChatTabMain(id);
+    // Phones show one pane at a time: the open conversation replaces the contact list
+    document.querySelector('.chat-tab-container')?.classList.toggle('has-conversation', Boolean(id));
+  };
+
+  window._closeChatConversation = () => {
+    activeContactId = null;
+    document.querySelector('.chat-tab-container')?.classList.remove('has-conversation');
+    renderChatTabContacts();
+    renderChatTabMain(null);
   };
 
   window._filterChatContacts = (term) => {

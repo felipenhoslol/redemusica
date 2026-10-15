@@ -1,0 +1,172 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Celular e tablet. Carregado por último: só ajusta o layout, as cores vêm dos tokens.
+   ≤ 700px  celular: barra de abas embaixo, menu "você" em folha, uma coluna
+   701–1100 tablet: barra lateral só com ícones (já em social.css) e ajustes finos
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mobile-tabbar, .me-sheet, .chat-back-btn { display: none; }
+
+/* Elementos de toque nunca menores que 40px em telas de toque */
+@media (pointer: coarse) {
+  .doodle-btn-sm, .search-follow-btn { min-height: 40px; }
+  .post-action-btn { min-height: 40px; min-width: 40px; }
+}
+
+/* ─── Tablet ─────────────────────────────────────────────────────────────── */
+@media (min-width: 701px) and (max-width: 1100px) {
+  .app-content { max-width: 680px; margin: 0 auto; }
+  .chat-tab-sidebar { width: 260px; min-width: 220px; }
+  .search-album-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+
+/* ─── Celular ────────────────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  :root { --tabbar-h: 56px; --safe-b: env(safe-area-inset-bottom, 0px); }
+
+  .app-sidebar { display: none; }
+  .app-main { margin-left: 0; }
+  body { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); }
+  body:has(.player-bar.has-track) { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 68px); }
+  .tab-view-content:not(#tab-feed) { padding: 12px 12px 24px; }
+
+  /* Barra de abas */
+  .mobile-tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 600;
+    height: calc(var(--tabbar-h) + var(--safe-b)); padding-bottom: var(--safe-b);
+    background: var(--scrim); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
+  }
+  .mobile-tab {
+    flex: 1; position: relative; display: grid; place-items: center;
+    border: 0; background: none; color: var(--text-2); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-tab svg { width: 25px; height: 25px; }
+  .mobile-tab.active { color: var(--text); }
+  .mobile-tab.active svg { stroke-width: 2.7; }
+  .mobile-tab:active { background: var(--hover); }
+  .mobile-tab-post svg {
+    width: 42px; height: 42px; padding: 10px; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent); stroke-width: 2.6;
+  }
+  .mobile-tab-post:active { background: none; }
+  .mobile-tab-post:active svg { transform: scale(.94); }
+  .mobile-tab-me .post-author-avatar {
+    position: static; width: 30px; height: 30px; min-width: 0; font-size: 13px; margin: 0;
+    transition: box-shadow .15s;
+  }
+  .mobile-tab-me.active .post-author-avatar { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
+  .mobile-badge {
+    position: absolute; top: 7px; left: calc(50% + 3px);
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    background: var(--accent); color: var(--on-accent);
+    font: 700 .68rem/18px var(--f-ui); text-align: center; box-shadow: 0 0 0 2px var(--bg);
+  }
+
+  /* Player: só aparece tocando, logo acima das abas */
+  .player-bar { display: none; left: 0; right: 0; bottom: calc(var(--tabbar-h) + var(--safe-b)); height: 60px; }
+  .player-bar.has-track { display: flex; }
+
+  /* O botão flutuante de mensagens vira a aba Chat */
+  .dm-fab { display: none !important; }
+
+  /* Folha "você" */
+  .me-sheet { display: block; position: fixed; inset: 0; z-index: 900; pointer-events: none; }
+  .me-sheet.open { pointer-events: auto; }
+  .me-sheet-scrim { position: absolute; inset: 0; background: rgb(0 0 0 / .5); opacity: 0; transition: opacity .2s; }
+  .me-sheet.open .me-sheet-scrim { opacity: 1; }
+  .me-sheet-panel {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 85vh; overflow-y: auto;
+    padding: 6px 0 calc(12px + var(--safe-b));
+    background: var(--bg); border-radius: 18px 18px 0 0; border-top: 1px solid var(--line);
+    transform: translateY(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1);
+  }
+  .me-sheet.open .me-sheet-panel { transform: none; }
+  .me-sheet-grip { width: 36px; height: 4px; margin: 4px auto 8px; border-radius: 2px; background: var(--line); }
+  .me-sheet-user {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 20px 16px;
+    border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer; color: var(--text);
+  }
+  .me-sheet-user .post-author-avatar { position: static; width: 44px; height: 44px; min-width: 0; font-size: 18px; margin: 0; }
+  .me-sheet-user strong { display: block; font-size: 1rem; }
+  .me-sheet-user small { display: block; color: var(--text-2); font-size: .85rem; }
+  .me-sheet-list { padding: 6px 0; }
+  .me-sheet-item {
+    display: flex; align-items: center; gap: 16px; width: 100%; min-height: 52px; padding: 0 20px;
+    border: 0; background: none; color: var(--text); font: 600 1rem var(--f-ui); cursor: pointer; text-align: left;
+  }
+  .me-sheet-item svg { width: 22px; height: 22px; color: var(--text-2); }
+  .me-sheet-item.active { color: var(--accent); }
+  .me-sheet-item.active svg { color: var(--accent); }
+  .me-sheet-item:active, .me-sheet-user:active { background: var(--hover); }
+
+  /* Notificações ocupam a tela como uma página */
+  .notifications-overlay { bottom: calc(var(--tabbar-h) + var(--safe-b)); z-index: 550; background: var(--bg); }
+  .notifications-panel {
+    position: absolute; inset: 0; width: auto; max-height: none;
+    background: var(--bg); border: 0; box-shadow: none; transform: none; animation: none;
+  }
+  .notif-panel-header { padding: 14px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .notif-panel-header h3 { font: 800 1.15rem var(--f-ui); }
+  .notif-panel-header .dm-header-btn { width: 40px; height: 40px; }
+  .notif-item { padding: 14px 16px; }
+
+  /* Feed */
+  .timeline-title { font-size: 1.15rem; padding: 12px 16px 2px; }
+  .post-card { padding-right: 12px; }
+
+  /* Perfil: abas roláveis, sem estouro */
+  .profile-subtabs { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+  .profile-subtabs::-webkit-scrollbar { display: none; }
+  .profile-subtab-btn { flex: 0 0 auto; padding-inline: 14px; white-space: nowrap; }
+  .profile-social-add-btn, .profile-status-pill { max-width: 100%; }
+
+  /* Playlists: filtros numa linha rolável */
+  .playlists-controls-bar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .playlists-filter-pills { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; }
+  .playlists-filter-pills::-webkit-scrollbar { display: none; }
+  .playlist-pill { flex: 0 0 auto; white-space: nowrap; }
+  .playlists-search-box { width: 100%; }
+  .playlists-empty-state { margin: 0; padding: 28px 16px; box-sizing: border-box; max-width: 100%; }
+  .playlists-empty-state .doodle-btn { max-width: 100%; white-space: normal; }
+
+  /* Chat: uma tela de cada vez (lista → conversa) */
+  .chat-tab-container { height: calc(100dvh - var(--tabbar-h) - var(--safe-b) - 24px); min-height: 0; border-radius: 12px; }
+  .chat-tab-header { padding: 12px 14px; }
+  .chat-tab-header-sub { display: none; }
+  .chat-tab-sidebar { width: 100%; min-width: 0; border-right: 0; }
+  .chat-tab-main { display: none; }
+  .chat-tab-container.has-conversation .chat-tab-sidebar,
+  .chat-tab-container.has-conversation .chat-tab-header { display: none; }
+  .chat-tab-container.has-conversation .chat-tab-main { display: flex; }
+  .chat-back-btn {
+    display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; margin-right: 4px;
+    border: 0; border-radius: 50%; background: none; color: var(--text); cursor: pointer;
+  }
+  .chat-back-btn svg { width: 20px; height: 20px; }
+  .chat-main-header { gap: 6px; padding-left: 8px; }
+  .chat-profile-btn { display: none; }
+
+  /* Desafios: lista compacta em vez de cartões quadrados enormes */
+  .questions-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .q-card {
+    display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "cover info" "cover actions";
+    column-gap: 12px; align-items: center; padding: 10px; border-radius: 12px;
+  }
+  .q-card-cover { grid-area: cover; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; font-size: 1.2rem; }
+  .q-card-cover svg { width: 22px; height: 22px; }
+  .q-card-info { grid-area: info; padding: 0 28px 0 0; }
+  .q-title { font-size: .92rem; }
+  .q-card-actions { grid-area: actions; padding: 2px 0 0; }
+  .q-card-answered-badge { top: 10px; right: 10px; }
+  .pill-btn { white-space: nowrap; flex: 0 0 auto; }
+  #challenge-pills { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; margin-inline: -12px; padding-inline: 12px; }
+  #challenge-pills::-webkit-scrollbar { display: none; }
+
+  /* Modais em tela cheia a partir de baixo */
+  .doodle-modal, .modal-content { max-width: 100vw; }
+}
+
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) {
+  .me-sheet-panel, .me-sheet-scrim { transition: none; }
+}

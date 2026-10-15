@@ -85,7 +85,7 @@ export function renderProfileView(container, targetUserId) {
     </div>` : (isMe ? `
     <div class="featured-song-box empty" style="cursor:pointer;justify-content:center;padding:18px 20px;" onclick="window._editFeaturedSong()">
       <span style="font-size:0.86rem;color:var(--purple-light);font-weight:700;display:flex;align-items:center;gap:8px;">
-        ${ICONS.disc || ICONS.music} + Escolher Música em Destaque (Disco de Vinil)
+        ${ICONS.disc || ICONS.music} Escolher música em destaque
       </span>
     </div>` : '');
 
@@ -239,7 +239,7 @@ function buildSocialsHtml(user, isMe) {
       <div class="profile-socials-row">
         <button type="button" class="profile-social-add-btn" onclick="window._openProfileEdit()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>Adicionar redes sociais (Instagram, X, Last.fm)</span>
+          <span>Adicionar redes sociais</span>
         </button>
       </div>`;
   }

@@ -599,3 +599,14 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
   .tab-indicator { transition: none; }
   .panel-in-right, .panel-in-left, .panel-in-fade { animation: none; }
 }
+
+/* Restos do visual rabiscado: botões e avisos com borda contínua (vagas vazias continuam tracejadas) */
+.profile-status-pill, .profile-social-add-btn {
+  border: 1px solid var(--line) !important; background: none !important; color: var(--text-2) !important;
+}
+.profile-status-pill:hover, .profile-social-add-btn:hover { background: var(--hover) !important; color: var(--text) !important; }
+.featured-song-box.empty { border-top: 1px solid var(--line); background: none; min-height: 0; padding: 14px 16px !important; justify-content: flex-start !important; }
+.featured-song-box.empty:hover { background: var(--hover); }
+.featured-song-box.empty span { color: var(--accent) !important; font-weight: 600 !important; }
+.playlists-empty-state { border: 1px solid var(--line) !important; background: none !important; }
+.auth-notice, .playlist-empty-tracks { border-style: solid; }

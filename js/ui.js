@@ -998,6 +998,7 @@ export function renderPlayerBar() {
   // Subscribe to audio events via globalAudio.subscribe(callback)
   globalAudio.subscribe((event, data) => {
     if (event === 'trackchange') {
+      document.getElementById('player-bar')?.classList.toggle('has-track', Boolean(data));
       const coverEl = document.getElementById('player-cover');
       const titleEl = document.getElementById('player-title');
       const artistEl = document.getElementById('player-artist');
