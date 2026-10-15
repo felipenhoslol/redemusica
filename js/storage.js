@@ -133,6 +133,42 @@ export function initStorage() {
 }
 
 // ──────────────────────────────────────────
+//  REMOTE SYNC HOOKS
+// ──────────────────────────────────────────
+
+// sync.js registers these while a Supabase account is signed in; every local write also goes to the server
+let remote = null;
+export function setRemoteHooks(hooks) { remote = hooks; }
+const toRemote = (name, ...args) => { try { remote?.[name]?.(...args); } catch { /* sync is best-effort */ } };
+
+/** Replace the cached feed with the server's copy (keeps posts still on their way up). */
+export function replacePostsCache(posts, keepIds = []) {
+  const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const pending = current.filter(p => keepIds.includes(p.id) && !posts.some(r => r.id === p.id));
+  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify([...pending, ...posts]));
+}
+
+/** Add or refresh other people's public profiles in the local user list. */
+export function mergeRemoteProfiles(profiles) {
+  const users = getAllUsers();
+  profiles.forEach(p => {
+    const existing = users.find(u => u.id === p.id);
+    const initial = (p.name || '?').trim()[0]?.toUpperCase() || '?';
+    // Keep a photo chosen locally while the server has none
+    const localPhoto = existing && /^(data:image|https?:)/.test(existing.avatar || '') ? existing.avatar : null;
+    const avatar = p.avatar_url || localPhoto || initial;
+    if (existing) Object.assign(existing, { name: p.name, handle: p.handle, avatar });
+    else users.push({ id: p.id, name: p.name, handle: p.handle, avatar, bio: '', status: '', pinnedPostId: null, songShowcase: [], topArtistsMonth: [], featuredSong: null });
+  });
+  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+}
+
+/** Replace the follow graph with the server's copy ({ followerId: [followingId] }). */
+export function replaceFollows(map) {
+  localStorage.setItem(STORAGE_KEYS.FOLLOWS, JSON.stringify(map));
+}
+
+// ──────────────────────────────────────────
 //  USERS
 // ──────────────────────────────────────────
 
@@ -288,6 +324,7 @@ export function toggleFollow(targetUserId) {
     all[activeId].splice(idx, 1);
   }
   saveAllFollows(all);
+  toRemote('follow', targetUserId, idx === -1);
   return !~idx; // returns true if now following
 }
 
@@ -457,6 +494,7 @@ export function createPost(postData) {
 
   posts.unshift(newPost);
   localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+  toRemote('createPost', newPost);
   return newPost;
 }
 
@@ -466,6 +504,7 @@ export function updatePost(postId, updates) {
   if (idx !== -1) {
     posts[idx] = { ...posts[idx], ...updates, updatedAt: 'editado agora' };
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    toRemote('updatePost', posts[idx]);
     return posts[idx];
   }
   return null;
@@ -492,6 +531,7 @@ export function toggleLikePost(postId) {
       post.likes.splice(idx, 1);
     }
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    toRemote('like', postId, idx === -1);
   }
 }
 
@@ -516,6 +556,7 @@ export function toggleRepostPost(postId) {
       post.reposts.splice(idx, 1);
     }
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    toRemote('repost', postId, idx === -1);
   }
 }
 
@@ -562,6 +603,7 @@ export function addCommentToPost(postId, commentData) {
       createdAt: new Date().toISOString()
     });
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    toRemote('addComment', postId, newComment);
     return newComment;
   }
   return null;
@@ -578,6 +620,7 @@ export function deleteComment(postId, commentId) {
       if (comment.userId === activeUser.id || post.authorId === activeUser.id) {
         post.comments.splice(idx, 1);
         localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+        toRemote('deleteComment', commentId);
         return true;
       }
     }
@@ -596,6 +639,7 @@ export function deletePost(postId) {
   const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
   const filtered = posts.filter(p => p.id !== postId);
   localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(filtered));
+  toRemote('deletePost', postId);
 
   // Clean up user pin if this was pinned
   const activeUser = getActiveUser();

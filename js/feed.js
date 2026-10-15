@@ -6,6 +6,7 @@ import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks } from './lastfm.js';
 import { getRandomLyric } from './lyrics_db.js';
+import { compressImage } from './sync.js';
 
 // ──────────────────────────────────────────
 // RENDER HELPERS
@@ -587,11 +588,9 @@ export function renderPostCreator(containerEl) {
   window._handlePostImageUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      window._setPostCreatorImage(e.target.result);
-    };
-    reader.readAsDataURL(file);
+    compressImage(file)
+      .then(url => window._setPostCreatorImage(url))
+      .catch(err => window.showDoodleToast?.(err.message));
   };
 
   window._setPostCreatorImage = (url) => {
@@ -988,11 +987,9 @@ window._handleCommentImageUpload = (event, postId) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    window._setCommentImage(postId, e.target.result);
-  };
-  reader.readAsDataURL(file);
+  compressImage(file, 960)
+    .then(url => window._setCommentImage(postId, url))
+    .catch(err => window.showDoodleToast?.(err.message));
 };
 
 let pendingDeleteCommentTarget = null;

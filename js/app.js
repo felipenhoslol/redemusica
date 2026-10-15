@@ -16,6 +16,7 @@ import { showAuthScreen } from './authScreen.js';
 import { openFeedbackModal } from './feedback.js';
 import { openDisplaySettings, initDisplay } from './display.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
+import { startSync, stopSync, pullNow } from './sync.js';
 import { renderAdminTab } from './admin.js';
 import { renderDailyLyric } from './dailyLyric.js';
 import { searchTracks } from './api.js';
@@ -82,6 +83,23 @@ function startApp() {
   // Process pending tab from shim
   if (window._pendingTab) { switchTab(window._pendingTab); window._pendingTab = null; }
   else { switchTab('feed'); }
+
+  if (auth.mode === 'signed-in') {
+    startSync(auth.user.id, { onUpdate: refreshFromServer, onError: (msg) => showDoodleToast(msg) });
+  }
+}
+
+// New data from the server: redraw what's on screen, unless the person is typing in it
+function refreshFromServer() {
+  renderNotifBadge();
+  const active = document.activeElement;
+  if (activeTab === 'feed') {
+    const feedPosts = document.getElementById('feed-posts');
+    const typing = feedPosts?.contains(active) || [...(feedPosts?.querySelectorAll('input, textarea') || [])].some(el => el.value);
+    if (feedPosts && !typing) renderFeed(feedPosts, feedFilterMode);
+  } else if (activeTab === 'search') {
+    if (!document.getElementById('tab-search')?.contains(active)) renderSearchTab();
+  }
 }
 
 // ──────────────────────────────────────────
@@ -229,6 +247,7 @@ function renderChatTab() {
 function renderFeedTab() {
   const tab = document.getElementById('tab-feed');
   if (!tab) return;
+  pullNow();
 
   tab.innerHTML = `
     <div class="feed-layout-cols">
@@ -483,7 +502,7 @@ function bindGlobalHandlers() {
     switchTab('feed');
     requestAnimationFrame(() => document.getElementById('creator-text')?.focus());
   };
-  window._logout = () => logout();
+  window._logout = () => { stopSync(); logout(); };
 
   // Navigate to any profile
   window._goToProfile = (userId) => {
