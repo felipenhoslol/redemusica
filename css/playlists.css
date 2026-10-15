@@ -49,8 +49,8 @@
 .playlist-pill.active {
   background: var(--purple-accent);
   border-color: var(--purple-light);
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(157, 78, 221, 0.35);
+  color: var(--on-accent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .playlists-search-box {
@@ -91,7 +91,7 @@
 
 .playlist-card {
   background: var(--bg-surface);
-  border: 1px solid rgba(157, 78, 221, 0.2);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   border-radius: var(--radius-lg);
   overflow: hidden;
   display: flex;
@@ -104,13 +104,13 @@
 .playlist-card:hover {
   transform: translateY(-4px);
   border-color: var(--purple-accent);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px rgba(157, 78, 221, 0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4), 0 0 15px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .playlist-card-cover-wrap {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #0a0612;
+  background: var(--surface);
   position: relative;
   overflow: hidden;
 }
@@ -123,8 +123,8 @@
   height: 44px;
   border-radius: 50%;
   background: var(--purple-accent);
-  color: #ffffff;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: var(--on-accent);
+  border: 2px solid var(--tint-3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,7 +142,7 @@
 }
 
 .playlist-card-play-btn:hover {
-  background: #00f2fe;
+  background: var(--accent);
   color: #000;
   transform: scale(1.08);
 }
@@ -175,7 +175,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1b0f2e, #0e0717);
+  background: linear-gradient(135deg, var(--hover), var(--surface));
   color: var(--purple-light);
   font-size: 2.2rem;
 }
@@ -217,7 +217,7 @@
   color: var(--muted);
   margin-top: auto;
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--tint-1);
 }
 
 .playlist-card-author {
@@ -234,7 +234,7 @@
 
 .playlist-card-author:hover {
   color: var(--white);
-  background: rgba(157, 78, 221, 0.2);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
   text-decoration: underline;
 }
 
@@ -244,7 +244,7 @@
   min-width: 22px;
   border-radius: 50%;
   background: var(--purple-dark);
-  color: #fff;
+  color: var(--text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -263,7 +263,7 @@
   object-fit: cover;
   display: inline-block;
   vertical-align: middle;
-  border: 1px solid rgba(157, 78, 221, 0.4);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .playlist-hero-author-avatar-img {
@@ -339,7 +339,7 @@
 .playlist-detail-hero {
   display: flex;
   gap: 24px;
-  background: linear-gradient(135deg, rgba(35, 17, 56, 0.6), rgba(15, 8, 26, 0.8));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--hover) 60%, transparent), color-mix(in srgb, var(--surface) 80%, transparent));
   border: 1px solid var(--purple-accent);
   border-radius: var(--radius-lg);
   padding: 24px;
@@ -356,7 +356,7 @@
   overflow: hidden;
   background: #000;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--tint-2);
 }
 
 .playlist-cover-collage.hero {
@@ -381,7 +381,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #2b1042, #130c1e);
+  background: linear-gradient(135deg, var(--hover), var(--surface));
   color: var(--purple-light);
   font-size: 3rem;
 }
@@ -400,7 +400,7 @@
   gap: 6px;
   font-size: 0.72rem;
   font-weight: 800;
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--purple-light);
   letter-spacing: 0.06em;
   margin-bottom: 6px;
@@ -442,7 +442,7 @@
 }
 
 .playlist-hero-author:hover {
-  background: rgba(157, 78, 221, 0.2);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
   color: var(--purple-light);
   text-decoration: underline;
 }
@@ -509,7 +509,7 @@
 }
 
 .playlist-track-row:hover {
-  background: rgba(157, 78, 221, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .playlist-track-index {
@@ -586,7 +586,7 @@
 
 .playlist-track-note {
   font-size: 0.72rem;
-  color: #ffb800;
+  color: var(--star);
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -630,12 +630,12 @@
 }
 
 .btn-track-action:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--tint-2);
   color: var(--white);
 }
 
 .btn-track-action.danger:hover {
-  background: rgba(255, 85, 85, 0.2);
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
   color: var(--pink);
 }
 

@@ -36,7 +36,7 @@
   justify-content: space-between;
   padding: 10px 12px;
   border-bottom: var(--border);
-  background: rgba(0,0,0,0.3);
+  background: var(--tint-2);
   flex-shrink: 0;
 }
 
@@ -137,7 +137,7 @@
   line-height: 1.3;
 }
 
-.dm-bubble.sent  .dm-bubble-content { background: var(--purple-accent); color: #fff; border-radius: var(--radius-md) var(--radius-md) 4px var(--radius-md); }
+.dm-bubble.sent  .dm-bubble-content { background: var(--purple-accent); color: var(--on-accent); border-radius: var(--radius-md) var(--radius-md) 4px var(--radius-md); }
 .dm-bubble.recv  .dm-bubble-content { background: var(--bg-card);        color: var(--white); border: var(--border); border-radius: var(--radius-md) var(--radius-md) var(--radius-md) 4px; }
 
 .dm-time { font-size: 0.62rem; color: var(--dimmed); align-self: flex-end; }
@@ -147,7 +147,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0,0,0,0.3);
+  background: var(--tint-2);
   border: var(--border);
   border-radius: var(--radius-md);
   padding: 5px 8px;
@@ -164,7 +164,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 5px 12px;
-  background: rgba(91, 45, 142, 0.2);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
   border-top: var(--border);
   font-size: 0.78rem;
   color: var(--white);
@@ -207,7 +207,7 @@
   border-radius: 50%;
   background: var(--purple-accent);
   border: none;
-  color: #fff;
+  color: var(--on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -259,7 +259,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--tint-1);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -283,7 +283,7 @@
   align-items: center;
   gap: 8px;
   padding: 7px 16px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--tint-2);
   border: 1px solid var(--border);
   color: var(--white);
   border-radius: var(--radius-pill);
@@ -294,9 +294,9 @@
 }
 
 .chat-tab-exit-btn:hover {
-  background: rgba(255, 85, 85, 0.15);
-  border-color: #ff5555;
-  color: #ff8888;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .chat-tab-body {
@@ -310,7 +310,7 @@
   width: 320px;
   min-width: 270px;
   border-right: 1px solid var(--border);
-  background: rgba(18, 14, 28, 0.6);
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
   display: flex;
   flex-direction: column;
 }
@@ -332,15 +332,15 @@
   padding: 12px 16px;
   cursor: pointer;
   transition: background 0.18s;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--tint-1);
 }
 
 .chat-contact-card:hover {
-  background: rgba(157, 78, 221, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .chat-contact-card.active {
-  background: rgba(157, 78, 221, 0.22);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
   border-left: 3px solid var(--purple-accent);
 }
 
@@ -357,7 +357,7 @@
   justify-content: center;
   font-size: 16px;
   font-weight: 800;
-  border: 1.5px solid rgba(157, 78, 221, 0.3);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .chat-contact-card-info {
@@ -398,7 +398,7 @@
   justify-content: space-between;
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--tint-1);
   flex-shrink: 0;
 }
 
@@ -423,7 +423,7 @@
 /* Attached bar inside chat composer */
 .chat-tab-attached-preview {
   padding: 10px 18px;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--tint-2);
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -457,8 +457,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--tint-1);
+  border: 1px solid var(--tint-2);
   color: var(--purple-light);
   padding: 5px 12px;
   border-radius: var(--radius-pill);
@@ -469,7 +469,7 @@
 }
 
 .chat-tool-btn:hover {
-  background: rgba(157, 78, 221, 0.2);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
   border-color: var(--purple-accent);
   color: var(--white);
 }
@@ -480,7 +480,7 @@
   overflow: hidden;
   max-width: 320px;
   background: #000;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--tint-3);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -502,8 +502,8 @@
   display: none;
   align-items: center;
   gap: 2px;
-  background: rgba(20, 15, 30, 0.92);
-  border: 1px solid rgba(157, 78, 221, 0.45);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   backdrop-filter: blur(10px);
   padding: 2px 5px;
   border-radius: 16px;
@@ -539,19 +539,19 @@
 }
 
 .chat-action-icon-btn:hover {
-  background: rgba(157, 78, 221, 0.25);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
   color: var(--white);
   transform: scale(1.15);
 }
 
 .chat-action-icon-btn.delete-btn:hover {
-  background: rgba(255, 85, 85, 0.25);
-  color: #ff5555;
+  background: color-mix(in srgb, var(--danger) 25%, transparent);
+  color: var(--danger);
 }
 
 /* Replied Box inside Bubble */
 .chat-replied-box {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--tint-2);
   border-left: 3px solid var(--purple-accent);
   padding: 5px 8px;
   border-radius: 4px;
@@ -578,8 +578,8 @@
 
 /* Reply Banner above Composer */
 .chat-reply-banner {
-  background: rgba(157, 78, 221, 0.12);
-  border: 1px solid rgba(157, 78, 221, 0.35);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 12px;
   padding: 6px 12px;
   margin-bottom: 6px;
@@ -630,7 +630,7 @@
 
 .chat-reply-banner-close:hover {
   color: var(--white);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--tint-2);
 }
 
 /* Edited Tag */

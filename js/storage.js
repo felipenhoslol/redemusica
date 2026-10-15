@@ -17,368 +17,118 @@ const STORAGE_KEYS = {
   PLAYLISTS: 'rmsn_playlists_v5',
 };
 
-const INITIAL_PLAYLISTS = [
-  {
-    id: 'pl_sample_1',
-    title: 'Madrugadas & Melancolia',
-    description: 'Músicas para ouvir de fone no escuro às 3 da manhã.',
-    coverUrl: '',
-    authorId: 'user_me',
-    createdAt: 'há 2 dias',
-    likes: ['user_clara', 'user_lucas'],
-    songs: [
-      {
-        id: 'itunes_yellow',
-        title: 'Yellow',
-        artist: 'Coldplay',
-        album: 'Parachutes',
-        artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-        previewUrl: '',
-        duration: '4:29',
-        note: 'A introdução dessa música me desmonta todo dia.'
-      },
-      {
-        id: 'itunes_starboy',
-        title: 'Starboy',
-        artist: 'The Weeknd',
-        album: 'Starboy',
-        artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80',
-        previewUrl: '',
-        duration: '3:50',
-        note: 'Synthwave perfeito.'
-      },
-      {
-        id: 'itunes_creep',
-        title: 'Creep',
-        artist: 'Radiohead',
-        album: 'Pablo Honey',
-        artwork: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80',
-        previewUrl: '',
-        duration: '3:56',
-        note: 'Clássico imortal.'
-      }
-    ]
-  },
-  {
-    id: 'pl_sample_2',
-    title: 'MPB, Café & Poesia',
-    description: 'Letras brasileiras profundas para desacelerar o coração.',
-    coverUrl: '',
-    authorId: 'user_clara',
-    createdAt: 'há 4 dias',
-    likes: ['user_me'],
-    songs: [
-      {
-        id: 'itunes_aguas_de_marco',
-        title: 'Águas de Março',
-        artist: 'Elis Regina & Tom Jobim',
-        album: 'Elis & Tom',
-        artwork: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80',
-        previewUrl: '',
-        duration: '3:32',
-        note: 'A maior gravação da história da música brasileira.'
-      },
-      {
-        id: 'itunes_baby',
-        title: 'Baby',
-        artist: 'Gal Costa',
-        album: 'Gal Costa',
-        artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80',
-        previewUrl: '',
-        duration: '3:35',
-        note: 'Você precisa saber da piscina...'
-      }
-    ]
-  },
-  {
-    id: 'pl_sample_3',
-    title: 'Post-Punk & 80s Underground',
-    description: 'Guitarras frias, baixos marcantes e nostalgia analógica.',
-    coverUrl: '',
-    authorId: 'user_lucas',
-    createdAt: 'há 1 semana',
-    likes: ['user_me', 'user_clara'],
-    songs: [
-      {
-        id: 'itunes_love_will_tear',
-        title: 'Love Will Tear Us Apart',
-        artist: 'Joy Division',
-        album: 'Substance',
-        artwork: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80',
-        previewUrl: '',
-        duration: '3:25',
-        note: 'A linha de baixo mais icônica do pós-punk.'
-      },
-      {
-        id: 'itunes_smiths_light',
-        title: 'There Is a Light That Never Goes Out',
-        artist: 'The Smiths',
-        album: 'The Queen Is Dead',
-        artwork: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
-        previewUrl: '',
-        duration: '4:03',
-        note: 'Poesia pura.'
-      }
-    ]
-  }
-];
-
+// Fresh install: just the local profile, no demo content
 const INITIAL_USERS = [
   {
     id: 'user_me',
     name: 'Você',
     handle: '@voce',
     avatar: 'V',
-    bannerUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1200&auto=format&fit=crop&q=80',
-    themeColor: '#2b1042',
-    profileBgColor: '#130c1e',
-    profileAccentColor: '#3a165a',
-    profileTextColor: '#f5f0fa',
-    profileStatusColor: '#bda2db',
-    profileFeaturedColor: '#0a0610',
-    bio: 'Viciado em descobrir músicas novas e postar letras de madrugada.',
-    status: 'ouvindo pós-punk no volume máximo',
-    instagram: 'voce.music',
-    twitter: 'voce_music',
-    lastfm: 'voce_scrobbles',
+    bannerUrl: '',
+    bio: '',
+    status: '',
     pinnedPostId: null,
     songShowcase: [],
-    spotifyConnected: true,
-    musicService: 'spotify',
-    spotifyUsername: 'voce_music',
-    topArtist: {
-      rank: 1,
-      name: 'The Weeknd',
-      playcount: 348,
-      genre: 'R&B / Synthpop',
-      imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'
-    },
-    topArtistsMonth: [
-      { rank: 1, name: 'The Weeknd', playcount: 348, genre: 'R&B / Synthpop', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-      { rank: 2, name: 'Coldplay', playcount: 285, genre: 'Alt Rock / Pop', imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-      { rank: 3, name: 'Joy Division', playcount: 210, genre: 'Post-Punk', imageUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80' },
-      { rank: 4, name: 'The Smiths', playcount: 178, genre: 'Indie Rock', imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' },
-      { rank: 5, name: 'Deftones', playcount: 142, genre: 'Alt Metal / Shoegaze', imageUrl: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=600&auto=format&fit=crop&q=80' }
-    ],
-    featuredSong: {
-      id: 'itunes_coldplay_yellow',
-      title: 'Yellow',
-      artist: 'Coldplay',
-      album: 'Parachutes',
-      artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-      previewUrl: '',
-      duration: '4:29'
+    topArtistsMonth: [],
+    featuredSong: null
+  }
+];
+
+// Demo content shipped by earlier versions; removed from browsers that still have it
+const DEMO_USER_IDS = ['user_clara', 'user_lucas'];
+const DEMO_POST_IDS = ['post_seed_1', 'post_seed_2'];
+const DEMO_PLAYLIST_IDS = ['pl_sample_1', 'pl_sample_2', 'pl_sample_3'];
+const DEMO_CLEANUP_KEY = 'rmsn_demo_removed_v1';
+
+function readJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  catch { return fallback; }
+}
+
+function removeDemoContent() {
+  if (localStorage.getItem(DEMO_CLEANUP_KEY)) return;
+  const isDemoUser = (id) => DEMO_USER_IDS.includes(id);
+
+  const users = readJson(STORAGE_KEYS.USERS, null);
+  if (Array.isArray(users)) {
+    const kept = users.filter(u => !isDemoUser(u.id));
+    const me = kept.find(u => u.id === 'user_me');
+    // The old demo self ("Você"/"Marina") came with fake stats: reset it to a blank profile
+    if (me && (me.lastfm === 'voce_scrobbles' || me.handle === '@marina.ouve')) {
+      Object.assign(me, INITIAL_USERS[0]);
     }
-  },
-  {
-    id: 'user_clara',
-    name: 'Clara',
-    handle: '@clara_vibes',
-    avatar: 'C',
-    bannerUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&auto=format&fit=crop&q=80',
-    themeColor: '#38133b',
-    profileBgColor: '#130c1e',
-    profileAccentColor: '#4e1b5e',
-    profileTextColor: '#ffffff',
-    profileStatusColor: '#c98bc9',
-    profileFeaturedColor: '#0a0610',
-    bio: 'MPB, Indie e café. Letras que doem no coração.',
-    status: 'analisando letras antigas',
-    instagram: 'clara.vibes',
-    twitter: 'clara_mpb',
-    lastfm: 'clara_scrobbles',
-    pinnedPostId: null,
-    songShowcase: [],
-    spotifyConnected: true,
-    musicService: 'lastfm',
-    spotifyUsername: 'clara_scrobbles',
-    topArtist: {
-      rank: 1,
-      name: 'Elis Regina',
-      playcount: 290,
-      genre: 'MPB / Bossa Nova',
-      imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80'
-    },
-    topArtistsMonth: [
-      { rank: 1, name: 'Elis Regina', playcount: 290, genre: 'MPB / Bossa Nova', imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-      { rank: 2, name: 'Legião Urbana', playcount: 240, genre: 'Rock Nacional', imageUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
-      { rank: 3, name: 'Gal Costa', playcount: 195, genre: 'Tropicália', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-      { rank: 4, name: 'Caetano Veloso', playcount: 170, genre: 'MPB', imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-      { rank: 5, name: 'Belchior', playcount: 155, genre: 'MPB', imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' }
-    ],
-    featuredSong: null
-  },
-  {
-    id: 'user_lucas',
-    name: 'Lucas',
-    handle: '@lucas_rock',
-    avatar: 'L',
-    bannerUrl: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=1200&auto=format&fit=crop&q=80',
-    themeColor: '#1e0828',
-    profileBgColor: '#130c1e',
-    profileAccentColor: '#3d164f',
-    profileTextColor: '#e1bee7',
-    profileStatusColor: '#b068be',
-    profileFeaturedColor: '#0a0610',
-    bio: 'Pós-punk dos anos 80, guitarras distorcidas e vinis velhos.',
-    status: 'procurando fitas cassete raras',
-    instagram: 'lucas.wave',
-    twitter: 'lucas_postpunk',
-    lastfm: 'lucas_darkwave',
-    pinnedPostId: null,
-    songShowcase: [],
-    musicService: 'lastfm',
-    spotifyUsername: 'lucas_vinyl',
-    topArtist: {
-      rank: 1,
-      name: 'Joy Division',
-      playcount: 380,
-      genre: 'Post-Punk',
-      imageUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80'
-    },
-    topArtistsMonth: [
-      { rank: 1, name: 'Joy Division', playcount: 380, genre: 'Post-Punk', imageUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80' },
-      { rank: 2, name: 'The Cure', playcount: 310, genre: 'Goth / Post-Punk', imageUrl: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=600&auto=format&fit=crop&q=80' },
-      { rank: 3, name: 'New Order', playcount: 260, genre: 'Synthpop', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-      { rank: 4, name: 'Bauhaus', playcount: 185, genre: 'Gothic Rock', imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' },
-      { rank: 5, name: 'The Smiths', playcount: 160, genre: 'Indie Rock', imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' }
-    ],
-    featuredSong: null
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(kept));
   }
-];
 
-const INITIAL_POSTS = [
-  {
-    id: 'post_seed_1',
-    authorId: 'user_clara',
-    text: 'Alguém mais fica preso nessa letra o dia todo? Pura poesia.',
-    lyrics: 'Look at the stars, look how they shine for you, and everything you do... yeah they were all yellow.',
-    lyricsSong: 'Coldplay — Yellow',
-    lyricsArt: 'https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?w=400&auto=format&fit=crop&q=80',
-    lyricsCardStyle: 'with-cover',
-    tag: '#letra',
-    rating: 4.5,
-    song: {
-      id: 'itunes_coldplay_yellow',
-      title: 'Yellow',
-      artist: 'Coldplay',
-      artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-      previewUrl: '',
-      duration: '4:29'
-    },
-    imageUrl: '',
-    likes: ['user_me', 'user_lucas'],
-    comments: [
-      { id: 'c1', userId: 'user_me', userName: 'Você', userAvatar: 'V', text: 'Clássico absoluto!', createdAt: 'há 10 min' }
-    ],
-    reposts: [],
-    bookmarks: [],
-    createdAt: 'há 25 min'
-  },
-  {
-    id: 'post_seed_2',
-    authorId: 'user_lucas',
-    text: 'Joy Division acertou em cheio com essa. Quem mais acha que "Love Will Tear Us Apart" é atemporal?',
-    lyrics: 'When routine bites hard and ambitions are low, and the resentment rides high...',
-    lyricsSong: 'Joy Division — Love Will Tear Us Apart',
-    lyricsArt: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=400&auto=format&fit=crop&q=80',
-    lyricsCardStyle: 'full-bleed',
-    tag: '#música',
-    rating: 5.0,
-    song: {
-      id: 'itunes_joy_division_love',
-      title: 'Love Will Tear Us Apart',
-      artist: 'Joy Division',
-      artwork: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80',
-      previewUrl: '',
-      duration: '3:25'
-    },
-    imageUrl: '',
-    likes: ['user_me'],
-    comments: [],
-    reposts: [],
-    bookmarks: [],
-    createdAt: 'há 1h'
+  const posts = readJson(STORAGE_KEYS.POSTS, null);
+  if (Array.isArray(posts)) {
+    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(
+      posts.filter(p => !DEMO_POST_IDS.includes(p.id) && !isDemoUser(p.authorId))
+    ));
   }
-];
 
-const INITIAL_MESSAGES = [
-  {
-    id: 'm1',
-    fromUserId: 'user_clara',
-    toUserId: 'user_me',
-    text: 'Oi! Vi que você colocou Yellow no destaque. Clássico!',
-    song: null,
-    createdAt: '15:30'
+  const playlists = readJson(STORAGE_KEYS.PLAYLISTS, null);
+  if (Array.isArray(playlists)) {
+    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(
+      playlists.filter(p => !DEMO_PLAYLIST_IDS.includes(p.id) && !isDemoUser(p.authorId))
+    ));
   }
-];
+
+  const messages = readJson(STORAGE_KEYS.MESSAGES, null);
+  if (Array.isArray(messages)) {
+    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(
+      messages.filter(m => !isDemoUser(m.fromUserId) && !isDemoUser(m.toUserId))
+    ));
+  }
+
+  const follows = readJson(STORAGE_KEYS.FOLLOWS, null);
+  if (follows && typeof follows === 'object') {
+    const clean = {};
+    Object.entries(follows).forEach(([id, list]) => {
+      if (!isDemoUser(id)) clean[id] = (list || []).filter(f => !isDemoUser(f));
+    });
+    localStorage.setItem(STORAGE_KEYS.FOLLOWS, JSON.stringify(clean));
+  }
+
+  const notifications = readJson(STORAGE_KEYS.NOTIFICATIONS, null);
+  if (Array.isArray(notifications)) {
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(
+      notifications.filter(n => !isDemoUser(n.fromUserId) && !isDemoUser(n.targetUserId))
+    ));
+  }
+
+  Object.keys(localStorage)
+    .filter(k => k.startsWith(STORAGE_KEYS.ANSWERS_PREFIX) && DEMO_USER_IDS.some(id => k.endsWith(`_${id}`)))
+    .forEach(k => localStorage.removeItem(k));
+
+  localStorage.setItem(DEMO_CLEANUP_KEY, '1');
+}
 
 // ──────────────────────────────────────────
 //  INIT
 // ──────────────────────────────────────────
 
 export function initStorage() {
-  if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
-  } else {
-    try {
-      const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
-      let modified = false;
-      existing.forEach(u => {
-        const init = INITIAL_USERS.find(i => i.id === u.id);
-        if (init && (!u.topArtistsMonth || !u.topArtistsMonth.length)) {
-          u.topArtistsMonth = init.topArtistsMonth || [];
-          u.topArtist = init.topArtist || null;
-          u.spotifyConnected = init.spotifyConnected ?? true;
-          u.musicService = init.musicService || 'lastfm';
-          modified = true;
-        }
-      });
-      if (modified) {
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(existing));
-      }
-    } catch(e) {}
-  }
+  removeDemoContent();
+  const defaults = {
+    [STORAGE_KEYS.USERS]: INITIAL_USERS,
+    [STORAGE_KEYS.POSTS]: [],
+    [STORAGE_KEYS.MESSAGES]: [],
+    [STORAGE_KEYS.CHALLENGES]: DEFAULT_CHALLENGES,
+    [STORAGE_KEYS.FOLLOWS]: {},
+    [STORAGE_KEYS.BOOKMARKS]: {},
+    [STORAGE_KEYS.NOTIFICATIONS]: [],
+    [STORAGE_KEYS.BLOCKED]: {},
+    [STORAGE_KEYS.PLAYLISTS]: [],
+  };
+  Object.entries(defaults).forEach(([key, value]) => {
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value));
+  });
   if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_USER)) {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, 'user_me');
   }
-  if (!localStorage.getItem(STORAGE_KEYS.POSTS)) {
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(INITIAL_POSTS));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.MESSAGES)) {
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(INITIAL_MESSAGES));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.CHALLENGES)) {
-    localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(DEFAULT_CHALLENGES));
-  }
   if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_CHALLENGE)) {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_CHALLENGE, 'classic_30');
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.FOLLOWS)) {
-    // user_me follows clara and lucas by default
-    localStorage.setItem(STORAGE_KEYS.FOLLOWS, JSON.stringify({ user_me: ['user_clara', 'user_lucas'], user_clara: ['user_me'], user_lucas: ['user_me'] }));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.BOOKMARKS)) {
-    localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify({}));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) {
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([]));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.BLOCKED)) {
-    localStorage.setItem(STORAGE_KEYS.BLOCKED, JSON.stringify({}));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.PLAYLISTS)) {
-    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(INITIAL_PLAYLISTS));
-  }
-
-  // Prepopulate sample challenge answers
-  const claraKey = `${STORAGE_KEYS.ANSWERS_PREFIX}classic_30_user_clara`;
-  if (!localStorage.getItem(claraKey)) {
-    localStorage.setItem(claraKey, JSON.stringify({
-      1: { title: 'Yellow', artist: 'Coldplay', artwork: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', previewUrl: '', duration: '4:29' },
-      2: { title: '7 Rings', artist: 'Ariana Grande', artwork: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=600&auto=format&fit=crop&q=80', previewUrl: '', duration: '2:58' },
-      3: { title: 'Cruel Summer', artist: 'Taylor Swift', artwork: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', previewUrl: '', duration: '2:58' }
-    }));
   }
 }
 
@@ -418,17 +168,55 @@ export function updateUser(userId, updates) {
   }
 }
 
+/**
+ * Create or refresh the local record of a signed-in account and make it the active user.
+ * Local data (posts, playlists...) keeps living in localStorage, keyed by this id.
+ * @param {{id:string, name:string, handle:string}} account
+ */
+export function ensureAccountUser(account) {
+  let users = getAllUsers();
+  // The offline profile would show up as a stranger in search and chat once a real account is in
+  if (account.id !== 'user_me') users = users.filter(u => u.id !== 'user_me');
+  const existing = users.find(u => u.id === account.id);
+  if (existing) {
+    existing.name = account.name;
+    existing.handle = account.handle;
+  } else {
+    users.push({
+      id: account.id,
+      name: account.name,
+      handle: account.handle,
+      avatar: (account.name || '?').trim()[0]?.toUpperCase() || '?',
+      bio: '',
+      status: '',
+      pinnedPostId: null,
+      songShowcase: [],
+      topArtistsMonth: [],
+      featuredSong: null
+    });
+  }
+  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  setActiveUser(account.id);
+}
+
 export function updateUserMusicStats(userId, stats) {
   const user = getUserById(userId);
   if (!user) return;
+  const service = stats.service || 'lastfm';
   const updated = {
     spotifyConnected: true,
-    musicService: stats.service || 'lastfm',
+    musicService: service,
     spotifyUsername: stats.username || '',
+    musicPeriod: stats.period || null,
+    musicPeriodLabel: stats.periodLabel || '',
+    musicProfileUrl: stats.profileUrl || '',
+    musicSyncedAt: new Date().toISOString(),
     topArtist: stats.topArtist || (stats.topArtistsMonth ? stats.topArtistsMonth[0] : null),
     topArtistsMonth: stats.topArtistsMonth || [],
     topTracksMonth: stats.topTracksMonth || []
   };
+  // A synced Last.fm account also fills the Last.fm link on the profile
+  if (service === 'lastfm' && stats.username) updated.lastfm = stats.username;
   updateUser(userId, updated);
   return getUserById(userId);
 }
@@ -654,12 +442,11 @@ export function createPost(postData) {
     lyrics: postData.lyrics || '',
     lyricsSong: postData.lyricsSong || '',
     lyricsArt: postData.lyricsArt || '',
-    lyricsCardStyle: postData.lyricsCardStyle || 'compact',
     tag: postData.tag || '#música',
     rating: typeof postData.rating === 'number' ? postData.rating : 0,
     song: postData.song || null,
-    playlist: postData.playlist || null,
-    playlistId: postData.playlistId || (postData.playlist?.id || null),
+    // Only the id is stored: the card reads the live playlist, so posts never carry a stale or heavy copy
+    playlistId: postData.playlistId || null,
     imageUrl: postData.imageUrl || '',
     likes: [],
     comments: [],
@@ -1029,9 +816,9 @@ export function getAllPlaylists() {
   try {
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYLISTS));
     if (Array.isArray(list)) return list;
-    return INITIAL_PLAYLISTS;
+    return [];
   } catch {
-    return INITIAL_PLAYLISTS;
+    return [];
   }
 }
 
@@ -1177,8 +964,8 @@ export function calculateMusicalAffinity(userId1, userId2) {
   });
 
   if (user1.featuredSong?.artist) artists1.add(user1.featuredSong.artist.toLowerCase().trim());
-  if (user1.topArtists && Array.isArray(user1.topArtists)) {
-    user1.topArtists.forEach(a => { if (a?.name) artists1.add(a.name.toLowerCase().trim()); });
+  if (user1.topArtistsMonth && Array.isArray(user1.topArtistsMonth)) {
+    user1.topArtistsMonth.forEach(a => { if (a?.name) artists1.add(a.name.toLowerCase().trim()); });
   }
 
   // 2. Gather all songs and artists for User 2
@@ -1198,8 +985,8 @@ export function calculateMusicalAffinity(userId1, userId2) {
   });
 
   if (user2.featuredSong?.artist) artists2.add(user2.featuredSong.artist.toLowerCase().trim());
-  if (user2.topArtists && Array.isArray(user2.topArtists)) {
-    user2.topArtists.forEach(a => { if (a?.name) artists2.add(a.name.toLowerCase().trim()); });
+  if (user2.topArtistsMonth && Array.isArray(user2.topArtistsMonth)) {
+    user2.topArtistsMonth.forEach(a => { if (a?.name) artists2.add(a.name.toLowerCase().trim()); });
   }
 
   // Check if there is enough data

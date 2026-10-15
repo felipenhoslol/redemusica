@@ -136,12 +136,3 @@ export function getRandomLyric() {
   const idx = Math.floor(Math.random() * REAL_LYRICS_DB.length);
   return REAL_LYRICS_DB[idx];
 }
-
-/**
- * Get a lyric card style randomly for visual variety
- * @returns {'compact' | 'with-cover' | 'full-bleed'}
- */
-export function getRandomCardStyle() {
-  const styles = ['compact', 'compact', 'with-cover', 'with-cover', 'full-bleed'];
-  return styles[Math.floor(Math.random() * styles.length)];
-}

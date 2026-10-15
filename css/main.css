@@ -1,36 +1,36 @@
 /* ==========================================================================
-   REDE DE MÚSICA — Dark Modern Aesthetic (Outfit & Plus Jakarta Sans)
+   REDE DE MÚSICA — Base layout (cores e fontes atuais vêm de tokens.css)
    Left Sidebar Nav | Center Feed | Right Widgets | Floating DM | Player Bar
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Short+Stack&display=swap');
+/* Fontes carregadas no index.html; tokens novos em tokens.css */
 
 :root {
-  --bg-body:         #030305;
-  --bg-surface:      #08070c;
-  --bg-card:         #0d0b14;
-  --bg-card-hover:   #14111f;
-  --bg-selected:     #09070f;
-  --bg-input:        #050408;
+  --bg-body:         var(--surface);
+  --bg-surface:      var(--surface);
+  --bg-card:         var(--surface);
+  --bg-card-hover:   var(--surface);
+  --bg-selected:     var(--surface);
+  --bg-input:        var(--surface);
 
-  --purple-darkest:  #07040d;
-  --purple-dark:     #170c29;
-  --purple-mid:      #2b1548;
-  --purple-accent:   #5b2d8e;
-  --purple-light:    #9d5fe8;
-  --purple-muted:    #aa93c8;
+  --purple-darkest:  var(--surface);
+  --purple-dark:     var(--hover);
+  --purple-mid:      var(--hover);
+  --purple-accent:   var(--accent);
+  --purple-light:    var(--accent);
+  --purple-muted:    var(--text-2);
   --purple-dim:      #4c3a64;
 
-  --white:           #f4f3f8;
-  --muted:           #8d869e;
+  --white:           var(--text-2);
+  --muted:           var(--text-2);
   --dimmed:          #463e57;
-  --pink:            #c35090;
+  --pink:            var(--accent);
 
   --star-color:      #f5a623;
-  --star-empty:      rgba(255, 255, 255, 0.1);
+  --star-empty:      var(--tint-2);
   --star-stroke:     rgba(0, 0, 0, 0.6);
 
-  --border:          1px solid #161124;
+  --border:          1px solid var(--hover);
   --border-accent:   1px solid var(--purple-mid);
   --border-active:   1px solid var(--purple-accent);
 
@@ -195,7 +195,7 @@ body {
 }
 
 .nav-item:hover {
-  background: rgba(91, 45, 142, 0.18);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--white);
 }
 
@@ -216,7 +216,7 @@ body {
 .nav-badge {
   margin-left: auto;
   background: var(--purple-accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0.7rem;
   font-weight: 800;
   padding: 2px 6px;
@@ -306,7 +306,7 @@ body {
 .dm-fab:hover {
   background: var(--bg-card);
   border-color: var(--purple-accent);
-  color: #ffffff;
+  color: var(--text);
   transform: scale(1.08);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
 }
@@ -316,12 +316,12 @@ body {
   top: -2px;
   right: -2px;
   background: #ff007f;
-  color: #fff;
+  color: var(--text);
   font-size: 0.68rem;
   font-weight: 900;
   padding: 2px 6px;
   border-radius: 12px;
-  border: 2px solid #121212;
+  border: 2px solid var(--surface);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
@@ -425,12 +425,12 @@ body {
 .doodle-btn:hover { opacity: 0.9; transform: translateY(-1px); }
 .doodle-btn:active { transform: translateY(0); }
 
-.doodle-btn-primary   { background: var(--purple-accent);  color: #fff;        border-color: var(--purple-accent);  }
+.doodle-btn-primary   { background: var(--purple-accent);  color: var(--on-accent);        border-color: var(--purple-accent);  }
 .doodle-btn-primary:hover { background: var(--purple-light); border-color: var(--purple-light); }
 .doodle-btn-secondary { background: var(--bg-card);        color: var(--white); }
 .doodle-btn-ghost     { background: transparent;           color: var(--muted); border-color: transparent; }
 .doodle-btn-ghost:hover { background: var(--bg-card); color: var(--white); border-color: var(--border); }
-.doodle-btn-danger    { background: #3d1219;               color: #ffb0b0;      border-color: #6b2030; }
+.doodle-btn-danger    { background: var(--surface);               color: #ffb0b0;      border-color: #6b2030; }
 .doodle-btn-follow    { background: var(--white);          color: #000;         border-color: var(--white); }
 .doodle-btn-follow.following { background: transparent; color: var(--white); border-color: var(--purple-mid); }
 .doodle-btn-sm        { padding: 4px 10px; font-size: 0.78rem; }

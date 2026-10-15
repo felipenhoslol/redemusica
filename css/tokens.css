@@ -1,0 +1,117 @@
+/* ==========================================================================
+   Tokens de cor, tipo e forma.
+   Tema: <html data-theme="dark|light"> · Destaque: <html data-accent="roxo|azul|verde|laranja|rosa|vermelho">
+   (definidos antes da pintura pelo script no <head> do index.html e trocados em Exibição).
+   Os nomes antigos (--ink, --neon, --bg-card…) são apelidos dos novos, então telas
+   ainda não migradas acompanham o tema.
+   ========================================================================== */
+
+/* ─── Neutros: escuro (padrão) ─── */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:        #0b0a10;  /* fundo da página */
+  --surface:   #16141d;  /* caixas laterais, campos */
+  --hover:     #1c1925;  /* hover de linhas e itens */
+  --line:      #2a2633;  /* divisórias e bordas */
+  --text:      #f1ecf8;
+  --text-2:    #a59db3;  /* texto secundário */
+  --scrim:     rgba(11, 10, 16, .82); /* cabeçalho/player translúcidos */
+  --tint-1:    rgba(255, 255, 255, .04);
+  --tint-2:    rgba(255, 255, 255, .08);
+  --tint-3:    rgba(255, 255, 255, .14);
+  --shadow:    0 8px 28px rgba(0, 0, 0, .55);
+  --danger:    #ff6b7d;
+  --success:   #3ddc97;
+  --star:      #ffc53d;
+}
+
+/* ─── Neutros: claro ─── */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:        #ffffff;
+  --surface:   #f5f4f8;
+  --hover:     #efedf4;
+  --line:      #e6e3ec;
+  --text:      #16131d;
+  --text-2:    #625b70;
+  --scrim:     rgba(255, 255, 255, .86);
+  --tint-1:    rgba(22, 19, 29, .03);
+  --tint-2:    rgba(22, 19, 29, .06);
+  --tint-3:    rgba(22, 19, 29, .1);
+  --shadow:    0 8px 28px rgba(22, 19, 29, .14);
+  --danger:    #d6334a;
+  --success:   #0f8a55;
+  --star:      #e0a100;
+}
+
+/* ─── Cores de destaque (cada uma com versão para tema escuro e claro) ─── */
+:root                                           { --accent: #b56cff; --accent-hover: #c58bff; --on-accent: #14091f; }
+:root[data-theme="light"]                       { --accent: #7c3aed; --accent-hover: #6d28d9; --on-accent: #ffffff; }
+:root[data-accent="azul"]                       { --accent: #4ea1ff; --accent-hover: #72b4ff; --on-accent: #06121f; }
+:root[data-theme="light"][data-accent="azul"]   { --accent: #1d6fe0; --accent-hover: #175cbb; --on-accent: #ffffff; }
+:root[data-accent="verde"]                      { --accent: #3ddc97; --accent-hover: #63e5ad; --on-accent: #04150d; }
+:root[data-theme="light"][data-accent="verde"]  { --accent: #0f8a55; --accent-hover: #0c7347; --on-accent: #ffffff; }
+:root[data-accent="laranja"]                    { --accent: #ff9d4d; --accent-hover: #ffb170; --on-accent: #1f0e02; }
+:root[data-theme="light"][data-accent="laranja"]{ --accent: #c2570c; --accent-hover: #a3480a; --on-accent: #ffffff; }
+:root[data-accent="rosa"]                       { --accent: #ff6eb4; --accent-hover: #ff8dc4; --on-accent: #1f0612; }
+:root[data-theme="light"][data-accent="rosa"]   { --accent: #c2186b; --accent-hover: #a2125a; --on-accent: #ffffff; }
+:root[data-accent="vermelho"]                   { --accent: #ff6b6b; --accent-hover: #ff8a8a; --on-accent: #1f0606; }
+:root[data-theme="light"][data-accent="vermelho"]{ --accent: #c62828; --accent-hover: #a51f1f; --on-accent: #ffffff; }
+
+:root {
+  /* Derivados do destaque */
+  --accent-soft:   color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-softer: color-mix(in srgb, var(--accent) 8%, transparent);
+
+  /* Tipo: a fonte do sistema, como as redes sociais grandes */
+  --f-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --f-display: var(--f-ui);
+  --f-mono: ui-monospace, "SF Mono", Consolas, monospace;
+
+  /* Forma */
+  --radius: 16px;
+  --wobble: 16px;   /* nome antigo, hoje só um raio comum */
+  --pill: 999px;
+
+  /* ─── Apelidos usados pelo código existente ─── */
+  --ink:        var(--bg);
+  --paper:      var(--surface);
+  --raised:     var(--hover);
+  --chalk:      var(--text);
+  --dust:       var(--text-2);
+  --hair:       var(--line);
+  --neon:       var(--accent);
+  --neon-hover: var(--accent-hover);
+  --volt:       var(--accent);
+  --ultra:      var(--accent);
+
+  --bg-body:        var(--bg);
+  --bg-surface:     var(--surface);
+  --bg-card:        var(--bg);
+  --bg-card-hover:  var(--hover);
+  --bg-selected:    var(--hover);
+  --bg-input:       var(--surface);
+
+  --purple-darkest: var(--surface);
+  --purple-dark:    var(--accent-soft);
+  --purple-mid:     var(--line);
+  --purple-accent:  var(--accent);
+  --purple-light:   var(--accent);
+  --purple-muted:   var(--text-2);
+  --purple-dim:     var(--line);
+
+  --white:  var(--text);
+  --muted:  var(--text-2);
+  --dimmed: var(--text-2);
+  --pink:   var(--danger);
+
+  --star-color: var(--star);
+
+  --border:        1px solid var(--line);
+  --border-accent: 1px solid var(--line);
+  --border-active: 1px solid var(--accent);
+
+  --font:       var(--f-ui);
+  --font-title: var(--f-ui);
+}

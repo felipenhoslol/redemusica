@@ -1,50 +1,33 @@
 // Feed module — post creation, rendering, interactions, lyric cards
+import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
 import { globalAudio } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
-import { searchTracks, fetchLastFmTrendingTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
-import { getRandomLyric, getRandomCardStyle } from './lyrics_db.js';
+import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
+import { fetchLastFmTrendingTracks } from './lastfm.js';
+import { getRandomLyric } from './lyrics_db.js';
 
 // ──────────────────────────────────────────
 // RENDER HELPERS
 // ──────────────────────────────────────────
 
+// Letra em destaque: um único formato de citação (estilos em css/rabisco.css)
 function renderLyricsCard(post) {
   if (!post.lyrics) return '';
-  const text = post.lyrics;
-  const attr = post.lyricsSong ? `<span class="lyrics-song-attr">— ${post.lyricsSong}</span>` : '';
-  const style = post.lyricsCardStyle || 'compact';
-  const art = post.lyricsArt || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80';
-
-  if (style === 'compact' && !post.lyricsArt) {
-    return `
-      <div class="lyrics-card-compact">
-        <div class="lyrics-text">${text}</div>
-        ${attr}
-      </div>`;
-  }
-
   return `
-    <div class="lyrics-card-fullbleed" style="position:relative;overflow:hidden;border-radius:var(--radius-md);margin:8px 0;padding:14px;min-height:96px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid rgba(255,255,255,0.12);">
-      <img class="lyrics-bg-image" src="${art}" alt="" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(12px) brightness(0.25) saturate(1.4);transform:scale(1.15);pointer-events:none;z-index:0;">
-      <div style="position:absolute;inset:0;background:linear-gradient(135deg, rgba(20, 10, 35, 0.7), rgba(5, 2, 10, 0.85));z-index:1;"></div>
-      <div class="lyrics-fullbleed-content" style="position:relative;z-index:2;">
-        <div class="lyrics-text" style="font-size:0.95rem;line-height:1.45;color:#ffffff;font-style:italic;font-weight:600;text-shadow:0 2px 8px rgba(0,0,0,0.85);">${text}</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.15);">
-          <img src="${art}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid rgba(255,255,255,0.2);">
-          <div style="font-size:0.75rem;font-weight:700;color:var(--purple-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            ${post.lyricsSong || 'Música Destacada'}
-          </div>
-        </div>
-      </div>
-    </div>`;
+    <figure class="lyric-quote">
+      <blockquote>${esc(post.lyrics)}</blockquote>
+      ${post.lyricsSong ? `
+        <figcaption>
+          ${post.lyricsArt ? `<img src="${safeUrl(post.lyricsArt)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+          <span>${esc(post.lyricsSong)}</span>
+        </figcaption>` : ''}
+    </figure>`;
 }
 
 function renderPostPlaylistCard(post) {
-  let pl = post.playlist;
-  if (!pl && post.playlistId) {
-    pl = Storage.getPlaylistById(post.playlistId);
-  }
+  // Live playlist first; older posts may still carry an embedded snapshot as fallback
+  const pl = (post.playlistId && Storage.getPlaylistById(post.playlistId)) || post.playlist || null;
   if (!pl) return '';
 
   const songs = pl.songs || [];
@@ -53,21 +36,21 @@ function renderPostPlaylistCard(post) {
   // Render Cover
   let coverHtml = '';
   if (pl.coverUrl) {
-    coverHtml = `<img src="${pl.coverUrl}" alt="${pl.title}" style="width:100%;height:100%;object-fit:cover;">`;
+    coverHtml = `<img src="${safeUrl(pl.coverUrl)}" alt="${esc(pl.title)}" style="width:100%;height:100%;object-fit:cover;">`;
   } else {
     const songsWithArt = songs.filter(s => !!s.artwork);
     if (songsWithArt.length >= 4) {
       coverHtml = `
         <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%;">
-          <img src="${songsWithArt[0].artwork}" style="width:100%;height:100%;object-fit:cover;">
-          <img src="${songsWithArt[1].artwork}" style="width:100%;height:100%;object-fit:cover;">
-          <img src="${songsWithArt[2].artwork}" style="width:100%;height:100%;object-fit:cover;">
-          <img src="${songsWithArt[3].artwork}" style="width:100%;height:100%;object-fit:cover;">
+          <img src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+          <img src="${safeUrl(songsWithArt[1].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+          <img src="${safeUrl(songsWithArt[2].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+          <img src="${safeUrl(songsWithArt[3].artwork)}" style="width:100%;height:100%;object-fit:cover;">
         </div>`;
     } else if (songsWithArt.length > 0) {
-      coverHtml = `<img src="${songsWithArt[0].artwork}" style="width:100%;height:100%;object-fit:cover;">`;
+      coverHtml = `<img src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">`;
     } else {
-      coverHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2b1548,#0d0b14);color:var(--purple-light);">${ICONS.playlist}</div>`;
+      coverHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--hover),var(--surface));color:var(--purple-light);">${ICONS.playlist}</div>`;
     }
   }
 
@@ -75,32 +58,32 @@ function renderPostPlaylistCard(post) {
   const songsPreviewHtml = songs.slice(0, 3).map((s, idx) => `
     <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">
       <span style="color:var(--purple-light);font-weight:700;font-size:0.7rem;min-width:14px;">${idx+1}.</span>
-      <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.title}</span>
-      <span style="color:var(--muted);font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">— ${s.artist}</span>
+      <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.title)}</span>
+      <span style="color:var(--muted);font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">— ${esc(s.artist)}</span>
     </div>
   `).join('');
 
   return `
-    <div class="post-attached-playlist" onclick="window._goToSharedPlaylist('${pl.id}')" title="Clique para abrir esta playlist" style="margin:10px 0;background:linear-gradient(135deg, rgba(30, 16, 52, 0.85), rgba(12, 8, 20, 0.95));border:1px solid var(--purple-accent);border-radius:var(--radius-md);padding:12px 14px;cursor:pointer;transition:all 0.2s ease;display:flex;gap:14px;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+    <div class="post-attached-playlist" onclick="window._goToSharedPlaylist('${pl.id}')" title="Clique para abrir esta playlist" style="margin:10px 0;background:linear-gradient(135deg, color-mix(in srgb, var(--hover) 85%, transparent), color-mix(in srgb, var(--surface) 95%, transparent));border:1px solid var(--purple-accent);border-radius:var(--radius-md);padding:12px 14px;cursor:pointer;transition:all 0.2s ease;display:flex;gap:14px;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
       <div style="width:84px;height:84px;min-width:84px;border-radius:8px;overflow:hidden;background:#000;box-shadow:0 4px 10px rgba(0,0,0,0.6);flex-shrink:0;">
         ${coverHtml}
       </div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;">
         <div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <div style="display:inline-flex;align-items:center;gap:4px;font-size:0.68rem;font-weight:800;color:var(--purple-light);text-transform:uppercase;letter-spacing:0.04em;">
+            <div style="display:inline-flex;align-items:center;gap:4px;font-size:0.68rem;font-weight:800;color:var(--purple-light);letter-spacing:0.04em;">
               ${ICONS.playlist} Playlist
             </div>
             <span style="font-size:0.72rem;color:var(--muted);">${songsCount} ${songsCount === 1 ? 'música' : 'músicas'}</span>
           </div>
-          <h4 style="margin:2px 0 4px;font-size:0.95rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pl.title}</h4>
-          ${pl.description ? `<p style="margin:0 0 4px;font-size:0.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pl.description}</p>` : ''}
+          <h4 style="margin:2px 0 4px;font-size:0.95rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</h4>
+          ${pl.description ? `<p style="margin:0 0 4px;font-size:0.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.description)}</p>` : ''}
           ${songsPreviewHtml}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;padding-left:4px;" onclick="event.stopPropagation()">
         ${songsCount > 0 ? `
-          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="border-radius:50%;width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(157,78,221,0.4);" title="Tocar playlist" onclick="window._playEntirePlaylist('${pl.id}')">
+          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="border-radius:50%;width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);" title="Tocar playlist" onclick="window._playEntirePlaylist('${pl.id}')">
             ${ICONS.play}
           </button>
         ` : ''}
@@ -161,32 +144,32 @@ export function renderCommentRow(c, postId, isMaximized = false) {
   const post = postId ? Storage.getPostById(postId) : null;
   const canDelete = c.userId === activeUser.id || (post && post.authorId === activeUser.id);
 
-  const cAvatar = c.userAvatar && (c.userAvatar.startsWith('http') || c.userAvatar.startsWith('data:') || c.userAvatar.startsWith('/'))
-    ? `<img src="${c.userAvatar}" alt="${c.userName}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-    : (c.userAvatar || c.userName?.[0] || 'U');
+  const cAvatar = isImageAvatar(c.userAvatar)
+    ? `<img src="${safeUrl(c.userAvatar)}" alt="${esc(c.userName)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    : esc(c.userAvatar || c.userName?.[0] || 'U');
 
   const songAttachmentHtml = c.song ? `
-    <div class="comment-attached-song" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(157,78,221,0.16);border:1px solid var(--purple-accent);padding:6px 10px;border-radius:8px;margin-top:6px;">
+    <div class="comment-attached-song" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:color-mix(in srgb, var(--accent) 16%, transparent);border:1px solid var(--purple-accent);padding:6px 10px;border-radius:8px;margin-top:6px;">
       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-        ${c.song.artwork ? `<img src="${c.song.artwork}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;">` : ''}
+        ${c.song.artwork ? `<img src="${safeUrl(c.song.artwork)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;">` : ''}
         <div style="min-width:0;">
-          <div style="font-size:0.78rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.song.title}</div>
-          <div style="font-size:0.7rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.song.artist}</div>
+          <div style="font-size:0.78rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.song.title)}</div>
+          <div style="font-size:0.7rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.song.artist)}</div>
         </div>
       </div>
-      <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="padding:0;border-radius:50%;width:26px;height:26px;min-width:26px;display:flex;align-items:center;justify-content:center;" onclick="window._playTrack(${JSON.stringify(c.song).replace(/"/g, '&quot;')})" title="Tocar prévia">
+      <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="padding:0;border-radius:50%;width:26px;height:26px;min-width:26px;display:flex;align-items:center;justify-content:center;" onclick="window._playTrack(${jsArg(c.song)})" title="Tocar prévia">
         ${ICONS.play}
       </button>
     </div>` : '';
 
   const imageAttachmentHtml = c.imageUrl ? `
-    <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid rgba(255,255,255,0.1);">
-      <img src="${c.imageUrl}" alt="Anexo" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy">
+    <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
+      <img src="${safeUrl(c.imageUrl)}" alt="Anexo" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy">
     </div>` : '';
 
   const gifAttachmentHtml = c.gifUrl ? `
-    <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid rgba(255,255,255,0.1);">
-      <img src="${c.gifUrl}" alt="GIF" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy">
+    <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
+      <img src="${safeUrl(c.gifUrl)}" alt="GIF" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy">
     </div>` : '';
 
   const deleteBtnHtml = canDelete ? `
@@ -196,16 +179,16 @@ export function renderCommentRow(c, postId, isMaximized = false) {
 
   return `
     <div class="comment-row" id="comment-${c.id || ''}" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">
-      <div class="comment-avatar" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;" title="Ver perfil de ${c.userName}">${cAvatar}</div>
+      <div class="comment-avatar" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;" title="Ver perfil de ${esc(c.userName)}">${cAvatar}</div>
       <div class="comment-content" style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-          <div class="comment-name" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;">${c.userName}</div>
+          <div class="comment-name" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;">${esc(c.userName)}</div>
           <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.68rem;color:var(--muted);">${c.createdAt || ''}</span>
+            <span style="font-size:0.68rem;color:var(--muted);">${esc(c.createdAt || '')}</span>
             ${deleteBtnHtml}
           </div>
         </div>
-        ${c.text ? `<div class="comment-text" style="word-break:break-word;">${c.text}</div>` : ''}
+        ${c.text ? `<div class="comment-text" style="word-break:break-word;">${esc(c.text)}</div>` : ''}
         ${songAttachmentHtml}
         ${imageAttachmentHtml}
         ${gifAttachmentHtml}
@@ -237,7 +220,7 @@ export function renderCommentsSectionHtml(post) {
         </div>
         
         <!-- Attachment Toolbar -->
-        <div style="display:flex;align-items:center;gap:6px;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px;">
+        <div style="display:flex;align-items:center;gap:6px;border-top:1px solid var(--tint-1);padding-top:6px;">
           <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.74rem;padding:3px 8px;gap:4px;color:var(--purple-light);" onclick="window._openCommentMusicSearch('${post.id}')" title="Anexar música">
             ${ICONS.music} <span>Música</span>
           </button>
@@ -270,25 +253,25 @@ export function renderPostCard(post, options = {}) {
   const repostBannerHtml = isRepost ? `
     <div class="repost-header-banner">
       ${ICONS.repost || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>'}
-      <span>${reposterName ? `${reposterName} repostou` : 'Repostado'}</span>
+      <span>${reposterName ? `${esc(reposterName)} repostou` : 'Repostado'}</span>
     </div>` : '';
 
   const songHtml = post.song ? `
     <div class="post-attached-song">
       <div class="post-song-info">
-        <img class="post-song-cover" src="${post.song.artwork || ''}" alt="" onerror="this.style.display='none'">
+        <img class="post-song-cover" src="${safeUrl(post.song.artwork || '')}" alt="" onerror="this.style.display='none'">
         <div>
-          <div class="post-song-title">${post.song.title}</div>
-          <div class="post-song-artist">${post.song.artist}</div>
+          <div class="post-song-title">${esc(post.song.title)}</div>
+          <div class="post-song-artist">${esc(post.song.artist)}</div>
         </div>
       </div>
-      <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._playTrack(${JSON.stringify(post.song).replace(/"/g, '&quot;')})">
+      <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._playTrack(${jsArg(post.song)})">
         ${ICONS.play}
       </button>
     </div>` : '';
 
   const playlistHtml = renderPostPlaylistCard(post);
-  const imageHtml = post.imageUrl ? `<img class="post-attached-image" src="${post.imageUrl}" alt="post image" loading="lazy">` : '';
+  const imageHtml = post.imageUrl ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="post image" loading="lazy">` : '';
   const detectedPostUrl = extractFirstUrl(post.text);
   const linkHtml = post.link ? renderRichLinkCard(post.link) : (detectedPostUrl ? renderRichLinkCard(detectedPostUrl) : '');
 
@@ -300,9 +283,9 @@ export function renderPostCard(post, options = {}) {
 
   const pinnedLabel = isPinned ? `<div class="pinned-label">${ICONS.pin} Post Fixado</div>` : '';
 
-  const authorAvatarHtml = author.avatar && (author.avatar.startsWith('http') || author.avatar.startsWith('data:') || author.avatar.startsWith('/'))
-    ? `<img src="${author.avatar}" alt="${author.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-    : (author.avatar || author.name?.[0] || 'U');
+  const authorAvatarHtml = isImageAvatar(author.avatar)
+    ? `<img src="${safeUrl(author.avatar)}" alt="${esc(author.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    : esc(author.avatar || author.name?.[0] || 'U');
 
   return `
     <div class="post-card${isPinned ? ' pinned-post' : ''}" data-post-id="${post.id}">
@@ -312,12 +295,12 @@ export function renderPostCard(post, options = {}) {
         <div class="post-author" onclick="window._goToProfile('${post.authorId}')">
           <div class="post-author-avatar">${authorAvatarHtml}</div>
           <div>
-            <div class="post-author-name">${author.name}</div>
-            <div class="post-author-handle">${author.handle || ''}</div>
+            <div class="post-author-name">${esc(author.name)}</div>
+            <div class="post-author-handle">${esc(author.handle || '')}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
-          <span class="post-meta">${post.updatedAt || post.createdAt || ''}</span>
+          <span class="post-meta">${esc(post.updatedAt || post.createdAt || '')}</span>
           <button class="post-options-btn" onclick="window._togglePostOptions('${post.id}', event)" title="Opções">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
           </button>
@@ -337,7 +320,7 @@ export function renderPostCard(post, options = {}) {
         ${!isOwner ? `<button class="post-options-item danger" onclick="window._reportUser('${post.authorId}')">Reportar</button>` : ''}
       </div>
 
-      ${post.text ? `<div class="post-text">${post.text}${post.tag ? `<span class="post-tag">${post.tag}</span>` : ''}</div>` : ''}
+      ${post.text ? `<div class="post-text">${esc(post.text)}${post.tag ? `<span class="post-tag">${esc(post.tag)}</span>` : ''}</div>` : ''}
       ${ratingHtml}
       ${renderLyricsCard(post)}
       ${imageHtml}
@@ -379,7 +362,6 @@ export let creatorState = {
   lyricsText: '',
   lyricsSong: '',
   lyricsArt: '',
-  lyricsCardStyle: 'compact',
   rating: 0,
   tag: '#música',
   showLyrics: false
@@ -387,9 +369,9 @@ export let creatorState = {
 
 export function renderPostCreator(containerEl) {
   const activeUser = Storage.getActiveUser();
-  const creatorAvatarHtml = activeUser.avatar && (activeUser.avatar.startsWith('http') || activeUser.avatar.startsWith('data:') || activeUser.avatar.startsWith('/'))
-    ? `<img src="${activeUser.avatar}" alt="${activeUser.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-    : (activeUser.avatar || activeUser.name?.[0] || 'U');
+  const creatorAvatarHtml = isImageAvatar(activeUser.avatar)
+    ? `<img src="${safeUrl(activeUser.avatar)}" alt="${esc(activeUser.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    : esc(activeUser.avatar || activeUser.name?.[0] || 'U');
 
   containerEl.innerHTML = `
     <div class="create-post-card">
@@ -430,7 +412,7 @@ export function renderPostCreator(containerEl) {
             <span>Imagem</span>
           </button>
           <button class="btn-attach" title="Dar nota" onclick="window._creatorToggleRating()">
-            ${getStarSVG(1, 16)}
+            ${ICONS.star}
             <span>Nota</span>
           </button>
         </div>
@@ -460,7 +442,6 @@ export function renderPostCreator(containerEl) {
       creatorState.lyricsText = lyricData.lyrics;
       creatorState.lyricsSong = `${lyricData.song} — ${lyricData.artist}`;
       creatorState.lyricsArt = lyricData.albumArt || '';
-      creatorState.lyricsCardStyle = getRandomCardStyle();
       el.style.display = 'block';
       el.innerHTML = `
         <div class="creator-lyrics-box">
@@ -470,21 +451,21 @@ export function renderPostCreator(containerEl) {
               ${ICONS.music}
               <span style="font-weight:700;color:var(--white);font-size:0.88rem;">Letra Anexada</span>
             </div>
-            <button type="button" class="btn-attach" style="color:#ff5555;border-color:rgba(255,85,85,0.35);" onclick="window._creatorRemoveLyrics()">
+            <button type="button" class="btn-attach" style="color:var(--danger);border-color:color-mix(in srgb, var(--danger) 35%, transparent);" onclick="window._creatorRemoveLyrics()">
               Remover ${ICONS.close}
             </button>
           </div>
 
           <!-- Lyrics textarea -->
-          <textarea id="creator-lyrics" class="creator-lyrics-textarea" placeholder="Cole o trecho da letra aqui..." oninput="window._creatorLyricsChanged()">${lyricData.lyrics}</textarea>
+          <textarea id="creator-lyrics" class="creator-lyrics-textarea" placeholder="Cole o trecho da letra aqui..." oninput="window._creatorLyricsChanged()">${esc(lyricData.lyrics)}</textarea>
 
           <!-- Song chip — shows selected track or CTA to search -->
           <div id="creator-lyrics-song-row" style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--purple-accent);border-radius:var(--radius-md);">
             <div id="creator-lyrics-song-info" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
               ${creatorState.selectedLyricsTrack ? `
-                <img id="creator-lyrics-preview-img" src="${creatorState.selectedLyricsTrack.artwork}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;">
+                <img id="creator-lyrics-preview-img" src="${safeUrl(creatorState.selectedLyricsTrack.artwork)}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;">
                 <div style="min-width:0;flex:1;">
-                  <div id="creator-lyrics-preview-title" style="font-size:0.9rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${creatorState.lyricsSong}</div>
+                  <div id="creator-lyrics-preview-title" style="font-size:0.9rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(creatorState.lyricsSong)}</div>
                   <div style="font-size:0.72rem;color:var(--purple-light);">Música vinculada à letra</div>
                 </div>
               ` : `
@@ -499,7 +480,7 @@ export function renderPostCreator(containerEl) {
           </div>
 
           <!-- Hidden inputs to carry data through -->
-          <input type="hidden" id="creator-lyrics-song" value="${lyricData.song} — ${lyricData.artist}">
+          <input type="hidden" id="creator-lyrics-song" value="${esc(lyricData.song)} — ${esc(lyricData.artist)}">
           <input type="hidden" id="creator-lyrics-art" value="${lyricData.albumArt || ''}">
         </div>`;
     } else {
@@ -511,7 +492,6 @@ export function renderPostCreator(containerEl) {
     creatorState.lyricsSong = `${track.title} — ${track.artist}`;
     creatorState.lyricsArt = track.artwork;
     creatorState.selectedLyricsTrack = track;
-    creatorState.lyricsCardStyle = 'with-cover'; // auto-pick best style when there's art
 
     const songInp = document.getElementById('creator-lyrics-song');
     const artInp  = document.getElementById('creator-lyrics-art');
@@ -522,9 +502,9 @@ export function renderPostCreator(containerEl) {
     const songInfo = document.getElementById('creator-lyrics-song-info');
     if (songInfo) {
       songInfo.innerHTML = `
-        <img id="creator-lyrics-preview-img" src="${track.artwork}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid var(--purple-accent);">
+        <img id="creator-lyrics-preview-img" src="${safeUrl(track.artwork)}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid var(--purple-accent);">
         <div style="min-width:0;flex:1;">
-          <div id="creator-lyrics-preview-title" style="font-size:0.9rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${creatorState.lyricsSong}</div>
+          <div id="creator-lyrics-preview-title" style="font-size:0.9rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(creatorState.lyricsSong)}</div>
           <div style="font-size:0.72rem;color:var(--purple-light);">Música vinculada à letra</div>
         </div>`;
     }
@@ -587,9 +567,9 @@ export function renderPostCreator(containerEl) {
         </div>
 
         <div style="display:flex;align-items:center;gap:10px;">
-          <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+          <div style="flex:1;height:1px;background:var(--tint-2);"></div>
           <span style="font-size:0.75rem;color:var(--muted);font-weight:700;">OU CARREGAR DO DISPOSITIVO</span>
-          <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+          <div style="flex:1;height:1px;background:var(--tint-2);"></div>
         </div>
 
         <div>
@@ -621,8 +601,8 @@ export function renderPostCreator(containerEl) {
     if (el) {
       el.style.display = 'block';
       el.innerHTML = `
-        <div style="position:relative;display:inline-block;max-width:320px;border-radius:10px;overflow:hidden;border:1.5px solid #00f2fe;box-shadow:0 4px 12px rgba(0,0,0,0.3);margin-top:10px;">
-          <img src="${url}" alt="Imagem do post" style="width:100%;max-height:220px;object-fit:cover;display:block;">
+        <div style="position:relative;display:inline-block;max-width:320px;border-radius:10px;overflow:hidden;border:1.5px solid var(--accent);box-shadow:0 4px 12px rgba(0,0,0,0.3);margin-top:10px;">
+          <img src="${safeUrl(url)}" alt="Imagem do post" style="width:100%;max-height:220px;object-fit:cover;display:block;">
           <button type="button" onclick="window._removeCreatorImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:900;display:flex;align-items:center;justify-content:center;" title="Remover imagem">✕</button>
         </div>`;
     }
@@ -648,7 +628,7 @@ function renderCreatorRating(el) {
       <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
         <span class="form-label" style="margin:0;font-weight:700;color:var(--white);">Nota para a música:</span>
         <div style="display:flex;align-items:center;gap:8px;">
-          <span class="rating-value-badge" style="font-size:0.9rem;font-weight:800;color:#ffb800;background:rgba(255,184,0,0.12);padding:2px 8px;border-radius:var(--radius-pill);border:1px solid rgba(255,184,0,0.3);display:inline-flex;align-items:center;gap:4px;">
+          <span class="rating-value-badge" style="font-size:0.9rem;font-weight:800;color:var(--star);background:color-mix(in srgb, var(--star) 12%, transparent);padding:2px 8px;border-radius:var(--radius-pill);border:1px solid color-mix(in srgb, var(--star) 30%, transparent);display:inline-flex;align-items:center;gap:4px;">
             ${currentRating > 0 ? `${getStarSVG(1, 14)} <span>${currentRating.toFixed(1)}</span>` : 'Sem nota'}
           </span>
           ${currentRating > 0 ? `<button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.7rem;padding:2px 6px;" onclick="window._pickStar(0)">Limpar</button>` : ''}
@@ -673,7 +653,7 @@ function renderCreatorRating(el) {
       <!-- Quick Decimal Rating Preset Pills -->
       <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
         ${presets.map(p => `
-          <button type="button" class="rating-preset-btn${currentRating === p ? ' active' : ''}" onclick="window._pickStar(${p})" style="padding:2px 6px;font-size:0.72rem;background:${currentRating === p ? 'rgba(255,184,0,0.2)' : 'var(--bg-card)'};border:1px solid ${currentRating === p ? '#ffb800' : 'var(--border)'};color:${currentRating === p ? '#ffb800' : 'var(--muted)'};border-radius:4px;cursor:pointer;">
+          <button type="button" class="rating-preset-btn${currentRating === p ? ' active' : ''}" onclick="window._pickStar(${p})" style="padding:2px 6px;font-size:0.72rem;background:${currentRating === p ? 'color-mix(in srgb, var(--star) 20%, transparent)' : 'var(--bg-card)'};border:1px solid ${currentRating === p ? 'var(--star)' : 'var(--border)'};color:${currentRating === p ? 'var(--star)' : 'var(--muted)'};border-radius:4px;cursor:pointer;">
             ${p.toFixed(1)}
           </button>
         `).join('')}
@@ -700,13 +680,7 @@ export function renderFeed(container, filterMode = 'all') {
   }
 
   container.innerHTML = `<div class="feed-posts-list">${posts.map(p => renderPostCard(p)).join('')}</div>`;
-
-  // Close options dropdowns on outside click
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.post-options-btn') && !e.target.closest('.post-options-dropdown')) {
-      document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
-    }
-  });
+  // Outside-click closing of option dropdowns is bound once in app.js (bindGlobalHandlers)
 }
 
 // ──────────────────────────────────────────
@@ -737,41 +711,41 @@ function updateCommentPendingBox(postId) {
     box.style.marginBottom = '6px';
     box.innerHTML = `
     ${data.song ? `
-      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(157,78,221,0.18);border:1.5px solid var(--purple-accent);border-radius:10px;padding:10px 14px;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+      <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb, var(--accent) 18%, transparent);border:1.5px solid var(--purple-accent);border-radius:10px;padding:10px 14px;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
         <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-          ${data.song.artwork ? `<img src="${data.song.artwork}" style="width:54px;height:54px;border-radius:8px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.3);flex-shrink:0;">` : ''}
+          ${data.song.artwork ? `<img src="${safeUrl(data.song.artwork)}" style="width:54px;height:54px;border-radius:8px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.3);flex-shrink:0;">` : ''}
           <div style="min-width:0;">
-            <div style="font-size:0.72rem;color:var(--purple-light);font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">🎵 Música Anexada</div>
-            <div style="font-size:0.94rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${data.song.title}</div>
-            <div style="font-size:0.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${data.song.artist}</div>
+            <div style="font-size:0.72rem;color:var(--purple-light);font-weight:800;letter-spacing:0.5px;margin-bottom:2px;">🎵 Música Anexada</div>
+            <div style="font-size:0.94rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(data.song.title)}</div>
+            <div style="font-size:0.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(data.song.artist)}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;" onclick="window._playTrack(${JSON.stringify(data.song).replace(/"/g, '&quot;')})" title="Ouvir prévia">
+          <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;" onclick="window._playTrack(${jsArg(data.song)})" title="Ouvir prévia">
             ${ICONS.play}
           </button>
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCommentAttachment('${postId}', 'song')" style="width:30px;height:30px;padding:0;border-radius:50%;color:#ff5555;font-weight:800;" title="Remover música">
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCommentAttachment('${postId}', 'song')" style="width:30px;height:30px;padding:0;border-radius:50%;color:var(--danger);font-weight:800;" title="Remover música">
             ✕
           </button>
         </div>
       </div>` : ''}
 
     ${data.imageUrl ? `
-      <div style="position:relative;display:inline-block;max-width:340px;border-radius:10px;overflow:hidden;border:1.5px solid rgba(0,242,254,0.6);box-shadow:0 4px 14px rgba(0,0,0,0.3);background:#000;">
-        <img src="${data.imageUrl}" alt="Prévia da imagem" style="width:100%;max-height:240px;object-fit:cover;display:block;">
-        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.72rem;color:#00f2fe;font-weight:800;">
+      <div style="position:relative;display:inline-block;max-width:340px;border-radius:10px;overflow:hidden;border:1.5px solid color-mix(in srgb, var(--accent) 60%, transparent);box-shadow:0 4px 14px rgba(0,0,0,0.3);background:#000;">
+        <img src="${safeUrl(data.imageUrl)}" alt="Prévia da imagem" style="width:100%;max-height:240px;object-fit:cover;display:block;">
+        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.72rem;color:var(--accent);font-weight:800;">
           🖼️ Imagem Anexada
         </div>
-        <button type="button" onclick="window._removeCommentAttachment('${postId}', 'imageUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid rgba(255,255,255,0.2);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover imagem">✕</button>
+        <button type="button" onclick="window._removeCommentAttachment('${postId}', 'imageUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid var(--tint-3);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover imagem">✕</button>
       </div>` : ''}
 
     ${data.gifUrl ? `
-      <div style="position:relative;display:inline-block;max-width:340px;border-radius:10px;overflow:hidden;border:1.5px solid rgba(255,184,0,0.7);box-shadow:0 4px 14px rgba(0,0,0,0.3);background:#000;">
-        <img src="${data.gifUrl}" alt="Prévia do GIF" style="width:100%;max-height:240px;object-fit:cover;display:block;">
-        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.72rem;color:#ffb800;font-weight:800;">
+      <div style="position:relative;display:inline-block;max-width:340px;border-radius:10px;overflow:hidden;border:1.5px solid color-mix(in srgb, var(--star) 70%, transparent);box-shadow:0 4px 14px rgba(0,0,0,0.3);background:#000;">
+        <img src="${safeUrl(data.gifUrl)}" alt="Prévia do GIF" style="width:100%;max-height:240px;object-fit:cover;display:block;">
+        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.72rem;color:var(--star);font-weight:800;">
           👾 GIF Anexado
         </div>
-        <button type="button" onclick="window._removeCommentAttachment('${postId}', 'gifUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid rgba(255,255,255,0.2);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover GIF">✕</button>
+        <button type="button" onclick="window._removeCommentAttachment('${postId}', 'gifUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid var(--tint-3);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover GIF">✕</button>
       </div>` : ''}
     `;
   });
@@ -855,8 +829,8 @@ window._openCommentGifPicker = (postId) => {
       return `<div style="grid-column:1/-1;text-align:center;padding:30px 10px;color:var(--muted);font-size:0.85rem;">Nenhum GIF encontrado para essa pesquisa. Tente outro termo ou cole o link abaixo.</div>`;
     }
     return gifs.map(g => `
-      <div class="gif-picker-item" onclick="window._setCommentGif('${postId}', '${g.url}')" title="Clique para anexar">
-        <img src="${g.url}" alt="" loading="lazy">
+      <div class="gif-picker-item" onclick="window._setCommentGif('${postId}', ${jsArg(g.url)})" title="Clique para anexar">
+        <img src="${safeUrl(g.url)}" alt="" loading="lazy">
       </div>
     `).join('');
   };
@@ -873,7 +847,7 @@ window._openCommentGifPicker = (postId) => {
       <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;" class="hide-scrollbar">
         ${categories.map(cat => `
           <button type="button" class="doodle-btn doodle-btn-sm ${cat.id === 'all' ? 'doodle-btn-primary' : 'doodle-btn-secondary'} gif-cat-btn" data-cat="${cat.id}" style="padding:4px 12px;font-size:0.75rem;white-space:nowrap;border-radius:16px;" onclick="window._handleGifCategoryChange('${cat.id}', '${postId}')">
-            ${cat.label}
+            ${esc(cat.label)}
           </button>
         `).join('')}
       </div>
@@ -950,9 +924,9 @@ window._openCommentImagePicker = (postId) => {
       </div>
 
       <div style="display:flex;align-items:center;gap:10px;">
-        <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+        <div style="flex:1;height:1px;background:var(--tint-2);"></div>
         <span style="font-size:0.75rem;color:var(--muted);">OU CARREGAR ARQUIVO</span>
-        <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+        <div style="flex:1;height:1px;background:var(--tint-2);"></div>
       </div>
 
       <div>
@@ -1114,220 +1088,7 @@ window._submitRichComment = (postId, btn) => {
   }
 };
 
-// ──────────────────────────────────────────
-// LYRIC OF THE DAY WIDGET
-// ──────────────────────────────────────────
-
-let cachedLyricOfDay = null;
-let cachedLyricCardStyle = null;
-let _isAudioSubscribedForLyrics = false;
-
-function updateLyricPlayButtonState() {
-  const btn = document.getElementById('lyric-play-btn');
-  const coverThumb = document.getElementById('lyric-widget-cover');
-  if (!btn || !cachedLyricOfDay) return;
-
-  const cur = globalAudio.getCurrentTrack();
-  const isThisSong = cur && (
-    (cachedLyricOfDay.itunesTrack?.id && cur.id && String(cachedLyricOfDay.itunesTrack.id) === String(cur.id)) ||
-    (cachedLyricOfDay.previewUrl && cur.previewUrl && cachedLyricOfDay.previewUrl === cur.previewUrl) ||
-    (cur.title && cachedLyricOfDay.song && cur.title.trim().toLowerCase() === cachedLyricOfDay.song.trim().toLowerCase() &&
-     cur.artist && cachedLyricOfDay.artist && cur.artist.trim().toLowerCase() === cachedLyricOfDay.artist.trim().toLowerCase())
-  );
-
-  const isPlaying = isThisSong && globalAudio.getIsPlaying();
-
-  if (isPlaying) {
-    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>`;
-    btn.classList.add('playing');
-    btn.title = "Pausar prévia";
-    if (coverThumb) coverThumb.classList.add('playing');
-  } else {
-    btn.innerHTML = ICONS.play;
-    btn.classList.remove('playing');
-    btn.title = "Ouvir prévia no iTunes";
-    if (coverThumb) coverThumb.classList.remove('playing');
-  }
-}
-
-// Global handler to play/pause lyric of the day
-window._playLyricTrack = async () => {
-  if (!cachedLyricOfDay) return;
-
-  // If already loaded in globalAudio, toggle directly
-  const cur = globalAudio.getCurrentTrack();
-  const isThisSong = cur && (
-    (cachedLyricOfDay.itunesTrack?.id && cur.id && String(cachedLyricOfDay.itunesTrack.id) === String(cur.id)) ||
-    (cachedLyricOfDay.previewUrl && cur.previewUrl && cachedLyricOfDay.previewUrl === cur.previewUrl) ||
-    (cur.title && cachedLyricOfDay.song && cur.title.trim().toLowerCase() === cachedLyricOfDay.song.trim().toLowerCase() &&
-     cur.artist && cachedLyricOfDay.artist && cur.artist.trim().toLowerCase() === cachedLyricOfDay.artist.trim().toLowerCase())
-  );
-
-  if (isThisSong) {
-    globalAudio.playTrack(cur);
-    updateLyricPlayButtonState();
-    return;
-  }
-
-  // If we already have the itunesTrack or previewUrl, play directly
-  if (cachedLyricOfDay.itunesTrack && cachedLyricOfDay.itunesTrack.previewUrl) {
-    globalAudio.playTrack(cachedLyricOfDay.itunesTrack);
-    updateLyricPlayButtonState();
-    return;
-  }
-
-  if (cachedLyricOfDay.previewUrl) {
-    const trackObj = {
-      title: cachedLyricOfDay.song,
-      artist: cachedLyricOfDay.artist,
-      artwork: cachedLyricOfDay.albumArt || '',
-      previewUrl: cachedLyricOfDay.previewUrl,
-      duration: cachedLyricOfDay.duration || '0:30'
-    };
-    globalAudio.playTrack(trackObj);
-    updateLyricPlayButtonState();
-    return;
-  }
-
-  // Otherwise, use _playTrack to fetch and play
-  const trackObj = {
-    title: cachedLyricOfDay.song,
-    artist: cachedLyricOfDay.artist,
-    artwork: cachedLyricOfDay.albumArt || ''
-  };
-  await window._playTrack(trackObj);
-  updateLyricPlayButtonState();
-};
-
-export function renderLyricWidget(container, forceNew = false) {
-  if (!container) return;
-
-  if (!_isAudioSubscribedForLyrics) {
-    globalAudio.subscribe((event) => {
-      if (['play', 'pause', 'ended', 'trackchange'].includes(event)) {
-        updateLyricPlayButtonState();
-      }
-    });
-    _isAudioSubscribedForLyrics = true;
-  }
-
-  if (!cachedLyricOfDay || forceNew) {
-    cachedLyricOfDay = getRandomLyric();
-    cachedLyricCardStyle = getRandomCardStyle();
-    cachedLyricOfDay._itunesResolved = false;
-    cachedLyricOfDay._loadingItunes = false;
-  }
-
-  const lyric = cachedLyricOfDay;
-  const hasArt = !!lyric.albumArt;
-
-  container.innerHTML = `
-    <div class="lyric-widget-immersive" style="position:relative;overflow:hidden;border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:16px;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(135deg, #130a24, #080311);">
-      <!-- Atmospheric Cover Background (fades in once real cover is loaded, no template placeholder) -->
-      <img id="lyric-widget-bg" class="lyric-widget-bg-img" src="${hasArt ? lyric.albumArt : ''}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(16px) brightness(0.24) saturate(1.4);transform:scale(1.2);pointer-events:none;z-index:0;transition:opacity 0.4s ease;opacity:${hasArt ? '1' : '0'};display:${hasArt ? 'block' : 'none'};">
-      <div style="position:absolute;inset:0;background:linear-gradient(135deg, rgba(20, 10, 35, 0.75), rgba(5, 2, 10, 0.9));z-index:1;"></div>
-
-      <!-- Lyric Text -->
-      <div style="position:relative;z-index:2;margin-bottom:12px;">
-        <div style="font-size:0.98rem;line-height:1.45;color:#ffffff;font-style:italic;font-weight:600;">
-          "${lyric.lyrics}"
-        </div>
-      </div>
-
-      <!-- Song Attribution Bar with Play, Search, and Loading Indicator for Cover -->
-      <div style="position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.12);">
-        <div id="lyric-cover-container" style="flex-shrink:0;width:46px;height:46px;overflow:hidden;">
-          ${hasArt ? `
-            <img id="lyric-widget-cover" class="lyric-cover-art" src="${lyric.albumArt}" alt="${lyric.song}" onclick="window._playLyricTrack()" title="Ouvir música no iTunes" style="width:46px;height:46px;min-width:46px;border-radius:8px;object-fit:cover;flex-shrink:0;display:block;">
-          ` : `
-            <div id="lyric-cover-loading" class="lyric-cover-loader" title="Carregando capa do álbum no iTunes...">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="animation:spin 1s linear infinite;color:var(--purple-light);">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-              </svg>
-            </div>
-          `}
-        </div>
-        <div style="min-width:0;flex:1;cursor:pointer;" onclick="window._playLyricTrack()" title="Clique para ouvir">
-          <div style="font-size:0.86rem;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${lyric.song}</div>
-          <div style="font-size:0.72rem;color:rgba(255,255,255,0.7);">${lyric.artist}${lyric.year ? ` &bull; ${lyric.year}` : ''}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-          <button type="button" id="lyric-play-btn" class="doodle-btn doodle-btn-ghost doodle-btn-sm lyric-play-button" style="padding:5px 8px;color:var(--purple-light);border-radius:50%;" onclick="window._playLyricTrack()" title="Ouvir prévia no iTunes">
-            ${ICONS.play}
-          </button>
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:5px 8px;color:var(--purple-light);border-radius:50%;" onclick="window._searchLyricSong('${lyric.song.replace(/'/g, "\\'")}', '${lyric.artist.replace(/'/g, "\\'")}')" title="Buscar no catálogo do iTunes">
-            ${ICONS.search}
-          </button>
-        </div>
-      </div>
-    </div>`;
-
-  updateLyricPlayButtonState();
-
-  // Fetch real album cover and audio preview from iTunes
-  const currentLyric = lyric;
-  if (!currentLyric._itunesResolved && !currentLyric._loadingItunes) {
-    currentLyric._loadingItunes = true;
-    const searchTerm = currentLyric.searchQuery || `${currentLyric.song} ${currentLyric.artist}`.trim();
-
-    searchTracks(searchTerm, 1).then(results => {
-      currentLyric._loadingItunes = false;
-      if (results && results.length > 0) {
-        const match = results[0];
-        currentLyric._itunesResolved = true;
-        currentLyric.albumArt = match.artwork;
-        currentLyric.previewUrl = match.previewUrl;
-        currentLyric.duration = match.duration;
-        currentLyric.itunesTrack = match;
-
-        // Preload image and update only when the real album cover is loaded in memory
-        if (match.artwork) {
-          const imgLoader = new Image();
-          imgLoader.src = match.artwork;
-          imgLoader.onload = () => {
-            if (cachedLyricOfDay === currentLyric) {
-              const coverContainer = document.getElementById('lyric-cover-container');
-              if (coverContainer) {
-                coverContainer.innerHTML = `<img id="lyric-widget-cover" class="lyric-cover-art" src="${match.artwork}" alt="${currentLyric.song}" onclick="window._playLyricTrack()" title="Ouvir música no iTunes" style="width:46px;height:46px;min-width:46px;border-radius:8px;object-fit:cover;flex-shrink:0;display:block;animation:fadeIn 0.25s ease-out;">`;
-              }
-              const bgEl = document.getElementById('lyric-widget-bg');
-              if (bgEl) {
-                bgEl.src = match.artwork;
-                bgEl.style.display = 'block';
-                setTimeout(() => { bgEl.style.opacity = '1'; }, 20);
-              }
-              updateLyricPlayButtonState();
-            }
-          };
-          imgLoader.onerror = () => {
-            if (cachedLyricOfDay === currentLyric) {
-              const coverContainer = document.getElementById('lyric-cover-container');
-              if (coverContainer) {
-                coverContainer.innerHTML = `<div class="lyric-cover-loader" onclick="window._playLyricTrack()" style="cursor:pointer;" title="Ouvir música">${ICONS.music}</div>`;
-              }
-            }
-          };
-        }
-      } else {
-        if (cachedLyricOfDay === currentLyric) {
-          const coverContainer = document.getElementById('lyric-cover-container');
-          if (coverContainer) {
-            coverContainer.innerHTML = `<div class="lyric-cover-loader" onclick="window._playLyricTrack()" style="cursor:pointer;" title="Ouvir música">${ICONS.music}</div>`;
-          }
-        }
-      }
-    }).catch(err => {
-      console.warn('iTunes search error for lyric:', err);
-      currentLyric._loadingItunes = false;
-      if (cachedLyricOfDay === currentLyric) {
-        const coverContainer = document.getElementById('lyric-cover-container');
-        if (coverContainer) {
-          coverContainer.innerHTML = `<div class="lyric-cover-loader" onclick="window._playLyricTrack()" style="cursor:pointer;" title="Ouvir música">${ICONS.music}</div>`;
-        }
-      }
-    });
-  }
-}
+// Lyric of the day: see dailyLyric.js
 
 // ──────────────────────────────────────────
 // TRENDING WIDGET (LAST.FM CHARTS API)
@@ -1367,14 +1128,14 @@ function drawTrendingHtml(container, tracks) {
   container.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:1px;">
       ${tracks.map((s, i) => `
-        <div class="trending-item" style="cursor:pointer;" onclick="window._playTrack(${JSON.stringify(s).replace(/"/g, '&quot;')})" title="Ouvir prévia de ${s.title}">
+        <div class="trending-item" style="cursor:pointer;" onclick="window._playTrack(${jsArg(s)})" title="Ouvir prévia de ${esc(s.title)}">
           <span class="trending-rank">#${i + 1}</span>
-          <img class="trending-cover" src="${s.artwork}" alt="${s.title}" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'">
+          <img class="trending-cover" src="${safeUrl(s.artwork)}" alt="${esc(s.title)}" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'">
           <div class="trending-info">
-            <div class="trending-title">${s.title}</div>
-            <div class="trending-artist" onclick="event.stopPropagation();window._searchArtistInCatalog('${s.artist.replace(/'/g, "\\'")}')" style="cursor:pointer;" title="Ver mais de ${s.artist}">${s.artist}</div>
+            <div class="trending-title">${esc(s.title)}</div>
+            <div class="trending-artist" onclick="event.stopPropagation();window._searchArtistInCatalog(${jsArg(s.artist)})" style="cursor:pointer;" title="Ver mais de ${esc(s.artist)}">${esc(s.artist)}</div>
           </div>
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:3px 6px;color:var(--purple-light);border-radius:50%;" onclick="event.stopPropagation();window._playTrack(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:3px 6px;color:var(--purple-light);border-radius:50%;" onclick="event.stopPropagation();window._playTrack(${jsArg(s)})">
             ${ICONS.play}
           </button>
         </div>
@@ -1397,18 +1158,18 @@ export function renderFriendsWidget(container) {
   }
 
   container.innerHTML = users.map(u => {
-    const isImage = u.avatar && (u.avatar.startsWith('http') || u.avatar.startsWith('data:') || u.avatar.startsWith('/'));
+    const isImage = isImageAvatar(u.avatar);
     const avatarHtml = isImage
-      ? `<img class="friend-avatar" src="${u.avatar}" alt="${u.name}" style="width:30px;height:30px;min-width:30px;aspect-ratio:1/1;border-radius:50%;object-fit:cover;flex-shrink:0;">`
-      : `<div class="friend-avatar" style="width:30px;height:30px;min-width:30px;aspect-ratio:1/1;border-radius:50%;background:var(--purple-dark);color:var(--purple-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;border:1px solid var(--purple-mid);flex-shrink:0;">${u.avatar || u.name[0]}</div>`;
+      ? `<img class="friend-avatar" src="${safeUrl(u.avatar)}" alt="${esc(u.name)}" style="width:30px;height:30px;min-width:30px;aspect-ratio:1/1;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+      : `<div class="friend-avatar" style="width:30px;height:30px;min-width:30px;aspect-ratio:1/1;border-radius:50%;background:var(--purple-dark);color:var(--purple-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;border:1px solid var(--purple-mid);flex-shrink:0;">${esc(u.avatar || u.name[0])}</div>`;
 
     return `
       <div class="friend-item" onclick="window._goToProfile('${u.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;">
-        <div class="friend-online-dot" style="width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0;box-shadow:0 0 6px #10b981;"></div>
+        <div class="friend-online-dot" style="width:7px;height:7px;border-radius:50%;background:var(--success);flex-shrink:0;box-shadow:0 0 6px var(--success);"></div>
         ${avatarHtml}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.name}</div>
-          <div style="font-size:0.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.status || u.handle || 'online'}</div>
+          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.name)}</div>
+          <div style="font-size:0.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.status || u.handle || 'online')}</div>
         </div>
       </div>`;
   }).join('');

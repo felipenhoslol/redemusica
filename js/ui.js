@@ -1,4 +1,5 @@
 // UI Controller — modals, search, music ask grid, compare, notifications, global search
+import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as storage from './storage.js';
 import { globalAudio } from './audio.js';
 import { searchTracks } from './api.js';
@@ -40,7 +41,7 @@ export function openSearchModalForQuestion(challengeId, questionId) {
 
   const titleEl = document.getElementById('search-modal-title');
   const noteRow = document.getElementById('search-modal-note-row');
-  if (titleEl) titleEl.innerHTML = `Item ${q ? q.id : ''}: ${q ? q.title : 'Buscar Música'}`;
+  if (titleEl) titleEl.textContent = `Item ${q ? q.id : ''}: ${q ? q.title : 'Buscar Música'}`;
   if (noteRow) noteRow.style.display = 'block';
 
   resetSearchModal();
@@ -153,31 +154,36 @@ export function initSearchModal() {
   });
 }
 
+let searchModalSeq = 0; // only the latest modal search may write results
+
 async function performSearch(query) {
   const container = document.getElementById('search-results');
   if (!container || !query) return;
+  const mySeq = ++searchModalSeq;
 
   container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">Buscando...</div>`;
 
   try {
     const tracks = await searchTracks(query);
+    if (mySeq !== searchModalSeq) return;
     if (!tracks || !tracks.length) {
       container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">Nenhuma música encontrada.</div>`;
       return;
     }
 
     container.innerHTML = tracks.map(t => `
-      <div class="search-result-item" onclick="window._selectTrackFromModal(${JSON.stringify(t).replace(/"/g, '&quot;')})">
-        <img class="search-result-cover" src="${t.artwork}" alt="${t.title}" onerror="this.style.display='none'">
+      <div class="search-result-item" onclick="window._selectTrackFromModal(${jsArg(t)})">
+        <img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="${esc(t.title)}" onerror="this.style.display='none'">
         <div>
-          <div class="search-result-title">${t.title}</div>
-          <div class="search-result-artist">${t.artist} &bull; ${t.duration}</div>
+          <div class="search-result-title">${esc(t.title)}</div>
+          <div class="search-result-artist">${esc(t.artist)} &bull; ${esc(t.duration)}</div>
         </div>
-        ${t.previewUrl ? `<button style="background:transparent;border:none;color:var(--purple-light);cursor:pointer;padding:4px;" onclick="event.stopPropagation();window._previewTrack(${JSON.stringify(t).replace(/"/g, '&quot;')})">
+        ${t.previewUrl ? `<button style="background:transparent;border:none;color:var(--purple-light);cursor:pointer;padding:4px;" onclick="event.stopPropagation();window._previewTrack(${jsArg(t)})">
           ${ICONS.play}
         </button>` : ''}
       </div>`).join('');
   } catch (e) {
+    if (mySeq !== searchModalSeq) return;
     container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--pink)">Erro ao buscar. Tente novamente.</div>`;
   }
 }
@@ -265,23 +271,23 @@ export function renderMusicAskGrid(container, challengeId, userId) {
     return `
       <div class="q-card${hasAns ? ' answered' : ''}" onclick="${isMe ? `window._openQuestion('${cid}',${q.id})` : ''}">
         <div class="q-card-cover">
-          ${hasAns && ans.artwork ? `<img src="${ans.artwork}" alt="${ans.title}" loading="lazy">` : `<span style="color:var(--dimmed);display:flex;align-items:center;justify-content:center;">${ICONS.music}</span>`}
+          ${hasAns && ans.artwork ? `<img src="${safeUrl(ans.artwork)}" alt="${esc(ans.title)}" loading="lazy">` : `<span style="color:var(--dimmed);display:flex;align-items:center;justify-content:center;">${ICONS.music}</span>`}
         </div>
         ${hasAns ? `<div class="q-card-answered-badge">${ICONS.check}</div>` : ''}
         <div class="q-card-info">
           <div class="q-number">${q.id}.</div>
-          <div class="q-title">${q.title}</div>
-          ${hasAns ? `<div style="font-size:0.72rem;color:var(--white);font-weight:700">${ans.title}</div>
-                      <div style="font-size:0.65rem;color:var(--muted)">${ans.artist}</div>` : ''}
+          <div class="q-title">${esc(q.title)}</div>
+          ${hasAns ? `<div style="font-size:0.72rem;color:var(--white);font-weight:700">${esc(ans.title)}</div>
+                      <div style="font-size:0.65rem;color:var(--muted)">${esc(ans.artist)}</div>` : ''}
         </div>
         ${hasAns ? `
           <div class="q-card-actions">
-            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._openReview('${uid}','${cid}','${q.id}')" title="${myReview ? `Avaliado com nota ${myReview.rating.toFixed(1)}★ (Clique para editar)` : 'Avaliar música'}" style="${myReview ? 'color:#ffb800;' : 'color:var(--purple-light);'}">
+            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._openReview('${uid}','${cid}','${q.id}')" title="${myReview ? `Avaliado com nota ${myReview.rating.toFixed(1)}★ (Clique para editar)` : 'Avaliar música'}" style="${myReview ? 'color:var(--star);' : 'color:var(--purple-light);'}">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="${myReview ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
               </svg>
             </button>
-            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._playTrack(${JSON.stringify(ans).replace(/"/g, '&quot;')})" title="Ouvir música">
+            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._playTrack(${jsArg(ans)})" title="Ouvir música">
               ${ICONS.play}
             </button>
           </div>` : ''}
@@ -325,11 +331,11 @@ export function renderCompareView(container) {
 
   function getAvatarMarkup(user, size = 44) {
     if (!user) return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;">U</div>`;
-    const isImg = user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:') || user.avatar.startsWith('/'));
+    const isImg = isImageAvatar(user.avatar);
     if (isImg) {
-      return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;"><img src="${user.avatar}" alt="${user.name}"></div>`;
+      return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;"><img src="${safeUrl(user.avatar)}" alt="${esc(user.name)}"></div>`;
     }
-    return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;">${user.avatar || user.name?.[0] || 'U'}</div>`;
+    return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;">${esc(user.avatar || user.name?.[0] || 'U')}</div>`;
   }
 
   function buildHtml() {
@@ -348,7 +354,7 @@ export function renderCompareView(container) {
       return `
         <button type="button" class="compare-challenge-pill${isActive ? ' active' : ''}" onclick="window._setCompareChallenge('${c.id}')">
           <span>${icon}</span>
-          <span>${c.title}</span>
+          <span>${esc(c.title)}</span>
           <span class="compare-challenge-pill-count">${qCount}</span>
         </button>
       `;
@@ -371,8 +377,8 @@ export function renderCompareView(container) {
         <div class="compare-user-card${isSelected ? ' selected' : ''}" onclick="window._setCompareUser('${u.id}')">
           ${getAvatarMarkup(u, 40)}
           <div class="compare-user-info">
-            <div class="compare-user-name">${u.name}</div>
-            <div class="compare-user-handle">${u.handle || ''}</div>
+            <div class="compare-user-name">${esc(u.name)}</div>
+            <div class="compare-user-handle">${esc(u.handle || '')}</div>
             <div class="compare-user-meta-row">
               <span class="compare-user-prog-badge">${uCount}/${totalQ}</span>
               ${affinityMarkup}
@@ -455,13 +461,13 @@ export function renderCompareView(container) {
               <span style="color:var(--purple-light);">#${q.id}</span>
             </div>
             <div class="compare-song-stage">
-              <div class="compare-song-cover-wrap" onclick="window._playTrack(${JSON.stringify(mySong).replace(/"/g, '&quot;')})" title="Ouvir música">
-                ${mySong.artwork ? `<img src="${mySong.artwork}" alt="${mySong.title}">` : '<div style="width:100%;height:100%;background:var(--purple-dark);"></div>'}
+              <div class="compare-song-cover-wrap" onclick="window._playTrack(${jsArg(mySong)})" title="Ouvir música">
+                ${mySong.artwork ? `<img src="${safeUrl(mySong.artwork)}" alt="${esc(mySong.title)}">` : '<div style="width:100%;height:100%;background:var(--purple-dark);"></div>'}
                 <div class="compare-song-play-overlay">${ICONS.play}</div>
               </div>
               <div class="compare-song-details">
-                <div class="compare-song-title" title="${mySong.title}">${mySong.title}</div>
-                <div class="compare-song-artist" title="${mySong.artist}">${mySong.artist}</div>
+                <div class="compare-song-title" title="${esc(mySong.title)}">${esc(mySong.title)}</div>
+                <div class="compare-song-artist" title="${esc(mySong.artist)}">${esc(mySong.artist)}</div>
               </div>
             </div>
 
@@ -469,10 +475,10 @@ export function renderCompareView(container) {
             ${mySelfReview ? `
               <div class="compare-review-pill-btn" onclick="window._openReview('${activeUser.id}','${selectedChallengeId}','${q.id}')" title="Editar sua nota / comentário">
                 <div style="display:flex;align-items:center;gap:5px;">
-                  <span style="color:#ffb800;display:inline-flex;align-items:center;">${ICONS.star}</span>
-                  <span style="font-weight:800;color:#ffb800;font-size:0.82rem;">${mySelfReview.rating.toFixed(1)}</span>
+                  <span style="color:var(--star);display:inline-flex;align-items:center;">${ICONS.star}</span>
+                  <span style="font-weight:800;color:var(--star);font-size:0.82rem;">${mySelfReview.rating.toFixed(1)}</span>
                   <span style="font-size:0.68rem;color:var(--muted);">(Sua nota)</span>
-                  ${mySelfReview.comment ? `<span style="font-size:0.7rem;color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${mySelfReview.comment}"</span>` : ''}
+                  ${mySelfReview.comment ? `<span style="font-size:0.7rem;color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${esc(mySelfReview.comment)}"</span>` : ''}
                 </div>
                 <span style="font-size:0.68rem;color:var(--muted);display:flex;align-items:center;">${ICONS.edit}</span>
               </div>
@@ -484,10 +490,10 @@ export function renderCompareView(container) {
 
             <!-- Received Rating from Friend (if any) -->
             ${theirReview ? `
-              <div class="compare-received-badge-pill" title="${compareUser.name}: \"${theirReview.comment || ''}\"">
-                <span>Nota de ${compareUser.name.split(' ')[0]}:</span>
-                <span style="font-weight:800;color:#ffb800;display:inline-flex;align-items:center;gap:2px;">${ICONS.star} ${theirReview.rating.toFixed(1)}</span>
-                ${theirReview.comment ? `<span style="font-size:0.68rem;opacity:0.8;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${theirReview.comment}"</span>` : ''}
+              <div class="compare-received-badge-pill" title="${esc(compareUser.name)}: \"${esc(theirReview.comment || '')}\"">
+                <span>Nota de ${esc(compareUser.name.split(' ')[0])}:</span>
+                <span style="font-weight:800;color:var(--star);display:inline-flex;align-items:center;gap:2px;">${ICONS.star} ${theirReview.rating.toFixed(1)}</span>
+                ${theirReview.comment ? `<span style="font-size:0.68rem;opacity:0.8;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${esc(theirReview.comment)}"</span>` : ''}
               </div>
             ` : ''}
           </div>
@@ -509,25 +515,25 @@ export function renderCompareView(container) {
         theirSideHtml = `
           <div class="compare-choice-box">
             <div class="compare-choice-header">
-              <span>${compareUser.name}</span>
+              <span>${esc(compareUser.name)}</span>
               <span style="color:var(--purple-light);">#${q.id}</span>
             </div>
             <div class="compare-song-stage">
-              <div class="compare-song-cover-wrap" onclick="window._playTrack(${JSON.stringify(theirSong).replace(/"/g, '&quot;')})" title="Ouvir música">
-                ${theirSong.artwork ? `<img src="${theirSong.artwork}" alt="${theirSong.title}">` : '<div style="width:100%;height:100%;background:var(--purple-dark);"></div>'}
+              <div class="compare-song-cover-wrap" onclick="window._playTrack(${jsArg(theirSong)})" title="Ouvir música">
+                ${theirSong.artwork ? `<img src="${safeUrl(theirSong.artwork)}" alt="${esc(theirSong.title)}">` : '<div style="width:100%;height:100%;background:var(--purple-dark);"></div>'}
                 <div class="compare-song-play-overlay">${ICONS.play}</div>
               </div>
               <div class="compare-song-details">
-                <div class="compare-song-title" title="${theirSong.title}">${theirSong.title}</div>
-                <div class="compare-song-artist" title="${theirSong.artist}">${theirSong.artist}</div>
+                <div class="compare-song-title" title="${esc(theirSong.title)}">${esc(theirSong.title)}</div>
+                <div class="compare-song-artist" title="${esc(theirSong.artist)}">${esc(theirSong.artist)}</div>
               </div>
             </div>
             ${myReview ? `
               <div class="compare-review-pill-btn" onclick="window._openReview('${compareUserId}','${selectedChallengeId}','${q.id}')" title="Editar sua avaliação">
                 <div style="display:flex;align-items:center;gap:5px;">
-                  <span style="color:#ffb800;display:inline-flex;align-items:center;">${ICONS.star}</span>
-                  <span style="font-weight:800;color:#ffb800;font-size:0.82rem;">${myReview.rating.toFixed(1)}</span>
-                  ${myReview.comment ? `<span style="font-size:0.7rem;color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">"${myReview.comment}"</span>` : ''}
+                  <span style="color:var(--star);display:inline-flex;align-items:center;">${ICONS.star}</span>
+                  <span style="font-weight:800;color:var(--star);font-size:0.82rem;">${myReview.rating.toFixed(1)}</span>
+                  ${myReview.comment ? `<span style="font-size:0.7rem;color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">"${esc(myReview.comment)}"</span>` : ''}
                 </div>
                 <span style="font-size:0.68rem;color:var(--muted);display:flex;align-items:center;">${ICONS.edit}</span>
               </div>
@@ -541,7 +547,7 @@ export function renderCompareView(container) {
       } else {
         theirSideHtml = `
           <div class="compare-choice-box empty">
-            <div style="font-size:0.75rem;color:var(--muted);">${compareUser.name} ainda não respondeu este item</div>
+            <div style="font-size:0.75rem;color:var(--muted);">${esc(compareUser.name)} ainda não respondeu este item</div>
           </div>
         `;
       }
@@ -552,8 +558,8 @@ export function renderCompareView(container) {
             <div class="compare-q-title-wrap">
               <span class="compare-q-badge">DIA ${q.id}</span>
               <div>
-                <div class="compare-q-title">${q.title}</div>
-                ${q.subtitle ? `<div class="compare-q-sub">${q.subtitle}</div>` : ''}
+                <div class="compare-q-title">${esc(q.title)}</div>
+                ${q.subtitle ? `<div class="compare-q-sub">${esc(q.subtitle)}</div>` : ''}
               </div>
             </div>
           </div>
@@ -580,13 +586,13 @@ export function renderCompareView(container) {
 
         <!-- Challenge Selection Pills -->
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <label class="form-label" style="font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;">1. Desafio:</label>
+          <label class="form-label" style="font-size:0.74rem;color:var(--muted);">Desafio</label>
           <div class="compare-challenges-bar">${challengesPillsHtml}</div>
         </div>
 
         <!-- Friends Selection Grid -->
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <label class="form-label" style="font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;">2. Usuário para Comparar:</label>
+          <label class="form-label" style="font-size:0.74rem;color:var(--muted);">Comparar com</label>
           <div class="compare-selector">${selectorHtml}</div>
         </div>
 
@@ -596,16 +602,16 @@ export function renderCompareView(container) {
             <div class="battle-avatars-wrap">
               ${getAvatarMarkup(activeUser, 44)}
               <div class="battle-avatar-item target">
-                ${compareUser.avatar && (compareUser.avatar.startsWith('http') || compareUser.avatar.startsWith('data:') || compareUser.avatar.startsWith('/'))
-                  ? `<img src="${compareUser.avatar}" alt="${compareUser.name}">`
-                  : `<span>${compareUser.avatar || compareUser.name?.[0] || 'U'}</span>`}
+                ${isImageAvatar(compareUser.avatar)
+                  ? `<img src="${safeUrl(compareUser.avatar)}" alt="${esc(compareUser.name)}">`
+                  : `<span>${esc(compareUser.avatar || compareUser.name?.[0] || 'U')}</span>`}
               </div>
             </div>
             <div>
               <div style="font-size:0.9rem;font-weight:700;color:var(--white);display:flex;align-items:center;gap:6px;">
                 <span>Você</span>
                 <span style="color:var(--purple-light);">${ICONS.compare}</span>
-                <span>${compareUser.name}</span>
+                <span>${esc(compareUser.name)}</span>
               </div>
               ${affinityData.hasEnoughData ? `
                 <div style="font-size:0.74rem;color:var(--purple-light);font-weight:600;display:flex;align-items:center;gap:5px;margin-top:2px;">
@@ -631,7 +637,7 @@ export function renderCompareView(container) {
               <span class="battle-stat-label">Em Comum</span>
             </div>
             <div class="battle-stat-chip">
-              <span class="battle-stat-value" style="color:#ffb800;">${ICONS.star} ${avgRating}</span>
+              <span class="battle-stat-value" style="color:var(--star);">${ICONS.star} ${avgRating}</span>
               <span class="battle-stat-label">Média Notas</span>
             </div>
             <div class="battle-stat-chip">
@@ -640,7 +646,7 @@ export function renderCompareView(container) {
             </div>
             <div class="battle-stat-chip">
               <span class="battle-stat-value">${theirAnsweredCount}/${totalQ}</span>
-              <span class="battle-stat-label">${compareUser.name.split(' ')[0]}</span>
+              <span class="battle-stat-label">${esc(compareUser.name.split(' ')[0])}</span>
             </div>
           </div>
         </div>
@@ -657,7 +663,7 @@ export function renderCompareView(container) {
             Apenas Você (${myAnsweredCount})
           </button>
           <button type="button" class="compare-filter-btn${activeFilter === 'theirs' ? ' active' : ''}" onclick="window._setCompareFilter('theirs')">
-            Apenas ${compareUser.name.split(' ')[0]} (${theirAnsweredCount})
+            Apenas ${esc(compareUser.name.split(' ')[0])} (${theirAnsweredCount})
           </button>
           <button type="button" class="compare-filter-btn${activeFilter === 'reviewed' ? ' active' : ''}" onclick="window._setCompareFilter('reviewed')">
             Avaliadas (${reviewedByMe.length})
@@ -723,15 +729,15 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
       <div style="display:flex;flex-direction:column;gap:14px;">
         ${ans ? `
           <div style="display:flex;gap:12px;align-items:center;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;">
-            ${ans.artwork ? `<img src="${ans.artwork}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;">` : ''}
+            ${ans.artwork ? `<img src="${safeUrl(ans.artwork)}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;">` : ''}
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:800;font-size:0.95rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ans.title}</div>
-              <div style="font-size:0.8rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ans.artist}</div>
+              <div style="font-weight:800;font-size:0.95rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ans.title)}</div>
+              <div style="font-size:0.8rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ans.artist)}</div>
               <div style="font-size:0.74rem;color:var(--muted);margin-top:2px;">
-                ${isSelf ? `Sua escolha para: <strong>${qObj?.title || 'este item'}</strong>` : `Resposta de <strong>${targetUser?.name || 'Usuário'}</strong>`}
+                ${isSelf ? `Sua escolha para: <strong>${esc(qObj?.title || 'este item')}</strong>` : `Resposta de <strong>${esc(targetUser?.name || 'Usuário')}</strong>`}
               </div>
             </div>
-            <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${JSON.stringify(ans).replace(/"/g, '&quot;')})" title="Ouvir música">
+            <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${jsArg(ans)})" title="Ouvir música">
               ${ICONS.play}
             </button>
           </div>` : ''}
@@ -740,7 +746,7 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <label class="form-label" style="font-weight:700;color:var(--white);margin:0;font-size:0.88rem;">${isSelf ? 'Sua Nota Pessoal:' : 'Sua Nota para a Música:'}</label>
-            <span style="font-size:0.88rem;font-weight:800;color:#ffb800;background:rgba(255,184,0,0.12);border:1px solid rgba(255,184,0,0.3);padding:2px 10px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
+            <span style="font-size:0.88rem;font-weight:800;color:var(--star);background:color-mix(in srgb, var(--star) 12%, transparent);border:1px solid color-mix(in srgb, var(--star) 30%, transparent);padding:2px 10px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
               ${ICONS.star} ${currentReviewRating.toFixed(1)}
             </span>
           </div>
@@ -761,7 +767,7 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
           <!-- Quick Rating Presets -->
           <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:8px;">
             ${[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0].map(p => `
-              <button type="button" onclick="window._setReviewRating(${p})" style="padding:3px 8px;font-size:0.74rem;font-weight:700;background:${currentReviewRating === p ? 'rgba(255,184,0,0.25)' : 'var(--bg-input)'};border:1.5px solid ${currentReviewRating === p ? '#ffb800' : 'var(--border)'};color:${currentReviewRating === p ? '#ffb800' : 'var(--muted)'};border-radius:6px;cursor:pointer;transition:all 0.15s ease;">
+              <button type="button" onclick="window._setReviewRating(${p})" style="padding:3px 8px;font-size:0.74rem;font-weight:700;background:${currentReviewRating === p ? 'color-mix(in srgb, var(--star) 25%, transparent)' : 'var(--bg-input)'};border:1.5px solid ${currentReviewRating === p ? 'var(--star)' : 'var(--border)'};color:${currentReviewRating === p ? 'var(--star)' : 'var(--muted)'};border-radius:6px;cursor:pointer;transition:all 0.15s ease;">
                 ${p.toFixed(1)}
               </button>
             `).join('')}
@@ -771,7 +777,7 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
         <!-- Non-resizable Fixed Textarea -->
         <div>
           <label class="form-label" style="font-weight:700;color:var(--white);margin-bottom:6px;display:block;">Opinião / Comentário (opcional):</label>
-          <textarea id="review-comment" class="doodle-input" rows="3" placeholder="O que você achou da escolha desta música..." style="resize:none !important;width:100% !important;box-sizing:border-box !important;min-height:80px !important;max-height:80px !important;font-size:0.86rem;padding:8px 12px;border-radius:8px;line-height:1.4;">${existingReview?.comment || ''}</textarea>
+          <textarea id="review-comment" class="doodle-input" rows="3" placeholder="O que você achou da escolha desta música..." style="resize:none !important;width:100% !important;box-sizing:border-box !important;min-height:80px !important;max-height:80px !important;font-size:0.86rem;padding:8px 12px;border-radius:8px;line-height:1.4;">${esc(existingReview?.comment || '')}</textarea>
         </div>
 
         <!-- Action Buttons -->
@@ -812,7 +818,7 @@ export function renderChallengePills(container, onSwitch) {
 
   container.innerHTML = all.map(c => `
     <button class="pill-btn${c.id === activeId ? ' active' : ''}" onclick="window._switchChallenge('${c.id}')">
-      ${c.title}
+      ${esc(c.title)}
     </button>`).join('') + `
     <button class="pill-btn" onclick="window._openCreateChallenge()">
       + Novo Desafio
@@ -887,17 +893,17 @@ export function renderNotificationsPanel(container) {
 
   container.innerHTML = notifs.map(n => {
     const fromUser = storage.getUserById(n.fromUserId);
-    const isImg = fromUser?.avatar && (fromUser.avatar.startsWith('http') || fromUser.avatar.startsWith('data:') || fromUser.avatar.startsWith('/'));
+    const isImg = fromUser?.avatar && (isImageAvatar(fromUser.avatar));
     const avatarHtml = isImg
-      ? `<img src="${fromUser.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-      : (fromUser?.avatar || fromUser?.name?.[0] || '?');
+      ? `<img src="${safeUrl(fromUser.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+      : esc(fromUser?.avatar || fromUser?.name?.[0] || '?');
     const timeAgo = new Date(n.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     return `
       <div class="notif-item${!n.read ? ' unread' : ''}">
         <div class="notif-avatar" style="overflow:hidden;">${avatarHtml}</div>
         <div>
-          <div class="notif-text"><strong>${n.fromName || 'Alguém'}</strong> ${n.text}</div>
-          <div class="notif-time">${timeAgo}</div>
+          <div class="notif-text"><strong>${esc(n.fromName || 'Alguém')}</strong> ${esc(n.text)}</div>
+          <div class="notif-time">${esc(timeAgo)}</div>
         </div>
       </div>`;
   }).join('');
@@ -911,59 +917,57 @@ export function initGlobalSearch() {
   const input = document.getElementById('global-search-input');
   if (!input) return;
 
+  const sectionLabel = (text) => `<div style="font-size:0.72rem;color:var(--muted);padding:6px 12px;border-bottom:var(--border)">${text}</div>`;
   let timer = null;
+  let seq = 0; // only the latest query may write results
+
   input.addEventListener('input', () => {
     clearTimeout(timer);
     const q = input.value.trim();
     const resultsEl = document.getElementById('global-search-results');
     if (!resultsEl) return;
+    const mySeq = ++seq;
     if (q.length < 2) { resultsEl.innerHTML = ''; return; }
 
     timer = setTimeout(async () => {
-      // Search users
-      const allUsers = storage.getAllUsers();
-      const matchedUsers = allUsers.filter(u =>
-        u.name.toLowerCase().includes(q.toLowerCase()) ||
-        (u.handle || '').toLowerCase().includes(q.toLowerCase())
+      // Users are local: show them right away
+      const ql = q.toLowerCase();
+      const matchedUsers = storage.getAllUsers().filter(u =>
+        u.name.toLowerCase().includes(ql) || (u.handle || '').toLowerCase().includes(ql)
       );
-
-      let html = '';
-      if (matchedUsers.length) {
-        html += `<div style="font-size:0.72rem;color:var(--muted);padding:6px 12px;border-bottom:var(--border)">Usuários</div>`;
-        html += matchedUsers.map(u => {
-          const isUImg = u.avatar && (u.avatar.startsWith('http') || u.avatar.startsWith('data:') || u.avatar.startsWith('/'));
-          const uAvHtml = isUImg
-            ? `<img src="${u.avatar}" alt="${u.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-            : (u.avatar || u.name[0]);
-          return `
+      const usersHtml = matchedUsers.length
+        ? sectionLabel('Usuários') + matchedUsers.map(u => `
             <div class="search-result-item" onclick="window._goToProfile('${u.id}')">
-              <div class="post-author-avatar" style="width:32px;height:32px;font-size:13px;border-radius:50%;background:var(--purple-dark);color:var(--purple-light);display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;">${uAvHtml}</div>
+              <div class="post-author-avatar" style="width:32px;height:32px;font-size:13px;">${avatarInner(u.avatar, u.name)}</div>
               <div>
-                <div class="search-result-title">${u.name}</div>
-                <div class="search-result-artist">${u.handle || ''}</div>
+                <div class="search-result-title">${esc(u.name)}</div>
+                <div class="search-result-artist">${esc(u.handle || '')}</div>
               </div>
-            </div>`;
-        }).join('');
-      }
+            </div>`).join('')
+        : '';
+      resultsEl.innerHTML = usersHtml + sectionLabel('Músicas') +
+        `<div style="padding:12px;color:var(--muted);font-size:0.85rem;">Buscando músicas…</div>`;
 
-      // Search tracks (iTunes)
+      // Tracks come from the network: append when they arrive, unless a newer query started
+      let tracksHtml = '';
       try {
         const tracks = await searchTracks(q);
         if (tracks?.length) {
-          html += `<div style="font-size:0.72rem;color:var(--muted);padding:6px 12px;border-bottom:var(--border)">Músicas</div>`;
-          html += tracks.slice(0, 4).map(t => `
-            <div class="search-result-item" onclick="window._playTrack(${JSON.stringify(t).replace(/"/g, '&quot;')})">
-              <img class="search-result-cover" src="${t.artwork}" alt="" onerror="this.style.display='none'">
+          tracksHtml = sectionLabel('Músicas') + tracks.slice(0, 4).map(t => `
+            <div class="search-result-item" onclick="window._playTrack(${jsArg(t)})">
+              <img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="" onerror="this.style.display='none'">
               <div>
-                <div class="search-result-title">${t.title}</div>
-                <div class="search-result-artist">${t.artist}</div>
+                <div class="search-result-title">${esc(t.title)}</div>
+                <div class="search-result-artist">${esc(t.artist)}</div>
               </div>
-              ${t.previewUrl ? `<button style="background:transparent;border:none;color:var(--purple-light);cursor:pointer;padding:4px;" onclick="event.stopPropagation();window._playTrack(${JSON.stringify(t).replace(/"/g, '&quot;')})">${ICONS.play}</button>` : ''}
+              ${t.previewUrl ? `<button style="background:transparent;border:none;color:var(--purple-light);cursor:pointer;padding:4px;" aria-label="Tocar ${esc(t.title)}" onclick="event.stopPropagation();window._playTrack(${jsArg(t)})">${ICONS.play}</button>` : ''}
             </div>`).join('');
         }
-      } catch {}
-
-      resultsEl.innerHTML = html || `<div style="padding:16px;text-align:center;color:var(--muted)">Nenhum resultado.</div>`;
+      } catch (err) {
+        console.warn('Global track search failed:', err);
+      }
+      if (mySeq !== seq) return;
+      resultsEl.innerHTML = (usersHtml + tracksHtml) || `<div style="padding:16px;text-align:center;color:var(--muted)">Nenhum resultado.</div>`;
     }, 350);
   });
 }
@@ -991,8 +995,8 @@ export function renderPlayerBar() {
     </div>
     <div class="player-progress">
       <span class="player-time" id="player-time-cur">0:00</span>
-      <div class="progress-track" onclick="window._seekPlayer(event)" title="Avançar / Retroceder">
-        <div class="progress-fill" id="player-progress-fill" style="width:0%"></div>
+      <div class="progress-track" onclick="window._seekPlayer(event)" title="Avançar / Retroceder" role="slider" aria-label="Posição da faixa" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="player-progress-track">
+        <div class="progress-fill" id="player-progress-fill"></div>
       </div>
       <span class="player-time" id="player-time-dur">0:00</span>
     </div>
@@ -1072,12 +1076,22 @@ export function renderPlayerBar() {
       if (btn) btn.innerHTML = ICONS.play;
       document.getElementById('featured-vinyl-img')?.classList.remove('playing');
     }
+    if (event === 'error') {
+      const btn = document.getElementById('player-play-btn');
+      if (btn) btn.innerHTML = ICONS.play;
+      document.getElementById('featured-vinyl-img')?.classList.remove('playing');
+      showToast(data?.message || 'Não foi possível reproduzir esta música.');
+    }
+    if (event === 'buffering') {
+      document.getElementById('player-bar')?.classList.toggle('buffering', Boolean(data));
+    }
     if (event === 'timeupdate') {
       const pct = data.progress || 0;
       const fill = document.getElementById('player-progress-fill');
       const curEl = document.getElementById('player-time-cur');
       const durEl = document.getElementById('player-time-dur');
-      if (fill) fill.style.width = pct + '%';
+      if (fill) fill.style.setProperty('--p', pct + '%');
+      document.getElementById('player-progress-track')?.setAttribute('aria-valuenow', Math.round(pct));
       if (curEl) curEl.textContent = data.formattedCurrentTime || '0:00';
       if (durEl) durEl.textContent = data.formattedDuration || '0:00';
     }

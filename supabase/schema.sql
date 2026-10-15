@@ -1,3 +1,7 @@
+-- ATENÇÃO: arquivo de referência, ainda NÃO aplicado. As tabelas em uso hoje estão em
+-- supabase/001_auth_feedback_admin.sql. Este esquema (posts, chat, playlists...) será revisado
+-- antes de migrar esses dados do localStorage para o Supabase.
+
 -- ==============================================================================
 -- REDE DE MÚSICA — SUPABASE DATABASE SCHEMA
 -- Tabelas, Relacionamentos, Triggers de Auth, Storage Buckets & RLS Policies
@@ -87,7 +91,6 @@ CREATE TABLE public.posts (
     lyrics TEXT,
     lyrics_song TEXT,
     lyrics_art TEXT,
-    lyrics_card_style TEXT DEFAULT 'compact' CHECK (lyrics_card_style IN ('compact', 'cover', 'fullbleed', 'with-cover')),
     tag TEXT DEFAULT '#música',
     
     -- Avaliação com decimais (0.0 até 5.0, ex: 3.5, 4.5)

@@ -1,3 +1,4 @@
+import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import { initStorage, getActiveUser, getAllUsers, getUserById,
          toggleFollow, isFollowing, toggleLikePost, toggleRepostPost,
          toggleBookmark, addCommentToPost, pinPost, deletePost,
@@ -9,7 +10,16 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
 
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
-import { fetchLastFmUserTop, fetchLastFmTopArtists, syncSpotifyAccount, searchArtistInfo, searchTracks } from './api.js';
+import { catLogoHtml, setCatMood, initCatLogo } from './logo.js';
+import { auth, initAuth, logout } from './auth.js';
+import { showAuthScreen } from './authScreen.js';
+import { openFeedbackModal } from './feedback.js';
+import { openDisplaySettings, initDisplay } from './display.js';
+import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
+import { renderAdminTab } from './admin.js';
+import { renderDailyLyric } from './dailyLyric.js';
+import { searchTracks } from './api.js';
+import { fetchLastFmUserTop, getArtistImage } from './lastfm.js';
 import {
   openDoodleModal, closeDoodleModal, showDoodleToast,
   initSearchModal, openSearchModalForFeed, openSearchModalForLyrics, openSearchModalForFeaturedSong,
@@ -18,8 +28,8 @@ import {
   renderNotificationsPanel, renderPlayerBar, initGlobalSearch
 } from './ui.js';
 import {
-  renderPostCreator, renderFeed, renderLyricWidget,
-  renderTrendingWidget, renderFriendsWidget
+  renderPostCreator, renderFeed,
+  renderTrendingWidget, renderFriendsWidget, creatorState
 } from './feed.js';
 import {
   renderProfileView, renderProfileEditModal, renderFollowListModal,
@@ -35,8 +45,26 @@ import { renderPlaylistsTab } from './playlists.js';
 let activeTab = 'feed';
 let feedFilterMode = 'all';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initStorage();
+  initDisplay();
+  initCatLogo();
+
+  // Sign-in gate: the app boots only for a signed-in account (or local demo mode)
+  const state = await initAuth((s, event) => {
+    if (event === 'PASSWORD_RECOVERY') showAuthScreen('recovery', () => {});
+    if (event === 'SIGNED_OUT') window.location.reload();
+  });
+  document.getElementById('boot-splash')?.remove();
+  if (state.mode === 'signed-in' || state.mode === 'local') startApp();
+  else showAuthScreen(state.mode === 'recovery' ? 'recovery' : state.mode === 'banned' ? 'banned' : 'login', startApp);
+});
+
+let appStarted = false;
+
+function startApp() {
+  if (appStarted) return;
+  appStarted = true;
   renderSidebar();
   renderPlayerBar();
   initSearchModal();
@@ -54,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Process pending tab from shim
   if (window._pendingTab) { switchTab(window._pendingTab); window._pendingTab = null; }
   else { switchTab('feed'); }
-});
+}
 
 // ──────────────────────────────────────────
 // SIDEBAR RENDER
@@ -68,66 +96,93 @@ function renderSidebar() {
 
   sidebar.innerHTML = `
     <!-- Logo -->
-    <a class="sidebar-logo" onclick="switchTab('feed')">
-      <div class="sidebar-logo-icon">${ICONS.logo}</div>
+    <a class="sidebar-logo" onclick="switchTab('feed')" aria-label="rede de música sem nome, ir para o feed">
+      <div class="sidebar-logo-icon">${catLogoHtml({ live: true })}</div>
       <div class="sidebar-logo-text">
-        <h1>rede de musica</h1>
+        <h1>rede de música</h1>
         <span>sem nome</span>
       </div>
     </a>
 
-    <!-- Nav -->
+    <!-- Nav: Comparar fica dentro de Desafios; Perfil fica no rodapé -->
     <nav class="sidebar-nav" id="sidebar-nav">
       <button class="nav-item active" id="nav-feed" onclick="switchTab('feed')">
         ${ICONS.feed} <span>Feed</span>
       </button>
-      <button class="nav-item" id="nav-search-tab" onclick="switchTab('search')">
+      <button class="nav-item" id="nav-search" onclick="switchTab('search')">
         ${ICONS.search} <span>Pesquisar</span>
       </button>
       <button class="nav-item" id="nav-playlists" onclick="switchTab('playlists')">
         ${ICONS.playlist} <span>Playlists</span>
       </button>
+      <button class="nav-item" id="nav-desafios" onclick="switchTab('desafios')">
+        ${ICONS.star} <span>Desafios</span>
+      </button>
       <button class="nav-item" id="nav-chat" onclick="switchTab('chat')">
         ${ICONS.chat} <span>Chat</span>
       </button>
-      <button class="nav-item" id="nav-desafios" onclick="switchTab('desafios')">
-        ${ICONS.music} <span>Desafios</span>
-      </button>
-      <button class="nav-item" id="nav-comparar" onclick="switchTab('comparar')">
-        ${ICONS.compare} <span>Comparar</span>
-      </button>
       <button class="nav-item" id="nav-notif" onclick="toggleNotifPanel()">
-        ${ICONS.chat}
+        ${ICONS.bell}
         <span>Notificações</span>
         ${unread > 0 ? `<span class="nav-badge">${unread}</span>` : ''}
       </button>
-      <button class="nav-item" id="nav-profile" onclick="switchTab('profile')">
-        ${ICONS.profile} <span>Perfil</span>
-      </button>
+      ${auth.isAdmin ? `
+      <button class="nav-item" id="nav-admin" onclick="switchTab('admin')">
+        ${ICONS.shield} <span>Admin</span>
+      </button>` : ''}
     </nav>
 
-    <!-- Bottom: active user info -->
+    <button class="nav-post-btn" onclick="window._composeNew()" aria-label="Postar">
+      <span class="label">Postar</span><span class="ico-only" aria-hidden="true">${ICONS.plus}</span>
+    </button>
+
+    <div class="sidebar-extra">
+      <button class="nav-item nav-item-quiet" id="nav-display" onclick="window._openDisplay()">
+        ${ICONS.palette} <span>Exibição</span>
+      </button>
+      <button class="nav-item nav-item-quiet" id="nav-feedback" onclick="window._openFeedback()">
+        ${ICONS.feedback} <span>Enviar feedback</span>
+      </button>
+    </div>
+
+    <!-- Bottom: active user info (abre o perfil) -->
     <div class="sidebar-footer">
-      <div class="sidebar-active-user" onclick="switchTab('profile')">
-        <div class="sidebar-avatar">${user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:') || user.avatar.startsWith('/')) ? `<img src="${user.avatar}" alt="${user.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : (user.avatar || user.name[0])}</div>
-        <div class="sidebar-user-info">
-          <div class="sidebar-user-name">${user.name}</div>
-          <div class="sidebar-user-handle">${user.handle || ''}</div>
-        </div>
+      <div class="sidebar-active-user" id="nav-profile" role="button" tabindex="0" onclick="switchTab('profile')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTab('profile');}">
+${sidebarUserHtml(user)}
       </div>
+      <button class="sidebar-logout" onclick="window._logout()" title="Sair da conta" aria-label="Sair da conta">${ICONS.logout}</button>
     </div>`;
 }
+
+// Inner markup of the sidebar footer (avatar, name, handle of the active user)
+function sidebarUserHtml(user) {
+  return `
+        <div class="sidebar-avatar">${avatarInner(user.avatar, user.name)}</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name">${esc(user.name)}</div>
+          <div class="sidebar-user-handle">${esc(user.handle || '')}</div>
+        </div>`;
+}
+
+// Re-render the sidebar footer after the active user's profile changes
+function refreshSidebarUser() {
+  const el = document.getElementById('nav-profile');
+  if (el) el.innerHTML = sidebarUserHtml(getActiveUser());
+}
+window._refreshSidebarUser = refreshSidebarUser;
 
 // ──────────────────────────────────────────
 // TAB SWITCHING
 // ──────────────────────────────────────────
 
 function switchTab(tabName) {
+  if (tabName === 'admin' && !auth.isAdmin) tabName = 'feed';
   activeTab = tabName;
 
   // Update nav items
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  const navEl = document.getElementById(`nav-${tabName}`);
+  document.querySelectorAll('.nav-item, .sidebar-active-user').forEach(el => el.classList.remove('active'));
+  // Comparar não tem item próprio no menu: fica destacado como parte de Desafios
+  const navEl = document.getElementById(`nav-${tabName === 'comparar' ? 'desafios' : tabName}`);
   if (navEl) navEl.classList.add('active');
 
   // Hide all tab contents
@@ -141,6 +196,7 @@ function switchTab(tabName) {
     case 'desafios':    renderDesafiosTab();  break;
     case 'comparar':    renderCompararTab();  break;
     case 'profile':     renderProfileTab();   break;
+    case 'admin':       renderAdminTab(document.getElementById('tab-admin')); break;
   }
 
   const el = document.getElementById(`tab-${tabName}`);
@@ -149,7 +205,7 @@ function switchTab(tabName) {
   // Floating DM button visibility
   const dmFab = document.getElementById('dm-fab');
   if (dmFab) {
-    if (tabName === 'chat') {
+    if (tabName === 'chat' || tabName === 'admin') {
       dmFab.style.display = 'none';
       closeDMWindow();
     } else {
@@ -175,13 +231,16 @@ function renderFeedTab() {
   if (!tab) return;
 
   tab.innerHTML = `
-    <div style="display:flex;gap:20px;align-items:flex-start;">
+    <div class="feed-layout-cols">
       <!-- Main feed column -->
-      <div style="flex:1;min-width:0;">
-        <!-- Feed filter -->
-        <div class="feed-filter-bar" style="margin-bottom:12px;border-radius:var(--radius-lg);overflow:hidden;border:var(--border);">
-          <button class="feed-filter-btn${feedFilterMode==='all'?' active':''}" onclick="setFeedFilter('all')">Todos</button>
-          <button class="feed-filter-btn${feedFilterMode==='following'?' active':''}" onclick="setFeedFilter('following')">Seguindo</button>
+      <div class="feed-main">
+        <!-- Cabeçalho fixo da linha do tempo -->
+        <div class="timeline-header">
+        <h1 class="timeline-title">Página inicial</h1>
+        <div class="feed-filter-bar" role="tablist" aria-label="Filtrar feed">
+          <button class="feed-filter-btn${feedFilterMode==='all'?' active':''}" data-filter="all" role="tab" onclick="setFeedFilter('all')">Para você</button>
+          <button class="feed-filter-btn${feedFilterMode==='following'?' active':''}" data-filter="following" role="tab" onclick="setFeedFilter('following')">Seguindo</button>
+        </div>
         </div>
 
         <!-- Post Creator -->
@@ -191,48 +250,33 @@ function renderFeedTab() {
         <div id="feed-posts"></div>
       </div>
 
-      <!-- Right sidebar -->
+      <!-- Right sidebar: Seguindo, Em alta, Letra do dia -->
       <div class="right-sidebar">
-        <!-- Lyric of the day -->
-        <div class="sidebar-widget">
+        <section class="sidebar-widget" aria-labelledby="w-following">
           <div class="widget-header">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--purple-light);">
-                <path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>
-              </svg>
-              <span>Letra do Dia</span>
-            </div>
-            <button class="lyric-refresh-btn" title="Sortear outra letra" onclick="renderLyricWidgetEl(true)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-              </svg>
-              <span>Novo</span>
-            </button>
-          </div>
-          <div id="lyric-widget-content"></div>
-        </div>
-
-        <!-- Following -->
-        <div class="sidebar-widget">
-          <div class="widget-header">
-            <span>Seguindo</span>
+            <h3 id="w-following">Seguindo</h3>
           </div>
           <div id="friends-widget"></div>
-        </div>
+        </section>
 
-        <!-- Trending -->
-        <div class="sidebar-widget">
+        <section class="sidebar-widget" aria-labelledby="w-trending">
           <div class="widget-header">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span style="color:#ff5555;display:inline-flex;align-items:center;">${ICONS.fire}</span>
-              <span>Tendências (Last.fm)</span>
-            </div>
-            <span style="font-size:0.68rem;color:var(--purple-light);font-weight:700;">Global</span>
+            <h3 id="w-trending">Em alta</h3>
+            <small>Last.fm</small>
           </div>
           <div id="trending-widget"></div>
-        </div>
+        </section>
+
+        <section class="sidebar-widget" aria-labelledby="w-lyric">
+          <div class="widget-header">
+            <h3 id="w-lyric">Letra do dia</h3>
+          </div>
+          <div id="lyric-widget-content"></div>
+        </section>
       </div>
     </div>`;
+
+  mountTabIndicator(tab.querySelector('.feed-filter-bar'), { key: 'feed' });
 
   // Render creator
   const creatorWrap = document.getElementById('creator-wrap');
@@ -242,28 +286,27 @@ function renderFeedTab() {
   const feedPosts = document.getElementById('feed-posts');
   if (feedPosts) renderFeed(feedPosts, feedFilterMode);
 
-  // Define helper first, then call it
-  window.renderLyricWidgetEl = (forceNew = false) => {
-    const el = document.getElementById('lyric-widget-content');
-    if (el) renderLyricWidget(el, forceNew);
-  };
 
   window.setFeedFilter = (mode) => {
+    const order = ['all', 'following'];
+    const direction = tabDirection(order.indexOf(feedFilterMode), order.indexOf(mode));
     feedFilterMode = mode;
     const tabFeed = document.getElementById('tab-feed');
     if (tabFeed) {
       tabFeed.querySelectorAll('.feed-filter-btn').forEach(b => {
-        const isTarget = (mode === 'all' && b.textContent.trim().toLowerCase() === 'todos') ||
-                         (mode === 'following' && b.textContent.trim().toLowerCase() === 'seguindo');
+        const isTarget = b.dataset.filter === mode;
         b.classList.toggle('active', isTarget);
       });
     }
     const feedPostsEl = document.getElementById('feed-posts');
-    if (feedPostsEl) renderFeed(feedPostsEl, feedFilterMode);
+    if (feedPostsEl) {
+      renderFeed(feedPostsEl, feedFilterMode);
+      if (direction) animatePanel(feedPostsEl, direction);
+    }
   };
 
   // Right sidebar
-  renderLyricWidgetEl();
+  renderDailyLyric(document.getElementById('lyric-widget-content'));
   const friendsEl = document.getElementById('friends-widget');
   if (friendsEl) renderFriendsWidget(friendsEl);
   const trendEl = document.getElementById('trending-widget');
@@ -313,12 +356,12 @@ function renderAllUsersList() {
     const fol = isFollowing(u.id);
     return `
       <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);margin-bottom:8px;cursor:pointer;" onclick="window._goToProfile('${u.id}')">
-        <div class="post-author-avatar" style="width:38px;height:38px;font-size:16px;border-radius:50%;background:var(--purple-dark);color:var(--purple-light);display:flex;align-items:center;justify-content:center;font-weight:700;">${u.avatar || u.name[0]}</div>
+        <div class="post-author-avatar" style="width:38px;height:38px;font-size:16px;">${avatarInner(u.avatar, u.name)}</div>
         <div style="flex:1;">
-          <div style="font-size:0.9rem;font-weight:700;color:var(--white)">${u.name}</div>
-          <div style="font-size:0.75rem;color:var(--muted)">${u.handle||''} &bull; ${u.bio?.slice(0,40) || ''}</div>
+          <div style="font-size:0.9rem;font-weight:700;color:var(--white)">${esc(u.name)}</div>
+          <div style="font-size:0.75rem;color:var(--muted)">${esc(u.handle||'')} &bull; ${esc(u.bio?.slice(0,40) || '')}</div>
         </div>
-        <button class="doodle-btn doodle-btn-follow doodle-btn-sm${fol ? ' following' : ''}" onclick="event.stopPropagation();window._toggleFollow('${u.id}')">
+        <button class="doodle-btn doodle-btn-follow doodle-btn-sm${fol ? ' following' : ''}" data-follow-id="${u.id}" onclick="event.stopPropagation();window._toggleFollow('${u.id}')">
           ${fol ? 'Seguindo' : 'Seguir'}
         </button>
       </div>`;
@@ -340,6 +383,9 @@ function renderDesafiosTab() {
           <div class="page-title">Desafios & Listas</div>
           <div class="page-sub">Escolha um desafio e complete sua lista de músicas</div>
         </div>
+        <button class="doodle-btn doodle-btn-secondary" onclick="switchTab('comparar')">
+          ${ICONS.compare} <span>Comparar listas</span>
+        </button>
       </div>
       <div id="challenge-pills" style="margin-bottom:16px;display:flex;gap:6px;flex-wrap:wrap;"></div>
       <div id="questions-grid"></div>
@@ -400,6 +446,7 @@ function toggleNotifPanel() {
     const panel = document.getElementById('notif-panel-content');
     if (panel) renderNotificationsPanel(panel);
     overlay.classList.add('active');
+    setCatMood('alert', 1400);
     renderNotifBadge(); // clear badge
   }
 }
@@ -430,11 +477,21 @@ function renderNotifBadge() {
 
 function bindGlobalHandlers() {
 
+  window._openFeedback = () => openFeedbackModal(activeTab);
+  window._openDisplay = () => openDisplaySettings();
+  window._composeNew = () => {
+    switchTab('feed');
+    requestAnimationFrame(() => document.getElementById('creator-text')?.focus());
+  };
+  window._logout = () => logout();
+
   // Navigate to any profile
   window._goToProfile = (userId) => {
     switchTab('profile');
     renderProfileTab(userId);
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    // The sidebar footer stands for the user's own profile: only keep it highlighted there
+    const isOwn = !userId || userId === getActiveUser().id;
+    document.getElementById('nav-profile')?.classList.toggle('active', isOwn);
   };
 
   // Follow toggle
@@ -442,12 +499,11 @@ function bindGlobalHandlers() {
     const nowFollowing = toggleFollow(userId);
     showToast(nowFollowing ? 'Seguindo!' : 'Deixou de seguir.');
 
-    // Update follow button
-    const btn = document.getElementById(`follow-btn-${userId}`);
-    if (btn) {
+    // Update every follow button for this user (profile header, search list, follow-list modal)
+    document.querySelectorAll(`[data-follow-id="${userId}"]`).forEach(btn => {
       btn.textContent = nowFollowing ? 'Seguindo' : 'Seguir';
       btn.classList.toggle('following', nowFollowing);
-    }
+    });
 
     // Update friend list
     const friendsEl = document.getElementById('friends-widget');
@@ -462,10 +518,9 @@ function bindGlobalHandlers() {
     if (!post) return;
     const activeUser = getActiveUser();
     const liked = post.likes.includes(activeUser.id);
+    if (liked) setCatMood('love', 1400);
     if (btn) {
       btn.classList.toggle('liked', liked);
-      const countEl = btn.querySelector('.like-count');
-      if (countEl) countEl.textContent = post.likes.length;
       btn.innerHTML = (liked ? ICONS.heartFilled : ICONS.heartEmpty) + `<span class="like-count">${post.likes.length}</span>`;
     }
   };
@@ -498,28 +553,7 @@ function bindGlobalHandlers() {
     refreshPostsView();
   };
 
-  // Toggle comments
-  window._toggleComments = (postId, btn, event) => {
-    if (event) event.stopPropagation();
-
-    let postCard = btn ? btn.closest('.post-card') : null;
-    if (!postCard) {
-      const cards = Array.from(document.querySelectorAll(`.post-card[data-post-id="${postId}"]`));
-      postCard = cards.find(c => c.offsetParent !== null) || cards[0];
-    }
-    if (!postCard) return;
-
-    const commentsSection = postCard.querySelector('.post-comments-section');
-    if (!commentsSection) return;
-
-    const isHidden = window.getComputedStyle(commentsSection).display === 'none' || commentsSection.style.display === 'none' || !commentsSection.style.display;
-    commentsSection.style.display = isHidden ? 'flex' : 'none';
-
-    if (isHidden) {
-      const input = commentsSection.querySelector('.doodle-input');
-      if (input) setTimeout(() => input.focus(), 50);
-    }
-  };
+  // Toggle comments: window._toggleComments is defined in feed.js
 
   // Submit comment
   window._submitComment = (postId, btn) => {
@@ -575,7 +609,7 @@ function bindGlobalHandlers() {
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div>
             <label class="form-label">Texto da publicação</label>
-            <textarea id="edit-post-text-input" class="doodle-input" rows="4" placeholder="Escreva seu post...">${post.text || ''}</textarea>
+            <textarea id="edit-post-text-input" class="doodle-input" rows="4" placeholder="Escreva seu post...">${esc(post.text || '')}</textarea>
           </div>
           <div>
             <label class="form-label">Tag</label>
@@ -706,19 +740,6 @@ function bindGlobalHandlers() {
     globalAudio.seekToPercent(pct);
   };
 
-  // Global helper to search for lyric/track in iTunes catalog
-  window._searchLyricSong = (songTitle, artistName) => {
-    const q = `${songTitle || ''} ${artistName || ''}`.trim();
-    switchTab('search');
-    setTimeout(() => {
-      const inp = document.getElementById('global-search-input');
-      if (inp) {
-        inp.value = q;
-        inp.dispatchEvent(new Event('input', { bubbles: true }));
-        inp.focus();
-      }
-    }, 120);
-  };
 
   // Global helper to search for artist songs in iTunes catalog
   window._searchArtistInCatalog = (artistName) => {
@@ -746,50 +767,38 @@ function bindGlobalHandlers() {
     let lyrics = '';
     let lyricsSong = '';
     let lyricsArt = '';
-    let lyricsCardStyle = 'compact';
 
     if (isLyricsActive) {
       const lyricsEl = document.getElementById('creator-lyrics');
       const lyricsSongEl = document.getElementById('creator-lyrics-song');
       const lyricsArtEl = document.getElementById('creator-lyrics-art');
-      const lyricsStyleEl = document.getElementById('lyrics-style-sel');
 
       lyrics = lyricsEl?.value?.trim() || '';
       lyricsSong = lyricsSongEl?.value?.trim() || '';
       lyricsArt = lyricsArtEl?.value?.trim() || '';
-      lyricsCardStyle = lyricsStyleEl?.value || 'compact';
     }
 
     // Check rating active
     const ratingBox = document.getElementById('creator-rating-attach');
     const isRatingActive = ratingBox && ratingBox.style.display !== 'none';
-    let rating = 0;
-    if (isRatingActive) {
-      import('./feed.js').then(m => {
-        rating = m.creatorState?.rating || window._pendingCreatorRating || 0;
-      });
-    }
 
-    if (!text && !lyrics && !window._pendingCreatorSong && !window._pendingCreatorImage) {
-      showToast('Escreva algo ou anexe uma música, foto ou letra.');
+    if (!text && !lyrics && !window._pendingCreatorSong && !window._pendingCreatorImage && !window._pendingCreatorPlaylist) {
+      showToast('Escreva algo ou anexe uma música, foto, playlist ou letra.');
       return;
     }
 
-    // Read rating synchronously from feed module or window
-    import('./feed.js').then(m => {
-      const finalRating = isRatingActive ? (m.creatorState?.rating || 0) : 0;
+    {
+      const finalRating = isRatingActive ? (creatorState.rating || 0) : 0;
 
       createPost({
         text,
         lyrics,
         lyricsSong,
         lyricsArt,
-        lyricsCardStyle,
         tag,
         rating: finalRating,
         imageUrl: window._pendingCreatorImage || '',
         song: window._pendingCreatorSong || null,
-        playlist: window._pendingCreatorPlaylist || null,
         playlistId: window._pendingCreatorPlaylist?.id || null
       });
 
@@ -798,19 +807,17 @@ function bindGlobalHandlers() {
       window._pendingCreatorSong = null;
       window._pendingCreatorPlaylist = null;
       window._pendingCreatorImage = null;
-      window._pendingCreatorRating = 0;
       if (window._creatorRemoveLyrics) window._creatorRemoveLyrics();
       if (window._removeCreatorSong) window._removeCreatorSong();
       if (window._removeCreatorPlaylist) window._removeCreatorPlaylist();
       if (window._removeCreatorImage) window._removeCreatorImage();
-      if (ratingBox) {
-        ratingBox.style.display = 'none';
-        if (m.creatorState) m.creatorState.rating = 0;
-      }
+      if (ratingBox) ratingBox.style.display = 'none';
+      creatorState.rating = 0;
 
       showToast('Post publicado!');
+      setCatMood('happy', 1600);
       renderFeedTab();
-    });
+    }
   };
 
   // Creator attach song (set from search modal)
@@ -822,10 +829,10 @@ function bindGlobalHandlers() {
     el.innerHTML = `
       <div class="creator-attached-song">
         <div style="display:flex;align-items:center;gap:6px;">
-          ${track.artwork ? `<img src="${track.artwork}" style="width:32px;height:32px;border-radius:5px;object-fit:cover;">` : ''}
+          ${track.artwork ? `<img src="${safeUrl(track.artwork)}" style="width:32px;height:32px;border-radius:5px;object-fit:cover;">` : ''}
           <div>
-            <div style="font-size:0.8rem;font-weight:700;color:var(--white)">${track.title}</div>
-            <div style="font-size:0.72rem;color:var(--muted)">${track.artist}</div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--white)">${esc(track.title)}</div>
+            <div style="font-size:0.72rem;color:var(--muted)">${esc(track.artist)}</div>
           </div>
         </div>
         <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCreatorSong()">Remover</button>
@@ -870,14 +877,13 @@ function bindGlobalHandlers() {
             const isMine = pl.authorId === user.id;
             const songs = pl.songs || [];
             const coverArt = pl.coverUrl || (songs.find(s => !!s.artwork)?.artwork || '');
-            const safePlJson = JSON.stringify(pl).replace(/"/g, '&quot;');
             return `
-              <div class="playlist-picker-item" onclick="window._setCreatorPlaylist(${safePlJson})" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:10px;cursor:pointer;transition:all 0.15s ease;">
+              <div class="playlist-picker-item" onclick="window._setCreatorPlaylist('${pl.id}')" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:10px;cursor:pointer;transition:all 0.15s ease;">
                 <div style="width:46px;height:46px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-                  ${coverArt ? `<img src="${coverArt}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
+                  ${coverArt ? `<img src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
                 </div>
                 <div style="flex:1;min-width:0;">
-                  <div style="font-size:0.88rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pl.title}</div>
+                  <div style="font-size:0.88rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
                   <div style="font-size:0.75rem;color:var(--purple-light);">${isMine ? 'Sua playlist' : 'Da comunidade'} &bull; ${songs.length} faixas</div>
                 </div>
                 <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="flex-shrink:0;">
@@ -891,7 +897,9 @@ function bindGlobalHandlers() {
     openDoodleModal('playlist-picker-modal');
   };
 
-  window._setCreatorPlaylist = (pl) => {
+  window._setCreatorPlaylist = (playlistId) => {
+    const pl = getPlaylistById(playlistId);
+    if (!pl) return;
     window._pendingCreatorPlaylist = pl;
     closeDoodleModal('playlist-picker-modal');
     const el = document.getElementById('creator-playlist-attach');
@@ -901,17 +909,17 @@ function bindGlobalHandlers() {
 
     el.style.display = 'block';
     el.innerHTML = `
-      <div class="creator-attached-playlist" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:linear-gradient(135deg,rgba(30,16,52,0.85),rgba(12,8,20,0.95));border:1px solid var(--purple-accent);border-radius:10px;margin-top:10px;">
+      <div class="creator-attached-playlist" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:linear-gradient(135deg,color-mix(in srgb, var(--hover) 85%, transparent),color-mix(in srgb, var(--surface) 95%, transparent));border:1px solid var(--purple-accent);border-radius:10px;margin-top:10px;">
         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
           <div style="width:40px;height:40px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-            ${coverArt ? `<img src="${coverArt}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
+            ${coverArt ? `<img src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
           </div>
           <div style="min-width:0;">
-            <div style="font-size:0.7rem;font-weight:800;color:var(--purple-light);text-transform:uppercase;">Playlist Anexada</div>
-            <div style="font-size:0.86rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pl.title}</div>
+            <div style="font-size:0.7rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
+            <div style="font-size:0.86rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
           </div>
         </div>
-        <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="color:#ff5555;" onclick="window._removeCreatorPlaylist()">Remover</button>
+        <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="color:var(--danger);" onclick="window._removeCreatorPlaylist()">Remover</button>
       </div>`;
 
     const sel = document.getElementById('creator-tag');
@@ -942,10 +950,7 @@ function bindGlobalHandlers() {
     openSearchModalForLyrics();
   };
 
-  // Star picker for creator
-  window._pickStar = (val) => {
-    window._pendingCreatorRating = val;
-  };
+  // Star picker for creator: window._pickStar is defined by renderCreatorRating() in feed.js
 
   // Profile actions
   window._openProfileEdit = () => renderProfileEditModal();
@@ -964,10 +969,10 @@ function bindGlobalHandlers() {
 
     const body = document.getElementById('avatar-modal-body');
     if (body) {
-      const isImg = user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:') || user.avatar.startsWith('/'));
+      const isImg = isImageAvatar(user.avatar);
       const initialAvatarHtml = isImg
-        ? `<img id="avatar-modal-preview-img" src="${user.avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
-        : `<span id="avatar-modal-preview-text" style="font-size:36px;font-weight:800;color:var(--purple-light);">${user.avatar || user.name[0]}</span>`;
+        ? `<img id="avatar-modal-preview-img" src="${safeUrl(user.avatar)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+        : `<span id="avatar-modal-preview-text" style="font-size:36px;font-weight:800;color:var(--purple-light);">${esc(user.avatar || user.name[0])}</span>`;
 
       body.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:16px;">
@@ -990,16 +995,16 @@ function bindGlobalHandlers() {
           </div>
 
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+            <div style="flex:1;height:1px;background:var(--tint-2);"></div>
             <span style="font-size:0.75rem;color:var(--muted);font-weight:700;">OU LINK DA WEB / EMOJI</span>
-            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+            <div style="flex:1;height:1px;background:var(--tint-2);"></div>
           </div>
 
           <!-- URL or Emoji Input -->
           <div>
             <label class="form-label">URL da Foto ou Letra/Emoji</label>
             <div style="display:flex;gap:8px;">
-              <input id="avatar-modal-input" class="doodle-input" value="${user.avatar || ''}" placeholder="https://exemplo.com/foto.jpg ou emoji" oninput="window._previewAvatarModal(this.value)">
+              <input id="avatar-modal-input" class="doodle-input" value="${esc(user.avatar || '')}" placeholder="https://exemplo.com/foto.jpg ou emoji" oninput="window._previewAvatarModal(this.value)">
               <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('avatar-modal-input').value='';window._previewAvatarModal('');">Limpar</button>
             </div>
           </div>
@@ -1032,12 +1037,12 @@ function bindGlobalHandlers() {
     const box = document.getElementById('avatar-modal-preview-box');
     if (!box) return;
     const clean = (val || '').trim();
-    const isImg = clean.startsWith('http') || clean.startsWith('data:') || clean.startsWith('/');
+    const isImg = isImageAvatar(clean);
     if (isImg) {
-      box.innerHTML = `<img src="${clean}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+      box.innerHTML = `<img src="${safeUrl(clean)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
     } else {
       const fallback = clean || getActiveUser().name?.[0] || 'V';
-      box.innerHTML = `<span style="font-size:36px;font-weight:800;color:var(--purple-light);">${fallback}</span>`;
+      box.innerHTML = `<span style="font-size:36px;font-weight:800;color:var(--purple-light);">${esc(fallback)}</span>`;
     }
   };
 
@@ -1048,11 +1053,7 @@ function bindGlobalHandlers() {
       m.updateUser(m.getActiveUserId(), { avatar: val });
       window.closeModal('avatar-modal');
       showToast('Foto de perfil atualizada!');
-      const sidebarAvatar = document.querySelector('.sidebar-avatar');
-      if (sidebarAvatar) {
-        const isImg = val.startsWith('http') || val.startsWith('data:') || val.startsWith('/');
-        sidebarAvatar.innerHTML = isImg ? `<img src="${val}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : val;
-      }
+      refreshSidebarUser();
       window._refreshProfile?.();
     });
   };
@@ -1069,7 +1070,7 @@ function bindGlobalHandlers() {
           <!-- Mini Preview -->
           <div>
             <label class="form-label" style="margin-bottom:6px;">Pré-visualização do Banner</label>
-            <div id="banner-modal-preview" style="height:120px;border-radius:12px;overflow:hidden;border:var(--border);background-size:cover;background-position:center;${user.bannerUrl ? `background-image:url('${user.bannerUrl}');` : `background:linear-gradient(135deg, ${user.themeColor || '#130c1e'}, #000);`}"></div>
+            <div id="banner-modal-preview" style="height:120px;border-radius:12px;overflow:hidden;border:var(--border);background-size:cover;background-position:center;${user.bannerUrl && safeUrl(user.bannerUrl) ? `background-image:url(&quot;${safeUrl(user.bannerUrl)}&quot;);` : `background:linear-gradient(135deg, var(--accent-soft), var(--surface));`}"></div>
           </div>
 
           <!-- Upload from Device -->
@@ -1083,9 +1084,9 @@ function bindGlobalHandlers() {
           </div>
 
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+            <div style="flex:1;height:1px;background:var(--tint-2);"></div>
             <span style="font-size:0.75rem;color:var(--muted);font-weight:700;">OU LINK DA WEB</span>
-            <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+            <div style="flex:1;height:1px;background:var(--tint-2);"></div>
           </div>
 
           <!-- URL Input -->
@@ -1101,16 +1102,16 @@ function bindGlobalHandlers() {
           <div>
             <label class="form-label" style="margin-bottom:6px;">Ou escolha um tema estético:</label>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #1f0d3d, #4b1248);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80')">
+              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, var(--hover), var(--hover));cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80')">
                 ${ICONS.sparkles} Synthwave Neon
               </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #09132b, #1d3557);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1200&auto=format&fit=crop&q=80')">
+              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, var(--surface), var(--surface));cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1200&auto=format&fit=crop&q=80')">
                 ${ICONS.headphones} Studio Vinyl
               </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #10002b, #3c096c);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1200&auto=format&fit=crop&q=80')">
+              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, var(--surface), var(--hover));cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1200&auto=format&fit=crop&q=80')">
                 ${ICONS.disc} Deep Nebula
               </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, #0d1b2a, #1b263b);cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80')">
+              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, var(--surface), var(--surface));cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80')">
                 ${ICONS.moon} Dark Minimal
               </div>
             </div>
@@ -1146,13 +1147,13 @@ function bindGlobalHandlers() {
     const url = val?.trim();
     if (url) {
       prev.style.background = '';
-      prev.style.backgroundImage = `url('${url}')`;
+      prev.style.backgroundImage = `url(${JSON.stringify(url)})`;
       prev.style.backgroundSize = 'cover';
       prev.style.backgroundPosition = 'center';
     } else {
       const user = getActiveUser();
       prev.style.backgroundImage = '';
-      prev.style.background = `linear-gradient(135deg, ${user.themeColor || '#130c1e'}, #000)`;
+      prev.style.background = 'linear-gradient(135deg, var(--accent-soft), var(--surface))';
     }
   };
 
@@ -1191,6 +1192,8 @@ function bindGlobalHandlers() {
     const input = document.getElementById('music-service-input');
     if (input) input.value = user.spotifyUsername || '';
     tempPickerArtists = user.topArtistsMonth ? [...user.topArtistsMonth] : [];
+    const syncError = document.getElementById('music-service-error');
+    if (syncError) { syncError.textContent = ''; syncError.hidden = true; }
     renderPickerSelectedList();
     window._setMusicServiceTab(user.musicService || 'lastfm');
     openModal('spotify-modal');
@@ -1233,12 +1236,12 @@ function bindGlobalHandlers() {
     listEl.innerHTML = tempPickerArtists.map((a, i) => `
       <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);">
         <span style="font-size:0.75rem;font-weight:800;color:var(--purple-light);width:18px;">#${i + 1}</span>
-        <img src="${a.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
+        <img src="${safeUrl(a.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80')}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
-          <div style="font-size:0.68rem;color:var(--muted);">${a.genre || 'Artista'}</div>
+          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.name)}</div>
+          <div style="font-size:0.68rem;color:var(--muted);">${esc(a.genre || 'Artista')}</div>
         </div>
-        <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 6px;color:#ff5555;" onclick="window._removeArtistFromPicker(${i})">&times;</button>
+        <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 6px;color:var(--danger);" onclick="window._removeArtistFromPicker(${i})">&times;</button>
       </div>
     `).join('');
   }
@@ -1255,12 +1258,12 @@ function bindGlobalHandlers() {
     const resEl = document.getElementById('picker-search-results');
     if (!q || !resEl) return;
 
-    resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--purple-light);padding:8px;">Buscando "${q}" no catálogo...</div>`;
+    resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--purple-light);padding:8px;">Buscando "${esc(q)}" no catálogo...</div>`;
 
     try {
       const tracks = await searchTracks(q, 8);
       if (!tracks.length) {
-        resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--muted);padding:8px;">Nenhum artista encontrado para "${q}".</div>`;
+        resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--muted);padding:8px;">Nenhum artista encontrado para "${esc(q)}".</div>`;
         return;
       }
 
@@ -1278,18 +1281,23 @@ function bindGlobalHandlers() {
         }
       });
 
+      // Real artist photos instead of album covers (falls back to the cover when none is found)
+      await Promise.all(uniqueArtists.map(async a => {
+        a.imageUrl = (await getArtistImage(a.name)) || a.imageUrl;
+      }));
+
       resEl.innerHTML = uniqueArtists.map(a => `
         <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);margin-bottom:4px;">
-          <img src="${a.imageUrl}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+          <img src="${safeUrl(a.imageUrl)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
           <div style="flex:1;min-width:0;">
-            <div style="font-size:0.82rem;font-weight:700;color:var(--white);">${a.name}</div>
-            <div style="font-size:0.68rem;color:var(--muted);">${a.genre}</div>
+            <div style="font-size:0.82rem;font-weight:700;color:var(--white);">${esc(a.name)}</div>
+            <div style="font-size:0.68rem;color:var(--muted);">${esc(a.genre)}</div>
           </div>
-          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._addArtistToPicker(${JSON.stringify(a).replace(/"/g, '&quot;')})">+ Adicionar</button>
+          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._addArtistToPicker(${jsArg(a)})">+ Adicionar</button>
         </div>
       `).join('');
     } catch (err) {
-      resEl.innerHTML = `<div style="font-size:0.75rem;color:#ff5555;padding:8px;">Erro na busca: ${err.message}</div>`;
+      resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--danger);padding:8px;">Erro na busca: ${esc(err.message)}</div>`;
     }
   };
 
@@ -1308,7 +1316,7 @@ function bindGlobalHandlers() {
       name: artist.name,
       imageUrl: artist.imageUrl,
       genre: artist.genre,
-      playcount: 350 - tempPickerArtists.length * 40
+      playcount: 0
     });
 
     renderPickerSelectedList();
@@ -1345,13 +1353,20 @@ function bindGlobalHandlers() {
       return;
     }
 
+    const errorEl = document.getElementById('music-service-error');
+    const showSyncError = (msg) => {
+      if (errorEl) { errorEl.textContent = msg; errorEl.hidden = !msg; }
+    };
+    showSyncError('');
+
     if (!username) {
-      showToast('Digite seu nome de usuário do Last.fm.');
+      showSyncError('Digite seu nome de usuário do Last.fm.');
+      input?.focus();
       return;
     }
 
     if (btn) {
-      btn.textContent = 'Buscando scrobbles na API do Last.fm...';
+      btn.textContent = 'Buscando no Last.fm…';
       btn.disabled = true;
     }
 
@@ -1360,14 +1375,17 @@ function bindGlobalHandlers() {
 
       updateUserMusicStats(activeUser.id, {
         service: 'lastfm',
-        username: username,
+        username: result.username,
+        profileUrl: result.profileUrl,
+        period: result.period,
+        periodLabel: result.periodLabel,
         topArtist: result.topArtist,
         topArtistsMonth: result.topArtistsMonth,
         topTracksMonth: result.topTracksMonth
       });
 
       closeModal('spotify-modal');
-      showToast('Top 5 Artistas vinculados com sucesso via Last.fm!');
+      showToast(`Last.fm de ${result.username} sincronizado!`);
       
       if (activeTab !== 'profile') {
         switchTab('profile');
@@ -1375,7 +1393,8 @@ function bindGlobalHandlers() {
         renderProfileTab(activeUser.id);
       }
     } catch (err) {
-      showToast(err.message || 'Erro ao buscar no Last.fm. Verifique o usuário informado.');
+      console.warn('Last.fm sync failed:', err);
+      showSyncError(err.message || 'Não foi possível sincronizar com o Last.fm.');
     } finally {
       if (btn) {
         btn.textContent = 'Sincronizar Artistas';

@@ -1,4 +1,5 @@
 // Playlists Module — Create, Manage, Play, and Share Custom Playlists without limits
+import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import {
   getAllPlaylists, getPlaylistById, createPlaylist, updatePlaylist,
   deletePlaylist, addSongToPlaylist, removeSongFromPlaylist,
@@ -7,6 +8,7 @@ import {
 } from './storage.js';
 import { ICONS } from './icons.js';
 import { openSearchModalForPlaylist, showToast, openDoodleModal, closeDoodleModal } from './ui.js';
+import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 
 let currentFilter = 'all'; // 'all' | 'mine' | 'community'
 let searchQuery = '';
@@ -19,10 +21,10 @@ function renderAvatarHtml(user, size = 20, isHero = false) {
   if (!user) {
     return `<span class="playlist-author-avatar fallback" style="width:${size}px;height:${size}px;font-size:${Math.round(size*0.48)}px;">U</span>`;
   }
-  const isImg = user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:') || user.avatar.startsWith('/'));
+  const isImg = isImageAvatar(user.avatar);
   if (isImg) {
     const cls = isHero ? 'playlist-hero-author-avatar-img' : 'playlist-author-avatar-img';
-    return `<img src="${escapeHtml(user.avatar)}" alt="${escapeHtml(user.name)}" class="${cls}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;">`;
+    return `<img src="${safeUrl(user.avatar)}" alt="${esc(user.name)}" class="${cls}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;">`;
   }
   const initial = (user.avatar && user.avatar.length <= 2 ? user.avatar : (user.name?.[0] || 'U')).toUpperCase();
   return `<span class="playlist-author-avatar fallback" style="width:${size}px;height:${size}px;border-radius:50%;background:var(--purple-dark);color:var(--white);display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.48)}px;font-weight:800;flex-shrink:0;">${initial}</span>`;
@@ -125,7 +127,7 @@ export function renderPlaylistsTab(containerEl) {
         </div>
         <div class="playlists-search-box">
           ${ICONS.search}
-          <input type="text" id="playlist-search-input" class="doodle-input" placeholder="Buscar playlist, música ou artista..." value="${escapeHtml(searchQuery)}" oninput="window._onPlaylistSearch(this.value)">
+          <input type="text" id="playlist-search-input" class="doodle-input" placeholder="Buscar playlist, música ou artista..." value="${esc(searchQuery)}" oninput="window._onPlaylistSearch(this.value)">
         </div>
       </div>
 
@@ -135,9 +137,12 @@ export function renderPlaylistsTab(containerEl) {
       </div>
     </div>
   `;
+  mountTabIndicator(containerEl.querySelector('#playlists-filter-pills-wrap'), { key: 'playlists', variant: 'pill' });
 
   // Bind global helpers
   window._setPlaylistFilter = (f) => {
+    const order = ['all', 'mine', 'community'];
+    const direction = tabDirection(order.indexOf(currentFilter), order.indexOf(f));
     currentFilter = f;
     // Update pill classes without re-rendering search box
     const pillsWrap = containerEl.querySelector('#playlists-filter-pills-wrap');
@@ -150,6 +155,7 @@ export function renderPlaylistsTab(containerEl) {
       });
     }
     updatePlaylistsGridOnly(containerEl);
+    if (direction) animatePanel(containerEl.querySelector('.playlists-grid'), direction);
   };
 
   window._onPlaylistSearch = (val) => {
@@ -202,21 +208,21 @@ function renderPlaylistCard(pl, activeUser) {
 
       <div class="playlist-card-body">
         <div class="playlist-card-title-row">
-          <h3 class="playlist-card-title" title="${escapeHtml(pl.title)}">${escapeHtml(pl.title)}</h3>
+          <h3 class="playlist-card-title" title="${esc(pl.title)}">${esc(pl.title)}</h3>
         </div>
 
-        ${pl.description ? `<p class="playlist-card-desc">${escapeHtml(pl.description)}</p>` : ''}
+        ${pl.description ? `<p class="playlist-card-desc">${esc(pl.description)}</p>` : ''}
 
         <div class="playlist-card-meta">
-          <div class="playlist-card-author" onclick="event.stopPropagation();window._goToProfile('${pl.authorId}')" title="Ver perfil de ${escapeHtml(author.name)}">
+          <div class="playlist-card-author" onclick="event.stopPropagation();window._goToProfile('${pl.authorId}')" title="Ver perfil de ${esc(author.name)}">
             ${avatarHtml}
-            <span class="playlist-author-name">${escapeHtml(author.name)}</span>
+            <span class="playlist-author-name">${esc(author.name)}</span>
           </div>
           <span class="playlist-card-count">${songsCount} ${songsCount === 1 ? 'música' : 'músicas'} ${totalDuration ? `&bull; ${totalDuration}` : ''}</span>
         </div>
 
         <div class="playlist-card-actions" onclick="event.stopPropagation()">
-          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._toggleLikePlaylist('${pl.id}')" title="Curtir playlist" style="gap:5px;${isLiked ? 'color:#ff5588;' : ''}">
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._toggleLikePlaylist('${pl.id}')" title="Curtir playlist" style="gap:5px;${isLiked ? 'color:var(--danger);' : ''}">
             ${isLiked ? ICONS.heartFilled : ICONS.heartEmpty}
             <span>${likesCount}</span>
           </button>
@@ -277,20 +283,20 @@ export function renderPlaylistDetails(containerEl, playlistId) {
             ${ICONS.playlist}
             <span>Playlist Personalizada</span>
           </div>
-          <h1 class="playlist-hero-title">${escapeHtml(pl.title)}</h1>
-          ${pl.description ? `<p class="playlist-hero-desc">${escapeHtml(pl.description)}</p>` : ''}
+          <h1 class="playlist-hero-title">${esc(pl.title)}</h1>
+          ${pl.description ? `<p class="playlist-hero-desc">${esc(pl.description)}</p>` : ''}
           
           <div class="playlist-hero-meta">
-            <div class="playlist-hero-author" onclick="window._goToProfile('${pl.authorId}')" title="Ver perfil de ${escapeHtml(author.name)}">
+            <div class="playlist-hero-author" onclick="window._goToProfile('${pl.authorId}')" title="Ver perfil de ${esc(author.name)}">
               ${avatarHeroHtml}
-              <strong>${escapeHtml(author.name)}</strong>
-              <span style="color:var(--muted);font-size:0.8rem;">${escapeHtml(author.handle || '')}</span>
+              <strong>${esc(author.name)}</strong>
+              <span style="color:var(--muted);font-size:0.8rem;">${esc(author.handle || '')}</span>
             </div>
             <span class="playlist-hero-divider">•</span>
             <span>${songsCount} ${songsCount === 1 ? 'música' : 'músicas'}</span>
             ${totalDuration ? `<span class="playlist-hero-divider">•</span><span>${totalDuration}</span>` : ''}
             <span class="playlist-hero-divider">•</span>
-            <span style="color:var(--muted);">${pl.createdAt || 'recente'}</span>
+            <span style="color:var(--muted);">${esc(pl.createdAt || 'recente')}</span>
           </div>
 
           <!-- Hero Action Bar -->
@@ -362,7 +368,7 @@ export function renderPlaylistDetails(containerEl, playlistId) {
  * Render single track row inside playlist
  */
 function renderTrackRow(playlist, song, index, isOwner) {
-  const songDataJson = JSON.stringify(song).replace(/"/g, '&quot;');
+  const songDataJson = jsArg(song);
   return `
     <div class="playlist-track-row" onclick="window._playTrack(${songDataJson})">
       <div class="playlist-track-index">
@@ -371,21 +377,21 @@ function renderTrackRow(playlist, song, index, isOwner) {
       </div>
 
       <div class="playlist-track-cover">
-        ${song.artwork ? `<img src="${escapeHtml(song.artwork)}" alt="${escapeHtml(song.title)}" loading="lazy">` : `<div class="track-cover-fallback">${ICONS.music}</div>`}
+        ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy">` : `<div class="track-cover-fallback">${ICONS.music}</div>`}
       </div>
 
       <div class="playlist-track-info">
-        <div class="playlist-track-title">${escapeHtml(song.title)}</div>
-        <div class="playlist-track-artist">${escapeHtml(song.artist)}</div>
-        ${song.note ? `<div class="playlist-track-note">💬 "${escapeHtml(song.note)}"</div>` : ''}
+        <div class="playlist-track-title">${esc(song.title)}</div>
+        <div class="playlist-track-artist">${esc(song.artist)}</div>
+        ${song.note ? `<div class="playlist-track-note">💬 "${esc(song.note)}"</div>` : ''}
       </div>
 
-      <div class="playlist-track-album" title="${escapeHtml(song.album || '')}">
-        ${escapeHtml(song.album || '—')}
+      <div class="playlist-track-album" title="${esc(song.album || '')}">
+        ${esc(song.album || '—')}
       </div>
 
       <div class="playlist-track-duration">
-        ${escapeHtml(song.duration || '--:--')}
+        ${esc(song.duration || '--:--')}
       </div>
 
       <div class="playlist-track-actions" onclick="event.stopPropagation()">
@@ -414,7 +420,7 @@ function renderTrackRow(playlist, song, index, isOwner) {
  */
 function renderPlaylistCoverHtml(pl, variant = 'card') {
   if (pl.coverUrl) {
-    return `<img src="${escapeHtml(pl.coverUrl)}" alt="${escapeHtml(pl.title)}" class="playlist-cover-img ${variant}">`;
+    return `<img src="${safeUrl(pl.coverUrl)}" alt="${esc(pl.title)}" class="playlist-cover-img ${variant}">`;
   }
 
   const songsWithArt = (pl.songs || []).filter(s => !!s.artwork);
@@ -422,16 +428,16 @@ function renderPlaylistCoverHtml(pl, variant = 'card') {
   if (songsWithArt.length >= 4) {
     return `
       <div class="playlist-cover-collage ${variant}">
-        <img src="${escapeHtml(songsWithArt[0].artwork)}" alt="1">
-        <img src="${escapeHtml(songsWithArt[1].artwork)}" alt="2">
-        <img src="${escapeHtml(songsWithArt[2].artwork)}" alt="3">
-        <img src="${escapeHtml(songsWithArt[3].artwork)}" alt="4">
+        <img src="${safeUrl(songsWithArt[0].artwork)}" alt="1">
+        <img src="${safeUrl(songsWithArt[1].artwork)}" alt="2">
+        <img src="${safeUrl(songsWithArt[2].artwork)}" alt="3">
+        <img src="${safeUrl(songsWithArt[3].artwork)}" alt="4">
       </div>
     `;
   } else if (songsWithArt.length > 0) {
     return `
       <div class="playlist-cover-single ${variant}">
-        <img src="${escapeHtml(songsWithArt[0].artwork)}" alt="${escapeHtml(pl.title)}">
+        <img src="${safeUrl(songsWithArt[0].artwork)}" alt="${esc(pl.title)}">
       </div>
     `;
   }
@@ -509,12 +515,12 @@ export function openCreatePlaylistModal(playlistId = null) {
     <form id="playlist-form" onsubmit="event.preventDefault();window._submitPlaylistForm('${playlistId || ''}')">
       <div style="margin-bottom:14px;">
         <label class="form-label">Nome da Playlist *</label>
-        <input type="text" id="playlist-form-title" class="doodle-input" required placeholder="Ex: Madrugadas & Melancolia" value="${escapeHtml(pl?.title || '')}" style="font-weight:700;">
+        <input type="text" id="playlist-form-title" class="doodle-input" required placeholder="Ex: Madrugadas & Melancolia" value="${esc(pl?.title || '')}" style="font-weight:700;">
       </div>
 
       <div style="margin-bottom:14px;">
         <label class="form-label">Descrição / Vibe (opcional)</label>
-        <textarea id="playlist-form-desc" class="doodle-input" rows="3" placeholder="Qual a atmosfera ou história dessa lista?">${escapeHtml(pl?.description || '')}</textarea>
+        <textarea id="playlist-form-desc" class="doodle-input" rows="3" placeholder="Qual a atmosfera ou história dessa lista?">${esc(pl?.description || '')}</textarea>
       </div>
 
       <div style="margin-bottom:18px;">
@@ -523,7 +529,7 @@ export function openCreatePlaylistModal(playlistId = null) {
           <span style="font-size:0.72rem;color:var(--muted);font-weight:normal;">URL ou Arquivo</span>
         </label>
         <div style="display:flex;gap:8px;">
-          <input type="text" id="playlist-form-cover" class="doodle-input" placeholder="https://exemplo.com/capa.jpg ou arquivo" value="${escapeHtml(pl?.coverUrl || '')}">
+          <input type="text" id="playlist-form-cover" class="doodle-input" placeholder="https://exemplo.com/capa.jpg ou arquivo" value="${esc(pl?.coverUrl || '')}">
           <label class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;" title="Escolher imagem do dispositivo">
             ${ICONS.image || ''}
             <span>Dispositivo</span>
@@ -711,10 +717,10 @@ export function openPlaylistShareModal(playlistId) {
           ${renderPlaylistCoverHtml(pl, 'card')}
         </div>
         <div style="min-width:0;flex:1;">
-          <h4 style="margin:0;font-size:1rem;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(pl.title)}</h4>
-          <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--purple-light);margin-top:4px;cursor:pointer;" onclick="closeDoodleModal('playlist-share-modal');window._goToProfile('${pl.authorId}')" title="Ver perfil de ${escapeHtml(author.name)}">
+          <h4 style="margin:0;font-size:1rem;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(pl.title)}</h4>
+          <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--purple-light);margin-top:4px;cursor:pointer;" onclick="closeDoodleModal('playlist-share-modal');window._goToProfile('${pl.authorId}')" title="Ver perfil de ${esc(author.name)}">
             ${avatarShareHtml}
-            <span>${(pl.songs || []).length} músicas &bull; Curadoria de <strong style="text-decoration:underline;">${escapeHtml(author.name)}</strong></span>
+            <span>${(pl.songs || []).length} músicas &bull; Curadoria de <strong style="text-decoration:underline;">${esc(author.name)}</strong></span>
           </div>
         </div>
       </div>
@@ -723,7 +729,7 @@ export function openPlaylistShareModal(playlistId) {
       <div class="playlist-share-options-grid">
         <!-- 1. Post to Feed -->
         <button class="share-option-card" onclick="window._sharePlaylistToFeedAction('${pl.id}')">
-          <div class="share-option-icon" style="background:rgba(157,78,221,0.2);color:var(--purple-light);">
+          <div class="share-option-icon" style="background:color-mix(in srgb, var(--accent) 20%, transparent);color:var(--purple-light);">
             ${ICONS.feed}
           </div>
           <div class="share-option-info">
@@ -734,7 +740,7 @@ export function openPlaylistShareModal(playlistId) {
 
         <!-- 2. Copy Formatted Text -->
         <button class="share-option-card" onclick="window._copyPlaylistTextAction('${pl.id}')">
-          <div class="share-option-icon" style="background:rgba(0,242,254,0.15);color:#00f2fe;">
+          <div class="share-option-icon" style="background:color-mix(in srgb, var(--accent) 15%, transparent);color:var(--accent);">
             ${ICONS.edit}
           </div>
           <div class="share-option-info">
@@ -745,7 +751,7 @@ export function openPlaylistShareModal(playlistId) {
 
         <!-- 3. Copy Link / Web Share -->
         <button class="share-option-card" onclick="window._sharePlaylistLinkAction('${pl.id}')">
-          <div class="share-option-icon" style="background:rgba(255,184,0,0.15);color:#ffb800;">
+          <div class="share-option-icon" style="background:color-mix(in srgb, var(--star) 15%, transparent);color:var(--star);">
             ${ICONS.share}
           </div>
           <div class="share-option-info">
@@ -783,13 +789,13 @@ window._sharePlaylistToFeedAction = (playlistId) => {
   body.innerHTML = `
     <form onsubmit="event.preventDefault();window._submitPlaylistFeedPost('${pl.id}')">
       <!-- Attached Playlist Mini Preview -->
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:linear-gradient(135deg,rgba(30,16,52,0.85),rgba(12,8,20,0.95));border:1px solid var(--purple-accent);border-radius:10px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:linear-gradient(135deg,color-mix(in srgb, var(--hover) 85%, transparent),color-mix(in srgb, var(--surface) 95%, transparent));border:1px solid var(--purple-accent);border-radius:10px;margin-bottom:14px;">
         <div style="width:48px;height:48px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-          ${coverArt ? `<img src="${coverArt}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
+          ${coverArt ? `<img src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
         </div>
         <div style="min-width:0;flex:1;">
-          <div style="font-size:0.7rem;font-weight:800;color:var(--purple-light);text-transform:uppercase;">Playlist Anexada</div>
-          <div style="font-size:0.9rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(pl.title)}</div>
+          <div style="font-size:0.7rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
+          <div style="font-size:0.9rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
           <div style="font-size:0.75rem;color:var(--muted);">${songs.length} músicas</div>
         </div>
       </div>
@@ -797,7 +803,7 @@ window._sharePlaylistToFeedAction = (playlistId) => {
       <!-- Textarea for post text -->
       <div style="margin-bottom:14px;">
         <label class="form-label" style="font-weight:700;color:var(--white);margin-bottom:6px;display:block;">Mensagem da publicação:</label>
-        <textarea id="playlist-post-custom-text" class="doodle-input" rows="4" style="width:100%;resize:vertical;font-family:var(--font);" placeholder="O que você quer dizer sobre essa playlist?">${escapeHtml(defaultText)}</textarea>
+        <textarea id="playlist-post-custom-text" class="doodle-input" rows="4" style="width:100%;resize:vertical;font-family:var(--font);" placeholder="O que você quer dizer sobre essa playlist?">${esc(defaultText)}</textarea>
       </div>
 
       <!-- Tag Selector -->
@@ -832,7 +838,6 @@ window._submitPlaylistFeedPost = (playlistId) => {
   createPost({
     text: text.trim(),
     tag,
-    playlist: pl,
     playlistId: pl.id
   });
 
@@ -884,12 +889,3 @@ window._sharePlaylistLinkAction = async (playlistId) => {
   showToast('Link & texto da playlist copiados!');
 };
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}

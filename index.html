@@ -6,21 +6,34 @@
   <title>rede de musica sem nome</title>
   <meta name="description" content="Rede social de música: compartilhe letras, avalie músicas, complete desafios e descubra o que seus amigos estão ouvindo.">
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Short+Stack&display=swap" rel="stylesheet">
+  <meta name="color-scheme" content="dark light">
+  <!-- Aplica tema e cor de destaque salvos antes da primeira pintura (evita piscar) -->
+  <script>
+    (function () {
+      var p = {};
+      try { p = JSON.parse(localStorage.getItem('rmsn_display_v1') || '{}'); } catch (e) {}
+      var t = p.theme || 'dark';
+      if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-accent', p.accent || 'roxo');
+    })();
+  </script>
 
   <!-- CSS -->
   <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/feed.css">
   <link rel="stylesheet" href="css/profile.css">
   <link rel="stylesheet" href="css/chat.css">
   <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/player.css">
   <link rel="stylesheet" href="css/playlists.css">
+  <!-- Visual atual (layout de rede social, temas). Fica depois dos CSS antigos para prevalecer. -->
+  <link rel="stylesheet" href="css/social.css">
+  <link rel="stylesheet" href="css/auth.css">
+  <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
+
 
   <!-- ═══════════════════════════════════
        LEFT SIDEBAR NAVIGATION
@@ -57,6 +70,9 @@
 
       <!-- CHAT (Large dedicated view) -->
       <div class="tab-view-content" id="tab-chat" style="flex:1;min-width:0;"></div>
+
+      <!-- ADMIN (só para admins) -->
+      <div class="tab-view-content" id="tab-admin" style="flex:1;min-width:0;"></div>
 
     </div>
   </main>
@@ -277,6 +293,32 @@
     </div>
   </div>
 
+  <!-- Exibição (tema e cor) -->
+  <div class="modal-overlay" id="display-modal">
+    <div class="modal-box" style="max-width:520px;" role="dialog" aria-modal="true" aria-labelledby="display-modal-title">
+      <div class="modal-header">
+        <h3 id="display-modal-title">Exibição</h3>
+        <button class="modal-close" onclick="closeDoodleModal('display-modal')" aria-label="Fechar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="display-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Feedback Modal -->
+  <div class="modal-overlay" id="feedback-modal">
+    <div class="modal-box" style="max-width:480px;" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
+      <div class="modal-header">
+        <h3 id="feedback-modal-title">Enviar feedback</h3>
+        <button class="modal-close" onclick="closeDoodleModal('feedback-modal')" aria-label="Fechar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="feedback-modal-body"></div>
+    </div>
+  </div>
+
   <!-- Delete Comment Confirmation Modal -->
   <div class="modal-overlay" id="delete-comment-modal">
     <div class="modal-box" style="max-width:380px;text-align:center;padding:24px 20px;">
@@ -480,10 +522,11 @@
             <label id="music-service-label" class="form-label" style="font-size:0.8rem;color:var(--muted);margin-bottom:6px;display:block;">
               Nome de usuário no Last.fm
             </label>
-            <input id="music-service-input" class="doodle-input" placeholder="Ex: seu_usuario_lastfm" style="width:100%;">
+            <input id="music-service-input" class="doodle-input" placeholder="Ex: seu_usuario ou last.fm/user/seu_usuario" style="width:100%;" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();window._submitMusicServiceSync();}">
             <div id="music-service-hint" style="font-size:0.72rem;color:var(--purple-muted);margin-top:6px;">
-              Busca seus <strong>Top 5 Artistas</strong> e scrobbles reais diretamente da API do Last.fm.
+              Busca seus <strong>Top 5 Artistas</strong> e <strong>Top 5 Músicas</strong> direto do Last.fm. Pode colar o link do perfil.
             </div>
+            <div id="music-service-error" role="alert" hidden style="font-size:0.8rem;color:#ff8fa3;margin-top:8px;line-height:1.4;"></div>
           </div>
 
           <div style="background:var(--bg-card);border:var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
@@ -518,6 +561,18 @@
       </div>
     </div>
   </div>
+
+  <!-- Aviso de carregamento enquanto a sessão é conferida (removido por app.js) -->
+  <div id="boot-splash" class="boot-splash" role="status">
+    <span class="boot-dot"></span><span class="boot-dot"></span><span class="boot-dot"></span>
+    <span class="sr-only">Carregando…</span>
+  </div>
+
+  <!-- Tela de entrada (login / cadastro), mostrada antes do app -->
+  <div id="auth-screen" class="auth-screen" hidden></div>
+
+  <!-- Supabase (versão fixa) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 
   <!-- JS Modules -->
   <script type="module" src="js/app.js"></script>

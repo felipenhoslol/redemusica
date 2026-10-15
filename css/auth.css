@@ -1,0 +1,185 @@
+/* ==========================================================================
+   Tela de entrada (login, cadastro, recuperação) — visual Rabisco
+   ========================================================================== */
+
+body.auth-open { overflow: hidden; }
+body.auth-open .player-bar,
+body.auth-open .dm-fab,
+body.auth-open .app-sidebar { visibility: hidden; }
+
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  overflow-y: auto;
+  background:
+    radial-gradient(800px 500px at 15% 10%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 60%),
+    radial-gradient(700px 500px at 100% 100%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    var(--ink);
+  color: var(--chalk);
+  font-family: var(--f-ui);
+}
+
+.auth-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: 56px;
+  align-items: center;
+}
+
+/* ─── Lado da marca ─── */
+.auth-brand { display: flex; flex-direction: column; gap: 18px; }
+.auth-cat { width: 140px; height: 140px; }
+.auth-title {
+  margin: 0;
+  font: 800 clamp(2rem, 4.5vw, 3rem)/1.05 var(--f-display);
+  letter-spacing: -.02em;
+  text-wrap: balance;
+}
+.auth-title span { display: block; font-size: .5em; font-weight: 700; color: var(--neon); margin-top: 6px; }
+.auth-tagline { margin: 0; max-width: 38ch; color: var(--dust); font-size: 1.02rem; line-height: 1.6; }
+
+/* ─── Cartão do formulário ─── */
+.auth-card {
+  background: var(--paper);
+  border-radius: var(--wobble);
+  padding: 28px 26px 24px;
+}
+.auth-heading { margin: 0 0 6px; font: 800 1.5rem/1.2 var(--f-display); }
+.auth-sub { margin: 0 0 18px; color: var(--dust); line-height: 1.55; }
+
+.auth-tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--hair); }
+.auth-tabs button {
+  padding: 8px 12px 12px;
+  min-height: 44px;
+  background: none;
+  border: 0;
+  font: 600 .98rem var(--f-ui);
+  color: var(--dust);
+  cursor: pointer;
+}
+.auth-tabs button[aria-selected="true"] {
+  color: var(--chalk);
+}
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+.auth-field { display: flex; flex-direction: column; gap: 6px; }
+.auth-field label { font-size: .86rem; font-weight: 600; color: var(--chalk); }
+.auth-input-wrap { position: relative; display: flex; align-items: center; }
+.auth-input-wrap input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  color: var(--chalk);
+  font: 400 1rem var(--f-ui);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.auth-input-wrap input:focus { border-color: var(--neon); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+.auth-input-wrap input[aria-invalid="true"] { border-color: var(--danger); }
+.auth-handle-wrap input { padding-left: 30px; }
+.auth-at { position: absolute; left: 14px; color: var(--dust); font-weight: 600; pointer-events: none; }
+.auth-eye {
+  position: absolute; right: 8px;
+  min-height: 32px; padding: 4px 8px;
+  background: none; border: 0; border-radius: 8px;
+  color: var(--dust); font: 500 .78rem var(--f-ui); cursor: pointer;
+}
+.auth-eye:hover { color: var(--chalk); background: var(--raised); }
+.auth-input-wrap:has(.auth-eye) input { padding-right: 76px; }
+
+.auth-msg { min-height: 1.1em; font-size: .8rem; line-height: 1.35; color: var(--dust); }
+.auth-msg[data-kind="error"] { color: var(--danger); }
+.auth-msg[data-kind="ok"] { color: var(--success); }
+
+.auth-strength { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: -6px; }
+.auth-strength i { height: 4px; border-radius: 4px; background: var(--line); transition: background .2s; }
+.auth-strength[data-score="1"] i:nth-child(-n+1) { background: var(--danger); }
+.auth-strength[data-score="2"] i:nth-child(-n+2) { background: var(--star); }
+.auth-strength[data-score="3"] i { background: var(--success); }
+
+.auth-row-end { display: flex; justify-content: flex-end; margin-top: -6px; }
+.auth-link {
+  background: none; border: 0; padding: 4px 0; min-height: 32px;
+  color: var(--neon); font: 600 .88rem var(--f-ui); cursor: pointer;
+}
+.auth-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+.auth-switch { margin: 14px 0 0; text-align: center; }
+
+.auth-alert {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  color: #ffb3c1;
+  font-size: .88rem;
+  line-height: 1.45;
+}
+
+.auth-submit {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: var(--pill);
+  background: var(--neon);
+  color: var(--ink);
+  font: 800 1.05rem var(--f-display);
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+.auth-submit:hover:not(:disabled) { background: var(--neon-hover); transform: translateY(-1px); }
+.auth-submit:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+.auth-notice {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px dashed var(--ultra);
+  font-size: .86rem;
+  line-height: 1.5;
+  color: var(--dust);
+}
+.auth-notice b { color: var(--chalk); display: block; margin-bottom: 2px; }
+.auth-notice code { font: 500 .8rem var(--f-mono); color: var(--neon); }
+.auth-notice .auth-link { display: block; margin-top: 6px; }
+
+@media (max-width: 760px) {
+  .auth-shell { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 24px 16px; align-items: start; }
+  .auth-brand { flex-direction: row; align-items: center; gap: 14px; }
+  .auth-cat { width: 64px; height: 64px; flex: none; }
+  .auth-title { font-size: 1.6rem; }
+  .auth-tagline { display: none; }
+  .auth-card { padding: 22px 18px 20px; }
+}
+
+/* ─── Carregamento inicial (enquanto a sessão é conferida) ─── */
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--ink);
+}
+.boot-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--neon);
+  animation: boot-bounce 1s ease-in-out infinite;
+}
+.boot-dot:nth-child(2) { animation-delay: .15s; }
+.boot-dot:nth-child(3) { animation-delay: .3s; }
+@keyframes boot-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-8px); opacity: 1; } }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .boot-dot { animation: none; opacity: .8; } }

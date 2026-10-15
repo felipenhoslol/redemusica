@@ -1,8 +1,11 @@
 // Profile module — render, edit, follow, pin, showcase, sub-tabs
+import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
 import { ICONS, renderRatingStars } from './icons.js';
 import { renderPostCard } from './feed.js';
 import { openSearchModalForFeaturedSong } from './ui.js';
+import { getArtistImage } from './lastfm.js';
+import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 
 // ──────────────────────────────────────────
 // PROFILE RENDER
@@ -16,21 +19,12 @@ export function renderProfileView(container, targetUserId) {
   const followers = Storage.getFollowers(user.id);
   const followingList = Storage.getFollowing(user.id);
 
-  // Apply custom CSS variables
-  const cssVars = `
-    --profile-card-bg:      ${user.profileBgColor || 'var(--bg-card)'};
-    --profile-text-color:   ${user.profileTextColor || 'var(--white)'};
-    --profile-status-color: ${user.profileStatusColor || 'var(--muted)'};
-    --profile-featured-bg:  ${user.profileFeaturedColor || 'var(--bg-selected)'};
-    --profile-accent:       ${user.profileAccentColor || 'var(--purple-accent)'};
-  `;
-
   const artworkUrl = user.featuredSong?.artwork
     ? user.featuredSong.artwork.replace(/100x100bb|60x60bb/, '600x600bb')
     : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
 
   const featuredHtml = user.featuredSong ? `
-    <div class="featured-song-box" style="${cssVars}">
+    <div class="featured-song-box">
       <!-- Blurred Album Art Background -->
       <div class="featured-bg-blur" style="background-image:url('${artworkUrl}');"></div>
       <div class="featured-bg-overlay"></div>
@@ -42,7 +36,7 @@ export function renderProfileView(container, targetUserId) {
           <span>Música em Destaque</span>
         </div>
         ${isMe ? `
-          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.75rem;padding:3px 10px;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.18);color:#fff;" onclick="window._editFeaturedSong()" title="Alterar música de destaque">
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.75rem;padding:3px 10px;background:rgba(0,0,0,0.45);border:1px solid var(--tint-3);color:#fff;" onclick="window._editFeaturedSong()" title="Alterar música de destaque">
             Alterar
           </button>
         ` : ''}
@@ -51,12 +45,12 @@ export function renderProfileView(container, targetUserId) {
       <!-- Main Content Row -->
       <div class="featured-content-row">
         <!-- Vinyl Stage: Realistic 90px Sleeve + 90px Spinning Vinyl Record -->
-        <div class="featured-vinyl-stage" onclick="window._playTrack(${JSON.stringify(user.featuredSong).replace(/"/g, '&quot;')})" title="Clique para reproduzir / pausar">
+        <div class="featured-vinyl-stage" onclick="window._playTrack(${jsArg(user.featuredSong)})" title="Clique para reproduzir / pausar">
           <!-- Album Sleeve Cover -->
           <div class="featured-album-sleeve">
             <img class="featured-sleeve-art"
-              src="${artworkUrl}"
-              alt="${user.featuredSong.title}"
+              src="${safeUrl(artworkUrl)}"
+              alt="${esc(user.featuredSong.title)}"
               onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'">
             <div class="sleeve-edge-sheen"></div>
           </div>
@@ -67,7 +61,7 @@ export function renderProfileView(container, targetUserId) {
             <div class="vinyl-light-sheen"></div>
             <div class="vinyl-center-label">
               <img class="vinyl-label-art"
-                src="${artworkUrl}"
+                src="${safeUrl(artworkUrl)}"
                 alt=""
                 onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'">
               <div class="vinyl-spindle-hole"></div>
@@ -77,19 +71,19 @@ export function renderProfileView(container, targetUserId) {
 
         <!-- Info Details -->
         <div class="featured-info">
-          <div class="featured-title" title="${user.featuredSong.title}">${user.featuredSong.title}</div>
-          <div class="featured-artist">${user.featuredSong.artist}</div>
+          <div class="featured-title" title="${esc(user.featuredSong.title)}">${esc(user.featuredSong.title)}</div>
+          <div class="featured-artist">${esc(user.featuredSong.artist)}</div>
         </div>
 
         <!-- Large Play Button -->
         <div class="featured-actions">
-          <button class="featured-play-btn" onclick="window._playTrack(${JSON.stringify(user.featuredSong).replace(/"/g, '&quot;')})" title="Tocar música de destaque">
+          <button class="featured-play-btn" onclick="window._playTrack(${jsArg(user.featuredSong)})" title="Tocar música de destaque">
             ${ICONS.play}
           </button>
         </div>
       </div>
     </div>` : (isMe ? `
-    <div class="featured-song-box empty" style="${cssVars};cursor:pointer;justify-content:center;padding:18px 20px;" onclick="window._editFeaturedSong()">
+    <div class="featured-song-box empty" style="cursor:pointer;justify-content:center;padding:18px 20px;" onclick="window._editFeaturedSong()">
       <span style="font-size:0.86rem;color:var(--purple-light);font-weight:700;display:flex;align-items:center;gap:8px;">
         ${ICONS.disc || ICONS.music} + Escolher Música em Destaque (Disco de Vinil)
       </span>
@@ -98,19 +92,17 @@ export function renderProfileView(container, targetUserId) {
   const showcaseHtml = buildShowcaseHtml(user, isMe);
   const topArtistsHtml = buildTopArtistsMonthHtml(user, isMe);
 
-  const bannerStyle = user.bannerUrl
-    ? `background-image:url('${user.bannerUrl}');background-size:cover;background-position:center;`
-    : `background:linear-gradient(135deg, ${user.themeColor || '#130c1e'}, #000);`;
+  // Banner: the user's image, or a neutral wash of the chosen accent color
+  const bannerStyle = user.bannerUrl && safeUrl(user.bannerUrl)
+    ? `background-image:url(&quot;${safeUrl(user.bannerUrl)}&quot;);background-size:cover;background-position:center;`
+    : `background:linear-gradient(135deg, var(--accent-soft), var(--surface));`;
 
-  const isImageAvatar = user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:') || user.avatar.startsWith('/'));
-  const avatarInner = isImageAvatar
-    ? `<img src="${user.avatar}" alt="${user.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-    : (user.avatar || user.name?.[0] || 'U');
+  const avatarMarkup = avatarInner(user.avatar, user.name);
 
   const avatarHtml = `
     <div class="profile-avatar-wrap" ${isMe ? 'onclick="window._editAvatar()" title="Alterar foto de perfil"' : ''}>
       <div class="profile-main-avatar">
-        ${avatarInner}
+        ${avatarMarkup}
       </div>
       ${isMe ? `
         <div class="avatar-edit-overlay">
@@ -119,16 +111,16 @@ export function renderProfileView(container, targetUserId) {
     </div>`;
 
   container.innerHTML = `
-    <div class="profile-wrap" style="${cssVars}">
+    <div class="profile-wrap">
       <div class="profile-banner" style="${bannerStyle}">
         ${isMe ? `<button class="btn-edit-banner" onclick="window._editBanner()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Alterar banner</button>` : ''}
       </div>
-      <div class="profile-info-card" style="background:${user.profileBgColor||'var(--bg-card)'}">
+      <div class="profile-info-card">
         <div class="profile-top-row">
           ${avatarHtml}
           <div class="profile-action-row">
             ${!isMe ? `
-              <button class="doodle-btn doodle-btn-follow${following ? ' following' : ''}" id="follow-btn-${user.id}"
+              <button class="doodle-btn doodle-btn-follow${following ? ' following' : ''}" id="follow-btn-${user.id}" data-follow-id="${user.id}"
                 onclick="window._toggleFollow('${user.id}')">
                 ${following ? 'Seguindo' : 'Seguir'}
               </button>
@@ -143,27 +135,27 @@ export function renderProfileView(container, targetUserId) {
           </div>
         </div>
         <div class="profile-details">
-          <div class="profile-name">${user.name}</div>
-          <div class="profile-handle">${user.handle || '@' + user.name.toLowerCase()}</div>
+          <div class="profile-name">${esc(user.name)}</div>
+          <div class="profile-handle">${esc(user.handle || '@' + user.name.toLowerCase())}</div>
           <!-- Inline editable status (shown above actions) -->
           <div class="profile-status-wrap">
             ${isMe ? `
               <div id="status-display" class="profile-status-pill" onclick="window._startEditStatus()">
-                <span id="status-text">${user.status || 'Adicionar status...'}</span>
+                <span id="status-text">${esc(user.status || 'Adicionar status...')}</span>
                 ${ICONS.edit}
               </div>
               <div id="status-form" class="inline-status-form" style="display:none;">
-                <input id="status-input" class="inline-status-input" value="${user.status || ''}" placeholder="Status..." maxlength="60">
+                <input id="status-input" class="inline-status-input" value="${esc(user.status || '')}" placeholder="Status..." maxlength="60">
                 <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._saveStatus()">Ok</button>
                 <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._cancelEditStatus()">X</button>
               </div>
             ` : `
               <div class="profile-status-pill" style="cursor:default;">
-                ${user.status || ''}
+                ${esc(user.status || '')}
               </div>
             `}
           </div>
-          <div class="profile-bio">${user.bio || ''}</div>
+          <div class="profile-bio">${esc(user.bio || '')}</div>
           ${buildSocialsHtml(user, isMe)}
         </div>
         <div class="profile-stats-row">
@@ -191,6 +183,11 @@ export function renderProfileView(container, targetUserId) {
       <div id="profile-tab-avaliados" class="profile-subtab-content" style="display:none;margin-top:10px;"></div>
       ${isMe ? `<div id="profile-tab-salvos" class="profile-subtab-content" style="display:none;margin-top:10px;"></div>` : ''}
     </div>`;
+
+  mountTabIndicator(container.querySelector('.profile-subtabs'));
+
+  // Swap initial placeholders for real artist photos (async; cached afterwards)
+  hydrateArtistImages(container, user.id);
 
   // Load default tab
   loadProfileTab('posts', user.id);
@@ -229,12 +226,15 @@ export function renderProfileView(container, targetUserId) {
   };
 
   window._switchProfileTab = (tabId, btn) => {
-    document.querySelectorAll('.profile-subtab-btn').forEach(b => b.classList.remove('active'));
+    const buttons = [...document.querySelectorAll('.profile-subtab-btn')];
+    const direction = tabDirection(buttons.findIndex(b => b.classList.contains('active')), buttons.indexOf(btn));
+    buttons.forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.profile-subtab-content').forEach(c => c.style.display = 'none');
     btn.classList.add('active');
     const el = document.getElementById(`profile-tab-${tabId}`);
     if (el) el.style.display = 'block';
     loadProfileTab(tabId, user.id);
+    animatePanel(el, direction);
   };
 }
 
@@ -264,21 +264,21 @@ function buildSocialsHtml(user, isMe) {
   return `
     <div class="profile-socials-row">
       ${instaClean ? `
-        <a href="https://instagram.com/${instaClean}" target="_blank" rel="noopener noreferrer" class="profile-social-pill instagram" title="Instagram de ${user.name || ''}">
+        <a href="https://instagram.com/${encodeURIComponent(instaClean)}" target="_blank" rel="noopener noreferrer" class="profile-social-pill instagram" title="Instagram de ${esc(user.name || '')}">
           ${ICONS.instagram}
-          <span>@${instaClean}</span>
+          <span>@${esc(instaClean)}</span>
         </a>` : ''}
 
       ${twitterClean ? `
-        <a href="https://x.com/${twitterClean}" target="_blank" rel="noopener noreferrer" class="profile-social-pill x-twitter" title="X (Twitter) de ${user.name || ''}">
+        <a href="https://x.com/${encodeURIComponent(twitterClean)}" target="_blank" rel="noopener noreferrer" class="profile-social-pill x-twitter" title="X (Twitter) de ${esc(user.name || '')}">
           ${ICONS.twitter}
-          <span>@${twitterClean}</span>
+          <span>@${esc(twitterClean)}</span>
         </a>` : ''}
 
       ${lastfmClean ? `
-        <a href="https://www.last.fm/user/${lastfmClean}" target="_blank" rel="noopener noreferrer" class="profile-social-pill lastfm" title="Perfil Last.fm de ${user.name || ''}">
+        <a href="https://www.last.fm/user/${encodeURIComponent(lastfmClean)}" target="_blank" rel="noopener noreferrer" class="profile-social-pill lastfm" title="Perfil Last.fm de ${esc(user.name || '')}">
           ${ICONS.lastfm}
-          <span>${lastfmClean}</span>
+          <span>${esc(lastfmClean)}</span>
         </a>` : ''}
 
       ${isMe ? `
@@ -288,70 +288,159 @@ function buildSocialsHtml(user, isMe) {
     </div>`;
 }
 
+// Stored images that are generic stock photos (old seed data) count as "no photo"
+const hasRealArtistPhoto = (url) => Boolean(url) && !/images\.unsplash\.com|\/images\/artist\/(\/|d41d8cd98f00b204e9800998ecf8427e)/.test(url);
+
+// Artist photo, or an initial placeholder that hydrateArtistImages() swaps for the real photo
+function artistPhotoHtml(artist, className) {
+  const initial = esc((artist.name || '?').trim()[0] || '?');
+  if (hasRealArtistPhoto(artist.imageUrl)) {
+    return `<img class="${className}" src="${safeUrl(artist.imageUrl)}" alt="${esc(artist.name)}" loading="lazy" data-fallback-initial="${initial}" onerror="window._artistPhotoFailed(this)">`;
+  }
+  return `<span class="${className} artist-photo-fallback" data-artist-img="${esc(artist.name)}" aria-hidden="true">${initial}</span>`;
+}
+
+// A stored photo URL that stopped working falls back to the initial
+window._artistPhotoFailed = (img) => {
+  const span = document.createElement('span');
+  span.className = `${img.className} artist-photo-fallback`;
+  span.textContent = img.dataset.fallbackInitial || '?';
+  img.replaceWith(span);
+};
+
+function formatScrobbles(n) {
+  return `${Number(n).toLocaleString('pt-BR')} ${Number(n) === 1 ? 'scrobble' : 'scrobbles'}`;
+}
+
 function buildTopArtistsMonthHtml(user, isMe) {
   const topArtists = user.topArtistsMonth || (user.topArtist ? [user.topArtist] : []);
   const service = user.musicService || 'lastfm';
-  const serviceLabel = service === 'lastfm' ? 'Last.fm' : 'Artistas';
-  const serviceClass = service === 'lastfm' ? 'lastfm' : 'custom';
+  const isLastFm = service === 'lastfm';
+  const periodLabel = isLastFm ? (user.musicPeriodLabel || 'do mês') : '';
+  const lastfmUser = isLastFm ? (user.spotifyUsername || '') : '';
 
   if (!topArtists.length) {
-    return '';
+    if (!isMe) return '';
+    return `
+      <div class="top-artists-section top-artists-empty">
+        <div class="top-artists-title">${ICONS.trophy} Seus artistas mais ouvidos</div>
+        <p>Conecte seu Last.fm para mostrar seus Top 5 artistas e músicas, com fotos, aqui no perfil.</p>
+        <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._openSpotifyModal()">Conectar Last.fm</button>
+      </div>`;
   }
 
   const top1 = topArtists[0];
   const others = topArtists.slice(1, 5);
+  const sub = (a) => a.playcount ? formatScrobbles(a.playcount) : (a.genre || 'Top artista');
+  const profileUrl = user.musicProfileUrl || `https://www.last.fm/user/${encodeURIComponent(lastfmUser)}`;
 
   return `
     <div class="top-artists-section">
       <div class="top-artists-header">
         <div class="top-artists-title">
-          <span style="display:inline-flex;align-items:center;gap:6px;">${ICONS.crown} Top 5 Artistas do Mês</span>
-          <span class="top-artists-service-badge ${serviceClass}">
-            ${serviceLabel}
-          </span>
+          <span style="display:inline-flex;align-items:center;gap:6px;">${ICONS.trophy} Top 5 Artistas ${esc(periodLabel)}</span>
+          ${isLastFm && lastfmUser
+            ? `<a class="top-artists-service-badge lastfm" href="${safeUrl(profileUrl)}" target="_blank" rel="noopener noreferrer" title="Abrir perfil no Last.fm">Last.fm · ${esc(lastfmUser)}</a>`
+            : `<span class="top-artists-service-badge custom">Escolhidos</span>`}
         </div>
         ${isMe ? `
-          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openSpotifyModal()" style="font-size:0.72rem;padding:3px 8px;" title="Atualizar ou sincronizar com Last.fm">
-            Sincronizar
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openSpotifyModal()" style="font-size:0.72rem;padding:3px 8px;" title="Atualizar com o Last.fm ou escolher artistas">
+            ${isLastFm ? 'Atualizar' : 'Editar'}
           </button>
         ` : ''}
       </div>
 
-      <!-- #1 Artist Spotlight -->
       ${top1 ? `
-        <div class="top-artist-spotlight" onclick="window._searchArtistInCatalog('${top1.name.replace(/'/g, "\\'")}')" title="Clique para ver músicas de ${top1.name}">
-          <div class="spotlight-rank-crown" style="display:inline-flex;align-items:center;gap:4px;">${ICONS.crown} #1 Mais Escutado</div>
-          <img class="spotlight-avatar" src="${top1.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" alt="${top1.name}" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'">
+        <div class="top-artist-spotlight" onclick="window._searchArtistInCatalog(${jsArg(top1.name)})" title="Ver músicas de ${esc(top1.name)}">
+          <div class="spotlight-rank-crown" style="display:inline-flex;align-items:center;gap:4px;">${ICONS.trophy} #1 mais ouvido</div>
+          ${artistPhotoHtml(top1, 'spotlight-avatar')}
           <div class="spotlight-info">
-            <div class="spotlight-title">${top1.name}</div>
-            <div class="spotlight-genre">${top1.genre || 'Top Artista do Mês'}</div>
-            <div class="spotlight-scrobbles">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color:var(--purple-light);"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-              <span>${top1.playcount ? top1.playcount + ' scrobbles este mês' : 'Mais escutado'}</span>
-            </div>
+            <div class="spotlight-title">${esc(top1.name)}</div>
+            <div class="spotlight-scrobbles"><span>${esc(sub(top1))}</span></div>
           </div>
-          <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="event.stopPropagation();window._searchArtistInCatalog('${top1.name.replace(/'/g, "\\'")}')" title="Buscar músicas deste artista">
+          <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="event.stopPropagation();window._searchArtistInCatalog(${jsArg(top1.name)})" title="Buscar músicas deste artista">
             Músicas
           </button>
         </div>
       ` : ''}
 
-      <!-- #2 to #5 Grid -->
       ${others.length ? `
         <div class="top-artists-grid">
-          ${others.map(a => `
-            <div class="top-artist-item" onclick="window._searchArtistInCatalog('${a.name.replace(/'/g, "\\'")}')" title="Clique para ver músicas de ${a.name}">
-              <div class="artist-rank-badge">#${a.rank}</div>
-              <img class="artist-avatar-thumb" src="${a.imageUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'}" alt="${a.name}" onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'">
+          ${others.map((a, i) => `
+            <div class="top-artist-item" onclick="window._searchArtistInCatalog(${jsArg(a.name)})" title="Ver músicas de ${esc(a.name)}">
+              <div class="artist-rank-badge">#${a.rank || i + 2}</div>
+              ${artistPhotoHtml(a, 'artist-avatar-thumb')}
               <div class="artist-item-info">
-                <div class="artist-item-name">${a.name}</div>
-                <div class="artist-item-sub">${a.playcount ? a.playcount + ' scrobbles' : a.genre || 'Top Artista'}</div>
+                <div class="artist-item-name">${esc(a.name)}</div>
+                <div class="artist-item-sub">${esc(sub(a))}</div>
               </div>
             </div>
           `).join('')}
         </div>
       ` : ''}
+
+      ${buildTopTracksHtml(user, periodLabel)}
     </div>`;
+}
+
+// Top tracks synced from Last.fm (cover + 30s preview when found on iTunes)
+function buildTopTracksHtml(user, periodLabel) {
+  const tracks = user.topTracksMonth || [];
+  if (!tracks.length) return '';
+  return `
+    <div class="top-tracks">
+      <div class="top-tracks-title">Músicas mais ouvidas ${esc(periodLabel)}</div>
+      <ol class="top-tracks-list">
+        ${tracks.slice(0, 5).map((t, i) => `
+          <li class="top-track-row">
+            <span class="top-track-rank">${t.rank || i + 1}</span>
+            ${t.artwork
+              ? `<img class="top-track-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+              : `<span class="top-track-cover artist-photo-fallback" aria-hidden="true">${esc((t.title || '?')[0])}</span>`}
+            <div class="top-track-meta">
+              <div class="top-track-title">${esc(t.title)}</div>
+              <div class="top-track-artist">${esc(t.artist)}${t.playcount ? ` · ${esc(formatScrobbles(t.playcount))}` : ''}</div>
+            </div>
+            <button class="top-track-play" onclick="window._playTrack(${jsArg({ id: t.id, title: t.title, artist: t.artist, artwork: t.artwork, previewUrl: t.previewUrl, duration: t.duration })})" aria-label="Tocar ${esc(t.title)}">
+              ${ICONS.play}
+            </button>
+          </li>`).join('')}
+      </ol>
+    </div>`;
+}
+
+/**
+ * Replace initial placeholders with real artist photos and remember them on the user,
+ * so the next render shows the photo immediately.
+ * @param {HTMLElement} root
+ * @param {string} userId
+ */
+export async function hydrateArtistImages(root, userId) {
+  const slots = [...root.querySelectorAll('[data-artist-img]')];
+  if (!slots.length) return;
+
+  const found = {};
+  await Promise.all(slots.map(async slot => {
+    const name = slot.dataset.artistImg;
+    const url = await getArtistImage(name);
+    if (!url || !slot.isConnected) return;
+    found[name.toLowerCase()] = url;
+    const img = document.createElement('img');
+    img.className = slot.className.replace('artist-photo-fallback', '').trim();
+    img.alt = name;
+    img.src = url;
+    img.onerror = () => img.replaceWith(slot);
+    slot.replaceWith(img);
+  }));
+
+  if (!Object.keys(found).length) return;
+  const user = Storage.getUserById(userId);
+  if (!user?.topArtistsMonth?.length) return;
+  const topArtistsMonth = user.topArtistsMonth.map(a => {
+    const url = found[(a.name || '').toLowerCase()];
+    return url ? { ...a, imageUrl: url } : a;
+  });
+  Storage.updateUser(userId, { topArtistsMonth, topArtist: topArtistsMonth[0] });
 }
 
 function buildShowcaseHtml(user, isMe) {
@@ -361,9 +450,9 @@ function buildShowcaseHtml(user, isMe) {
   const html = slots.map((song, i) => {
     if (song) {
       return `
-        <div class="showcase-slot" title="${song.title} — ${song.artist}"
-          onclick="window._playTrack(${JSON.stringify(song).replace(/"/g, '&quot;')})">
-          ${song.artwork ? `<img src="${song.artwork}" alt="${song.title}" loading="lazy">` : `<div class="showcase-slot-add" style="display:flex;align-items:center;justify-content:center;">${ICONS.music}</div>`}
+        <div class="showcase-slot" title="${esc(song.title)} — ${esc(song.artist)}"
+          onclick="window._playTrack(${jsArg(song)})">
+          ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy">` : `<div class="showcase-slot-add" style="display:flex;align-items:center;justify-content:center;">${ICONS.music}</div>`}
           ${isMe ? `<button onclick="event.stopPropagation();window._removeShowcase('${song.id}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.8);border:none;color:#fff;font-size:10px;cursor:pointer;border-radius:3px;padding:1px 3px;">${ICONS.close}</button>` : ''}
         </div>`;
     }
@@ -445,19 +534,19 @@ function loadProfileTab(tabId, userId) {
           const songsWithArt = songs.filter(s => !!s.artwork);
           let coverHtml = '';
           if (pl.coverUrl) {
-            coverHtml = `<img src="${pl.coverUrl}" alt="${pl.title}" style="width:100%;height:100%;object-fit:cover;">`;
+            coverHtml = `<img src="${safeUrl(pl.coverUrl)}" alt="${esc(pl.title)}" style="width:100%;height:100%;object-fit:cover;">`;
           } else if (songsWithArt.length >= 4) {
             coverHtml = `
               <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%;">
-                <img src="${songsWithArt[0].artwork}" style="width:100%;height:100%;object-fit:cover;">
-                <img src="${songsWithArt[1].artwork}" style="width:100%;height:100%;object-fit:cover;">
-                <img src="${songsWithArt[2].artwork}" style="width:100%;height:100%;object-fit:cover;">
-                <img src="${songsWithArt[3].artwork}" style="width:100%;height:100%;object-fit:cover;">
+                <img src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+                <img src="${safeUrl(songsWithArt[1].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+                <img src="${safeUrl(songsWithArt[2].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+                <img src="${safeUrl(songsWithArt[3].artwork)}" style="width:100%;height:100%;object-fit:cover;">
               </div>`;
           } else if (songsWithArt.length > 0) {
-            coverHtml = `<img src="${songsWithArt[0].artwork}" style="width:100%;height:100%;object-fit:cover;">`;
+            coverHtml = `<img src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">`;
           } else {
-            coverHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2b1548,#0d0b14);color:var(--purple-light);font-size:1.8rem;">${ICONS.playlist}</div>`;
+            coverHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--hover),var(--surface));color:var(--purple-light);font-size:1.8rem;">${ICONS.playlist}</div>`;
           }
 
           return `
@@ -471,12 +560,12 @@ function loadProfileTab(tabId, userId) {
               </div>
               <div style="padding:10px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
                 <div>
-                  <div style="font-size:0.88rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${pl.title}</div>
-                  ${pl.description ? `<div style="font-size:0.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${pl.description}</div>` : ''}
+                  <div style="font-size:0.88rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
+                  ${pl.description ? `<div style="font-size:0.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${esc(pl.description)}</div>` : ''}
                 </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:0.72rem;color:var(--purple-light);font-weight:600;">
                   <span>${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}</span>
-                  <span style="color:var(--muted);font-weight:normal;">${pl.createdAt || ''}</span>
+                  <span style="color:var(--muted);font-weight:normal;">${esc(pl.createdAt || '')}</span>
                 </div>
               </div>
             </div>`;
@@ -556,19 +645,19 @@ function loadProfileTab(tabId, userId) {
           };
           return `
             <div class="rated-song-card" style="background:var(--bg-card);border:var(--border);border-radius:var(--radius-lg);padding:12px 14px;display:flex;gap:12px;align-items:flex-start;transition:background 0.15s;">
-              <img src="${s.artwork || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" 
-                   alt="${s.title || ''}" 
-                   style="width:54px;height:54px;min-width:54px;border-radius:8px;object-fit:cover;border:1px solid rgba(255,255,255,0.1);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);"
-                   onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})"
+              <img src="${safeUrl(s.artwork || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80')}" 
+                   alt="${esc(s.title || '')}" 
+                   style="width:54px;height:54px;min-width:54px;border-radius:8px;object-fit:cover;border:1px solid var(--tint-2);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);"
+                   onclick="window._playTrack(${jsArg(trackObj)})"
                    title="Ouvir prévia">
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
                   <div style="min-width:0;flex:1;">
-                    <div style="font-size:0.9rem;font-weight:800;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})" title="Clique para ouvir">
-                      ${s.title || 'Sem título'}
+                    <div style="font-size:0.9rem;font-weight:800;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" onclick="window._playTrack(${jsArg(trackObj)})" title="Clique para ouvir">
+                      ${esc(s.title || 'Sem título')}
                     </div>
                     <div style="font-size:0.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                      ${s.artist || 'Artista desconhecido'} ${item.targetUserName ? `· <span style="color:var(--purple-light);">Lista de ${item.targetUserName}</span>` : ''}
+                      ${esc(s.artist || 'Artista desconhecido')} ${item.targetUserName ? `· <span style="color:var(--purple-light);">Lista de ${item.targetUserName}</span>` : ''}
                     </div>
                   </div>
                   <div class="post-rating-display" style="margin:0;padding:2px 8px;flex-shrink:0;">
@@ -578,15 +667,15 @@ function loadProfileTab(tabId, userId) {
                 </div>
                 ${item.comment ? `
                   <div style="font-size:0.82rem;color:var(--white);background:var(--bg-surface);border-radius:6px;padding:6px 10px;margin-top:6px;border-left:2.5px solid var(--purple-accent);">
-                    "${item.comment}"
+                    "${esc(item.comment)}"
                   </div>` : ''}
                 ${item.lyrics ? `
                   <div style="font-size:0.75rem;color:var(--purple-light);font-style:italic;margin-top:4px;">
-                    "${item.lyrics}"
+                    "${esc(item.lyrics)}"
                   </div>` : ''}
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:0.7rem;color:var(--purple-muted);">
                   <span>${item.isChallengeReview ? '⭐ Avaliação em Comparar' : (item.createdAt || '')}</span>
-                  <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${JSON.stringify(trackObj).replace(/"/g, '&quot;')})">
+                  <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${jsArg(trackObj)})">
                     ${ICONS.play} Ouvir
                   </button>
                 </div>
@@ -614,101 +703,28 @@ export function renderProfileEditModal() {
   const modal = document.getElementById('profile-edit-modal');
   if (!modal) return;
 
-  const isImg = user.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:') || user.avatar.startsWith('/'));
-  const currentAvatarHtml = isImg
-    ? `<img id="preview-avatar-img" src="${user.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-    : `<span id="preview-avatar-text">${user.avatar || user.name[0]}</span>`;
-
-  const bannerBg = user.bannerUrl
-    ? `background-image:url('${user.bannerUrl}');background-size:cover;background-position:center;`
-    : `background:linear-gradient(135deg, ${user.themeColor || '#130c1e'}, #000);`;
-
   modal.querySelector('.modal-body').innerHTML = `
     <div style="display:flex;flex-direction:column;gap:14px;">
-
-      <!-- LIVE PREVIEW SECTION -->
-      <div class="profile-edit-preview-section">
-        <div class="profile-edit-preview-title">
-          <span style="display:inline-flex;align-items:center;gap:6px;">${ICONS.sparkles} Pré-visualização em Tempo Real</span>
-          <span style="font-size:0.65rem;opacity:0.7;">Atualiza instantaneamente</span>
-        </div>
-        <div id="live-profile-preview" class="profile-preview-card" style="background:${user.profileBgColor || '#130c1e'};color:${user.profileTextColor || '#ffffff'};">
-          <div id="preview-banner-el" class="preview-banner" style="${bannerBg}"></div>
-          <div class="preview-top-row">
-            <div id="preview-avatar-el" class="preview-avatar" style="border-color:${user.profileBgColor || '#130c1e'}">
-              ${currentAvatarHtml}
-            </div>
-            <div style="display:flex;gap:4px;">
-              <span class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="font-size:0.68rem;padding:2px 8px;pointer-events:none;">Editar</span>
-            </div>
-          </div>
-          <div class="preview-body">
-            <div id="preview-name-el" class="preview-name">${user.name}</div>
-            <div id="preview-handle-el" class="preview-handle">${user.handle || '@' + user.name.toLowerCase()}</div>
-            <div id="preview-status-el" class="preview-status" style="color:${user.profileStatusColor || '#bda2db'};border-color:${user.profileStatusColor || '#bda2db'}">
-              ${user.status || 'Status do perfil'}
-            </div>
-            <div id="preview-socials-el" class="profile-socials-row" style="margin-top:6px;gap:6px;"></div>
-            ${user.featuredSong ? `
-              <div id="preview-featured-el" class="preview-featured" style="background:${user.profileFeaturedColor || '#0a0610'};border-left:3px solid ${user.profileAccentColor || '#3a165a'};margin-top:6px;border-radius:6px;display:flex;align-items:center;gap:6px;padding:6px 10px;">
-                ${ICONS.music} <span><strong>${user.featuredSong.title}</strong> — <span style="opacity:0.7;">${user.featuredSong.artist}</span></span>
-              </div>
-            ` : ''}
-            ${(user.topArtistsMonth?.length || user.topArtist) ? `
-              <div id="preview-top-artist-el" class="top-artist-spotlight" style="margin-top:8px;padding:8px 10px;border-radius:10px;cursor:default;">
-                <div class="spotlight-rank-crown" style="font-size:0.64rem;padding:1px 6px;">${ICONS.crown} Top Artista</div>
-                <img class="spotlight-avatar" src="${(user.topArtistsMonth?.[0] || user.topArtist)?.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'}" style="width:44px;height:44px;min-width:44px;" alt="">
-                <div class="spotlight-info">
-                  <div class="spotlight-title" style="font-size:0.86rem;">${(user.topArtistsMonth?.[0] || user.topArtist)?.name || 'Artista'}</div>
-                  <div class="spotlight-genre" style="font-size:0.68rem;">${(user.topArtistsMonth?.[0] || user.topArtist)?.genre || 'Top Artista do Mês'}</div>
-                </div>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      </div>
-
-      <!-- THEME PRESETS -->
-      <div>
-        <label class="form-label" style="margin-bottom:6px;">Paletas Prontas</label>
-        <div class="color-presets-row">
-          <button type="button" class="preset-pill" onclick="window._applyThemePreset('cyber')">
-            <span class="preset-swatch" style="background:#8a2be2;"></span> Cyber Violet
-          </button>
-          <button type="button" class="preset-pill" onclick="window._applyThemePreset('midnight')">
-            <span class="preset-swatch" style="background:#3b82f6;"></span> Midnight Blue
-          </button>
-          <button type="button" class="preset-pill" onclick="window._applyThemePreset('emerald')">
-            <span class="preset-swatch" style="background:#10b981;"></span> Emerald
-          </button>
-          <button type="button" class="preset-pill" onclick="window._applyThemePreset('sunset')">
-            <span class="preset-swatch" style="background:#f43f5e;"></span> Sunset Pink
-          </button>
-          <button type="button" class="preset-pill" onclick="window._applyThemePreset('gold')">
-            <span class="preset-swatch" style="background:#f59e0b;"></span> Obsidian Gold
-          </button>
-        </div>
-      </div>
 
       <!-- BASIC INFO -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <label class="form-label">Nome</label>
-          <input id="edit-name" class="doodle-input" value="${user.name || ''}" placeholder="Seu nome">
+          <input id="edit-name" class="doodle-input" value="${esc(user.name || '')}" placeholder="Seu nome">
         </div>
         <div>
           <label class="form-label">Handle</label>
-          <input id="edit-handle" class="doodle-input" value="${user.handle || ''}" placeholder="@voce">
+          <input id="edit-handle" class="doodle-input" value="${esc(user.handle || '')}" placeholder="@voce">
         </div>
       </div>
 
       <div>
         <label class="form-label">Bio</label>
-        <textarea id="edit-bio" class="doodle-input" rows="2" placeholder="Fale sobre você...">${user.bio || ''}</textarea>
+        <textarea id="edit-bio" class="doodle-input" rows="2" placeholder="Fale sobre você...">${esc(user.bio || '')}</textarea>
       </div>
 
       <!-- REDES SOCIAIS -->
-      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
         <div style="font-size:0.85rem;font-weight:800;color:var(--white);display:flex;align-items:center;gap:6px;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--purple-light);"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
           <span>Redes Sociais & Perfis de Música</span>
@@ -716,23 +732,23 @@ export function renderProfileEditModal() {
 
         <div>
           <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
-            <span style="color:#e1306c;">📸</span> Instagram (usuário ou link)
+            Instagram (usuário ou link)
           </label>
-          <input id="edit-instagram" class="doodle-input" value="${user.instagram || user.socials?.instagram || ''}" placeholder="@usuario ou https://instagram.com/usuario">
+          <input id="edit-instagram" class="doodle-input" value="${esc(user.instagram || user.socials?.instagram || '')}" placeholder="@usuario ou https://instagram.com/usuario">
         </div>
 
         <div>
           <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
-            <span style="color:#fff;">✖️</span> X / Twitter (usuário ou link)
+            X / Twitter (usuário ou link)
           </label>
-          <input id="edit-twitter" class="doodle-input" value="${user.twitter || user.x || user.socials?.twitter || ''}" placeholder="@usuario ou https://x.com/usuario">
+          <input id="edit-twitter" class="doodle-input" value="${esc(user.twitter || user.x || user.socials?.twitter || '')}" placeholder="@usuario ou https://x.com/usuario">
         </div>
 
         <div>
           <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
-            <span style="color:#ff5555;">🎵</span> Last.fm (usuário ou link)
+            Last.fm (usuário ou link)
           </label>
-          <input id="edit-lastfm" class="doodle-input" value="${user.lastfm || user.socials?.lastfm || (user.musicService === 'lastfm' ? user.spotifyUsername : '') || ''}" placeholder="usuario_lastfm">
+          <input id="edit-lastfm" class="doodle-input" value="${esc(user.lastfm || user.socials?.lastfm || (user.musicService === 'lastfm' ? user.spotifyUsername : '') || '')}" placeholder="usuario_lastfm">
         </div>
       </div>
 
@@ -742,7 +758,7 @@ export function renderProfileEditModal() {
           <span style="font-size:0.72rem;color:var(--muted);font-weight:normal;">URL, Arquivo ou Emoji</span>
         </label>
         <div style="display:flex;gap:8px;">
-          <input id="edit-avatar" class="doodle-input" value="${user.avatar || ''}" placeholder="https://... ou emoji">
+          <input id="edit-avatar" class="doodle-input" value="${esc(user.avatar || '')}" placeholder="https://... ou emoji">
           <label class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;" title="Escolher imagem do dispositivo">
             ${ICONS.image || ''}
             <span>Dispositivo</span>
@@ -757,13 +773,13 @@ export function renderProfileEditModal() {
           <span style="font-size:0.72rem;color:var(--muted);font-weight:normal;">URL ou Arquivo</span>
         </label>
         <div style="display:flex;gap:8px;">
-          <input id="edit-banner" class="doodle-input" value="${user.bannerUrl || ''}" placeholder="https://...">
+          <input id="edit-banner" class="doodle-input" value="${esc(user.bannerUrl || '')}" placeholder="https://...">
           <label class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;" title="Escolher imagem do dispositivo">
             ${ICONS.image || ''}
             <span>Dispositivo</span>
             <input type="file" id="edit-banner-file" accept="image/*" style="display:none;" onchange="window._handleBannerUpload(event)">
           </label>
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('edit-banner').value='';window._updateLiveProfilePreview();">
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('edit-banner').value='';">
             Limpar
           </button>
         </div>
@@ -773,42 +789,12 @@ export function renderProfileEditModal() {
         <label class="form-label">Música em Destaque</label>
         <div style="display:flex;gap:8px;align-items:center;">
           <button type="button" class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="window._editFeaturedSong()">
-            ${user.featuredSong ? `Alterar: ${user.featuredSong.title} — ${user.featuredSong.artist}` : '+ Escolher Música'}
+            ${user.featuredSong ? `Alterar: ${esc(user.featuredSong.title)} — ${esc(user.featuredSong.artist)}` : '+ Escolher Música'}
           </button>
           ${user.featuredSong ? `
             <button type="button" class="doodle-btn doodle-btn-danger doodle-btn-sm" onclick="window._removeFeaturedSong();renderProfileEditModal();">
               Remover
             </button>` : ''}
-        </div>
-      </div>
-
-      <div>
-        <label class="form-label" style="margin-bottom:8px;">Personalização de Cores</label>
-        <div class="color-picker-grid">
-          <div class="color-picker-row">
-            <span class="color-picker-label">Fundo do card</span>
-            <input type="color" id="color-bg" value="${user.profileBgColor || '#130c1e'}">
-          </div>
-          <div class="color-picker-row">
-            <span class="color-picker-label">Cor do Destaque</span>
-            <input type="color" id="color-accent" value="${user.profileAccentColor || '#3a165a'}">
-          </div>
-          <div class="color-picker-row">
-            <span class="color-picker-label">Texto</span>
-            <input type="color" id="color-text" value="${user.profileTextColor || '#f5f0fa'}">
-          </div>
-          <div class="color-picker-row">
-            <span class="color-picker-label">Status</span>
-            <input type="color" id="color-status" value="${user.profileStatusColor || '#bda2db'}">
-          </div>
-          <div class="color-picker-row">
-            <span class="color-picker-label">Fundo destaque</span>
-            <input type="color" id="color-featured" value="${user.profileFeaturedColor || '#0a0610'}">
-          </div>
-          <div class="color-picker-row">
-            <span class="color-picker-label">Cor do tema</span>
-            <input type="color" id="color-theme" value="${user.themeColor || '#2b1042'}">
-          </div>
         </div>
       </div>
 
@@ -818,93 +804,6 @@ export function renderProfileEditModal() {
       </div>
     </div>`;
 
-  // Live preview function
-  window._updateLiveProfilePreview = () => {
-    const preview = document.getElementById('live-profile-preview');
-    if (!preview) return;
-
-    const bg = document.getElementById('color-bg')?.value || '#130c1e';
-    const text = document.getElementById('color-text')?.value || '#ffffff';
-    const accent = document.getElementById('color-accent')?.value || '#8a2be2';
-    const status = document.getElementById('color-status')?.value || '#bda2db';
-    const featured = document.getElementById('color-featured')?.value || '#0a0610';
-    const theme = document.getElementById('color-theme')?.value || '#2b1042';
-    const name = document.getElementById('edit-name')?.value || user.name;
-    const handle = document.getElementById('edit-handle')?.value || user.handle;
-    const avatar = document.getElementById('edit-avatar')?.value || user.avatar || user.name[0];
-    const banner = document.getElementById('edit-banner')?.value?.trim();
-
-    preview.style.background = bg;
-    preview.style.color = text;
-    preview.style.setProperty('--profile-card-bg', bg);
-    preview.style.setProperty('--profile-accent', accent);
-    preview.style.setProperty('--profile-text-color', text);
-    preview.style.setProperty('--profile-status-color', status);
-    preview.style.setProperty('--profile-featured-bg', featured);
-
-    const bannerEl = document.getElementById('preview-banner-el');
-    if (bannerEl) {
-      bannerEl.style.backgroundImage = banner ? `url('${banner}')` : '';
-      if (!banner) bannerEl.style.background = `linear-gradient(135deg, ${theme}, #000)`;
-    }
-
-    const avatarEl = document.getElementById('preview-avatar-el');
-    if (avatarEl) {
-      avatarEl.style.borderColor = bg;
-      const isAImg = avatar && (avatar.startsWith('http') || avatar.startsWith('data:') || avatar.startsWith('/'));
-      avatarEl.innerHTML = isAImg
-        ? `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-        : `<span>${avatar || 'U'}</span>`;
-    }
-
-    const nameEl = document.getElementById('preview-name-el');
-    if (nameEl) nameEl.textContent = name || 'Nome';
-
-    const handleEl = document.getElementById('preview-handle-el');
-    if (handleEl) handleEl.textContent = handle || '@usuario';
-
-    const statusEl = document.getElementById('preview-status-el');
-    if (statusEl) {
-      statusEl.style.color = status;
-      statusEl.style.borderColor = status;
-    }
-
-    const featEl = document.getElementById('preview-featured-el');
-    if (featEl) {
-      featEl.style.background = featured;
-      featEl.style.borderLeftColor = accent;
-    }
-
-    const socialsEl = document.getElementById('preview-socials-el');
-    if (socialsEl) {
-      const insta = document.getElementById('edit-instagram')?.value?.trim() || '';
-      const twit = document.getElementById('edit-twitter')?.value?.trim() || '';
-      const lfm = document.getElementById('edit-lastfm')?.value?.trim() || '';
-      socialsEl.innerHTML = buildSocialsHtml({ instagram: insta, twitter: twit, lastfm: lfm, name: name || 'Usuário' }, false);
-    }
-  };
-
-  // Presets definition
-  const presets = {
-    cyber:    { bg: '#0c0814', accent: '#8a2be2', text: '#ffffff', status: '#bda2db', featured: '#170b26', theme: '#200a38' },
-    midnight: { bg: '#090a10', accent: '#3b82f6', text: '#f0f4ff', status: '#93c5fd', featured: '#0e1626', theme: '#131f38' },
-    emerald:  { bg: '#050f0a', accent: '#10b981', text: '#ecfdf5', status: '#6ee7b7', featured: '#0b2116', theme: '#0e3020' },
-    sunset:   { bg: '#13090f', accent: '#f43f5e', text: '#fff1f2', status: '#fda4af', featured: '#240c1a', theme: '#380f28' },
-    gold:     { bg: '#0e0d0a', accent: '#f59e0b', text: '#fffbeb', status: '#fcd34d', featured: '#211d0e', theme: '#332a0d' }
-  };
-
-  window._applyThemePreset = (key) => {
-    const p = presets[key];
-    if (!p) return;
-    if (document.getElementById('color-bg')) document.getElementById('color-bg').value = p.bg;
-    if (document.getElementById('color-accent')) document.getElementById('color-accent').value = p.accent;
-    if (document.getElementById('color-text')) document.getElementById('color-text').value = p.text;
-    if (document.getElementById('color-status')) document.getElementById('color-status').value = p.status;
-    if (document.getElementById('color-featured')) document.getElementById('color-featured').value = p.featured;
-    if (document.getElementById('color-theme')) document.getElementById('color-theme').value = p.theme;
-    window._updateLiveProfilePreview();
-  };
-
   window._handleAvatarUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -912,7 +811,6 @@ export function renderProfileEditModal() {
     reader.onload = (e) => {
       const input = document.getElementById('edit-avatar');
       if (input) input.value = e.target.result;
-      window._updateLiveProfilePreview?.();
     };
     reader.readAsDataURL(file);
   };
@@ -924,22 +822,10 @@ export function renderProfileEditModal() {
     reader.onload = (e) => {
       const input = document.getElementById('edit-banner');
       if (input) input.value = e.target.result;
-      window._updateLiveProfilePreview?.();
     };
     reader.readAsDataURL(file);
   };
 
-  // Attach live preview event listeners
-  const inputIds = ['color-bg', 'color-accent', 'color-text', 'color-status', 'color-featured', 'color-theme', 'edit-name', 'edit-handle', 'edit-avatar', 'edit-banner', 'edit-instagram', 'edit-twitter', 'edit-lastfm'];
-  inputIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', window._updateLiveProfilePreview);
-      el.addEventListener('change', window._updateLiveProfilePreview);
-    }
-  });
-
-  window._updateLiveProfilePreview();
   openModal('profile-edit-modal');
 
   window._saveProfileEdit = () => {
@@ -961,22 +847,11 @@ export function renderProfileEditModal() {
         twitter: twitVal,
         lastfm: lastfmVal
       },
-      profileBgColor:       document.getElementById('color-bg')?.value || user.profileBgColor,
-      profileAccentColor:   document.getElementById('color-accent')?.value || user.profileAccentColor,
-      profileTextColor:     document.getElementById('color-text')?.value || user.profileTextColor,
-      profileStatusColor:   document.getElementById('color-status')?.value || user.profileStatusColor,
-      profileFeaturedColor: document.getElementById('color-featured')?.value || user.profileFeaturedColor,
-      themeColor:           document.getElementById('color-theme')?.value || user.themeColor,
     };
     Storage.updateUser(user.id, updates);
     closeModal('profile-edit-modal');
     showToast('Perfil atualizado!');
-    // Update sidebar avatar if changed
-    const sidebarAvatar = document.querySelector('.sidebar-avatar');
-    if (sidebarAvatar) {
-      const isImg = updates.avatar && (updates.avatar.startsWith('http') || updates.avatar.startsWith('data:') || updates.avatar.startsWith('/'));
-      sidebarAvatar.innerHTML = isImg ? `<img src="${updates.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : (updates.avatar || updates.name[0]);
-    }
+    window._refreshSidebarUser?.();
     window._refreshProfile?.();
   };
 
@@ -998,13 +873,13 @@ export function renderFollowListModal(userId, mode) {
 
   modal.querySelector('.modal-body').innerHTML = users.length ? users.map(u => `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:var(--border);cursor:pointer;" onclick="closeModal('follow-list-modal');window._goToProfile('${u.id}')">
-      <div class="post-author-avatar">${u.avatar || u.name[0]}</div>
+      <div class="post-author-avatar" style="overflow:hidden;">${avatarInner(u.avatar, u.name)}</div>
       <div>
-        <div style="font-size:0.88rem;font-weight:700;color:var(--white)">${u.name}</div>
-        <div style="font-size:0.72rem;color:var(--muted)">${u.handle || ''}</div>
+        <div style="font-size:0.88rem;font-weight:700;color:var(--white)">${esc(u.name)}</div>
+        <div style="font-size:0.72rem;color:var(--muted)">${esc(u.handle || '')}</div>
       </div>
       ${u.id !== Storage.getActiveUserId() ? `
-        <button class="doodle-btn doodle-btn-follow doodle-btn-sm${Storage.isFollowing(u.id) ? ' following' : ''}" style="margin-left:auto;" onclick="event.stopPropagation();window._toggleFollow('${u.id}')">
+        <button class="doodle-btn doodle-btn-follow doodle-btn-sm${Storage.isFollowing(u.id) ? ' following' : ''}" data-follow-id="${u.id}" style="margin-left:auto;" onclick="event.stopPropagation();window._toggleFollow('${u.id}')">
           ${Storage.isFollowing(u.id) ? 'Seguindo' : 'Seguir'}
         </button>` : ''}
     </div>`).join('') :

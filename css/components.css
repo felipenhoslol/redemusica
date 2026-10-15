@@ -38,7 +38,7 @@
   justify-content: space-between;
   padding: 12px 14px;
   border-bottom: var(--border);
-  background: rgba(0,0,0,0.3);
+  background: var(--tint-1);
   flex-shrink: 0;
 }
 
@@ -57,7 +57,7 @@
 }
 
 .notif-item:hover { background: var(--bg-card); }
-.notif-item.unread { background: rgba(91, 45, 142, 0.07); }
+.notif-item.unread { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 
 .notif-avatar {
   width: 30px;
@@ -86,10 +86,10 @@
   left: var(--sidebar-w);
   right: 0;
   height: 68px;
-  background: rgba(19, 12, 30, 0.95);
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(138, 43, 226, 0.35);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -112,7 +112,7 @@
   height: 52px;
   border-radius: var(--radius-md);
   object-fit: cover;
-  border: 1px solid rgba(138, 43, 226, 0.4);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   box-shadow: none;
   flex-shrink: 0;
 }
@@ -146,10 +146,10 @@
 .player-play-btn {
   width: 44px;
   height: 44px;
-  background: linear-gradient(135deg, #8a2be2, #a855f7);
+  background: linear-gradient(135deg, var(--accent), var(--accent));
   border: none;
   border-radius: 50%;
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -159,7 +159,7 @@
 }
 
 .player-play-btn:hover {
-  background: linear-gradient(135deg, #9933ee, #c084fc);
+  background: linear-gradient(135deg, var(--accent), var(--accent));
   transform: scale(1.06);
   box-shadow: none;
 }
@@ -183,7 +183,7 @@
 .progress-track {
   flex: 1;
   height: 6px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--tint-2);
   border-radius: 4px;
   cursor: pointer;
   position: relative;
@@ -196,7 +196,7 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #8a2be2, #c084fc);
+  background: linear-gradient(90deg, var(--accent), var(--accent));
   border-radius: 4px;
   transition: width 0.15s linear;
   box-shadow: none;
@@ -209,16 +209,16 @@
   gap: 8px;
   min-width: 140px;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tint-1);
   padding: 6px 14px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--tint-2);
   transition: border-color 0.2s, background 0.2s;
 }
 
 .player-vol-container:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(138, 43, 226, 0.3);
+  background: var(--tint-2);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .player-vol-btn {
@@ -234,7 +234,7 @@
 }
 
 .player-vol-btn:hover {
-  color: #ffffff;
+  color: var(--text);
   transform: scale(1.1);
 }
 
@@ -242,7 +242,7 @@
   position: relative;
   width: 70px;
   height: 6px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--tint-3);
   border-radius: 4px;
   overflow: hidden;
   display: flex;
@@ -254,7 +254,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  background: linear-gradient(90deg, #8a2be2, #c084fc);
+  background: linear-gradient(90deg, var(--accent), var(--accent));
   border-radius: 4px;
   pointer-events: none;
   transition: width 0.05s ease;
@@ -330,14 +330,14 @@
 .compare-challenge-pill.active {
   background: var(--purple-accent);
   border-color: var(--purple-light);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .compare-challenge-pill-count {
   font-size: 0.68rem;
   padding: 1px 6px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--tint-3);
   color: var(--white);
 }
 
@@ -484,7 +484,7 @@
   justify-content: center;
   font-size: 16px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
 }
 
 .battle-avatar-item img {
@@ -528,7 +528,7 @@
 .battle-stat-label {
   font-size: 0.65rem;
   color: var(--muted);
-  text-transform: uppercase;
+  text-transform: none;
   font-weight: 700;
   margin-top: 2px;
 }
@@ -561,7 +561,7 @@
 
 .compare-filter-btn.active {
   background: var(--purple-accent);
-  color: #fff;
+  color: var(--on-accent);
   border-color: var(--purple-light);
 }
 
@@ -659,7 +659,7 @@
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--muted);
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .compare-song-stage {
@@ -754,7 +754,7 @@
 .compare-add-song-btn:hover {
   background: var(--purple-dark);
   border-color: var(--purple-light);
-  color: #fff;
+  color: var(--text);
 }
 
 .compare-add-song-btn svg {
@@ -768,8 +768,8 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  background: rgba(255, 184, 0, 0.08);
-  border: 1px solid rgba(255, 184, 0, 0.3);
+  background: color-mix(in srgb, var(--star) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--star) 30%, transparent);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -778,8 +778,8 @@
 }
 
 .compare-review-pill-btn:hover {
-  background: rgba(255, 184, 0, 0.15);
-  border-color: #ffb800;
+  background: color-mix(in srgb, var(--star) 15%, transparent);
+  border-color: var(--star);
 }
 
 .compare-rate-now-btn {
@@ -790,9 +790,9 @@
   gap: 5px;
   padding: 5px 10px;
   border-radius: var(--radius-sm);
-  background: rgba(255, 184, 0, 0.08);
-  border: 1px solid rgba(255, 184, 0, 0.3);
-  color: #ffb800;
+  background: color-mix(in srgb, var(--star) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--star) 30%, transparent);
+  color: var(--star);
   font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
@@ -805,8 +805,8 @@
 }
 
 .compare-rate-now-btn:hover {
-  background: rgba(255, 184, 0, 0.18);
-  border-color: #ffb800;
+  background: color-mix(in srgb, var(--star) 18%, transparent);
+  border-color: var(--star);
 }
 
 .compare-received-badge-pill {
@@ -859,7 +859,7 @@
 }
 
 .pill-btn:hover   { border-color: var(--purple-accent); color: var(--white); }
-.pill-btn.active  { background: var(--purple-accent); color: #fff; border-color: var(--purple-accent); }
+.pill-btn.active  { background: var(--purple-accent); color: var(--on-accent); border-color: var(--purple-accent); }
 
 /* Question grid cards */
 .questions-grid {
@@ -1081,8 +1081,8 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   max-height: 110px !important;
   border-radius: 8px !important;
   overflow: hidden !important;
-  background: #111 !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  background: var(--surface) !important;
+  border: 1.5px solid var(--tint-3) !important;
   cursor: pointer !important;
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
   display: block !important;
@@ -1092,7 +1092,7 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
 .gif-picker-item:hover {
   transform: scale(1.04) !important;
   border-color: var(--purple-accent) !important;
-  box-shadow: 0 4px 14px rgba(157, 78, 221, 0.45) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent) !important;
   z-index: 2;
 }
 
@@ -1125,7 +1125,7 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
 .rich-link-card:hover {
   transform: translateY(-2px);
   border-color: var(--purple-accent);
-  box-shadow: 0 6px 20px rgba(157, 78, 221, 0.35);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .rich-link-cover {
@@ -1171,7 +1171,7 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--purple-light);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.4px;
 }
 
