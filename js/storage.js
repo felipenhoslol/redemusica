@@ -161,7 +161,7 @@ export function upsertPostsCache(posts) {
 /** Add or refresh other people's public profiles in the local user list. */
 // Profile data kept in profiles.extras on the server (everything that isn't its own column)
 export const PROFILE_EXTRA_KEYS = [
-  'instagram', 'twitter', 'lastfm', 'socials', 'featuredSong', 'songShowcase', 'pinnedPostId',
+  'instagram', 'twitter', 'lastfm', 'socials', 'featuredSong', 'songShowcase', 'pinnedPostId', 'bioFont',
   'topArtist', 'topArtistsMonth', 'topTracksMonth', 'musicService', 'spotifyUsername', 'spotifyConnected',
   'musicPeriod', 'musicPeriodLabel', 'musicProfileUrl', 'musicSyncedAt'
 ];
@@ -518,6 +518,8 @@ export function createPost(postData) {
     song: postData.song || null,
     // Only the id is stored: the card reads the live playlist, so posts never carry a stale or heavy copy
     playlistId: postData.playlistId || null,
+    poll: postData.poll || null,
+    votes: {},
     imageUrl: postData.imageUrl || '',
     likes: [],
     comments: [],
@@ -660,6 +662,22 @@ export function deleteComment(postId, commentId) {
     }
   }
   return false;
+}
+
+/**
+ * Vote on a song poll (null removes your vote). Returns the updated post.
+ */
+export function votePoll(postId, option) {
+  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const post = posts.find(p => p.id === postId);
+  const count = post?.poll?.options?.length || 0;
+  if (!post || (option !== null && !(option >= 0 && option < count))) return null;
+  const me = getActiveUserId();
+  post.votes = { ...(post.votes || {}) };
+  if (option === null) delete post.votes[me]; else post.votes[me] = option;
+  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+  toRemote('vote', postId, option);
+  return post;
 }
 
 export function pinPost(postId) {

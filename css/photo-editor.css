@@ -63,3 +63,32 @@
 @media (prefers-reduced-motion: reduce) {
   .photo-editor-scrim, .photo-editor-panel { transition: none; }
 }
+
+/* ─── Diálogo genérico (Conta, votação) ─── mesmo comportamento do editor de foto */
+.app-dialog { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 16px; }
+.app-dialog-scrim { position: absolute; inset: 0; background: rgb(0 0 0 / .6); opacity: 0; transition: opacity .2s; }
+.app-dialog.open .app-dialog-scrim { opacity: 1; }
+.app-dialog-panel {
+  position: relative; width: min(460px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; margin: 0;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 18px; padding: 0 0 18px;
+  opacity: 0; transform: scale(.97); transition: opacity .2s, transform .2s;
+}
+.app-dialog.open .app-dialog-panel { opacity: 1; transform: none; }
+.app-dialog-head { display: flex; align-items: center; gap: 12px; padding: 10px 12px 6px; }
+.app-dialog-head h2 { flex: 1; margin: 0; font: 800 1.1rem var(--f-ui); color: var(--text); }
+.app-dialog-body { display: flex; flex-direction: column; gap: 16px; padding: 4px 18px 0; }
+.account-email { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+.account-email span { font-size: .82rem; color: var(--text-2); }
+.account-email strong { color: var(--text); overflow-wrap: anywhere; }
+.account-fieldset { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.account-fieldset legend { font: 800 1rem var(--f-ui); color: var(--text); margin-bottom: 6px; padding: 0; }
+.account-fieldset .form-label { margin-top: 6px; }
+.account-hint { margin: 0; font-size: .82rem; color: var(--text-2); }
+.account-error { margin: 6px 0 0; font-size: .88rem; color: var(--danger); }
+.account-error[hidden] { display: none; }
+.account-submit { margin-top: 10px; align-self: flex-start; }
+@media (max-width: 700px) {
+  .app-dialog { padding: 0; place-items: end stretch; }
+  .app-dialog-panel { width: 100%; max-height: 92dvh; border-radius: 18px 18px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateY(24px); }
+}
+@media (prefers-reduced-motion: reduce) { .app-dialog-scrim, .app-dialog-panel { transition: none; } }

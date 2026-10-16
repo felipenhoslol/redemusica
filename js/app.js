@@ -20,6 +20,9 @@ import { startSync, stopSync, pullNow } from './sync.js';
 import { renderSearchPage, openSearch } from './search.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
+import { bindSwipeTabs } from './swipeTabs.js';
+import { openAccountSettings } from './account.js';
+import { openPollBuilder } from './poll.js';
 import { renderAdminTab } from './admin.js';
 import { renderDailyLyric } from './dailyLyric.js';
 import { searchTracks } from './api.js';
@@ -160,6 +163,9 @@ function renderSidebar() {
       <button class="nav-item nav-item-quiet" id="nav-display" onclick="window._openDisplay()">
         ${ICONS.palette} <span>Exibição</span>
       </button>
+      <button class="nav-item nav-item-quiet" id="nav-account" onclick="window._openAccount()">
+        ${ICONS.lock} <span>Conta</span>
+      </button>
       <button class="nav-item nav-item-quiet" id="nav-feedback" onclick="window._openFeedback()">
         ${ICONS.feedback} <span>Enviar feedback</span>
       </button>
@@ -284,6 +290,7 @@ function openMeSheet() {
         ${item('desafios', ICONS.star, 'Desafios', activeTab === 'desafios' || activeTab === 'comparar')}
         ${auth.isAdmin ? item('admin', ICONS.shield, 'Admin', activeTab === 'admin') : ''}
         ${item('display', ICONS.palette, 'Exibição')}
+        ${item('account', ICONS.lock, 'Conta e senha')}
         ${item('feedback', ICONS.feedback, 'Enviar feedback')}
         ${item('logout', ICONS.logout, 'Sair da conta')}
       </div>
@@ -298,6 +305,7 @@ function openMeSheet() {
     if (go === 'profile') window._goToProfile(getActiveUser().id);
     else if (go === 'display') window._openDisplay();
     else if (go === 'feedback') window._openFeedback();
+    else if (go === 'account') window._openAccount();
     else if (go === 'logout') window._logout();
     else switchTab(go);
   };
@@ -425,6 +433,12 @@ function renderFeedTab() {
   // Render feed
   const feedPosts = document.getElementById('feed-posts');
   if (feedPosts) renderFeed(feedPosts, feedFilterMode);
+  // Swipe sideways on the posts to move between "Para você" and "Seguindo"
+  bindSwipeTabs(feedPosts, {
+    tabs: ['all', 'following'],
+    current: () => feedFilterMode,
+    onSwitch: (mode) => window.setFeedFilter(mode)
+  });
 
 
   window.setFeedFilter = (mode) => {
@@ -584,6 +598,7 @@ function bindGlobalHandlers() {
 
   window._openFeedback = () => openFeedbackModal(activeTab);
   window._openDisplay = () => openDisplaySettings();
+  window._openAccount = () => openAccountSettings();
   window._composeNew = () => {
     switchTab('feed');
     window.scrollTo({ top: 0 });
@@ -866,8 +881,9 @@ function bindGlobalHandlers() {
     const ratingBox = document.getElementById('creator-rating-attach');
     const isRatingActive = ratingBox && ratingBox.style.display !== 'none';
 
-    if (!text && !lyrics && !window._pendingCreatorSong && !window._pendingCreatorImage && !window._pendingCreatorPlaylist) {
-      showToast('Escreva algo ou anexe uma música, foto, playlist ou letra.');
+    const pollOptions = window._pendingCreatorPoll || null;
+    if (!text && !lyrics && !window._pendingCreatorSong && !window._pendingCreatorImage && !window._pendingCreatorPlaylist && !pollOptions) {
+      showToast('Escreva algo ou anexe uma música, foto, playlist, letra ou votação.');
       return;
     }
 
@@ -882,7 +898,8 @@ function bindGlobalHandlers() {
         rating: finalRating,
         imageUrl: window._pendingCreatorImage || '',
         song: window._pendingCreatorSong || null,
-        playlistId: window._pendingCreatorPlaylist?.id || null
+        playlistId: window._pendingCreatorPlaylist?.id || null,
+        poll: pollOptions ? { options: pollOptions } : null
       });
 
       // Cleanup creator
@@ -890,6 +907,7 @@ function bindGlobalHandlers() {
       window._pendingCreatorSong = null;
       window._pendingCreatorPlaylist = null;
       window._pendingCreatorImage = null;
+      window._removeCreatorPoll();
       if (window._creatorRemoveLyrics) window._creatorRemoveLyrics();
       if (window._removeCreatorSong) window._removeCreatorSong();
       if (window._removeCreatorPlaylist) window._removeCreatorPlaylist();
@@ -901,6 +919,30 @@ function bindGlobalHandlers() {
       setCatMood('happy', 1600);
       renderFeedTab();
     }
+  };
+
+  // Creator: song poll (2–4 songs people vote on)
+  window._creatorOpenPoll = () => openPollBuilder(window._pendingCreatorPoll || [], (options) => {
+    window._pendingCreatorPoll = options;
+    const el = document.getElementById('creator-poll-attach');
+    if (!el) return;
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div class="creator-attached-song creator-attached-poll">
+        <div>
+          <div style="font-size:.85rem;font-weight:700;color:var(--text)">${ICONS.poll} Votação com ${options.length} músicas</div>
+          <div style="font-size:.78rem;color:var(--text-2)">${options.map(o => esc(o.title)).join(' · ')}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._creatorOpenPoll()">Editar</button>
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCreatorPoll()">Remover</button>
+        </div>
+      </div>`;
+  });
+  window._removeCreatorPoll = () => {
+    window._pendingCreatorPoll = null;
+    const el = document.getElementById('creator-poll-attach');
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   };
 
   // Creator attach song (set from search modal)

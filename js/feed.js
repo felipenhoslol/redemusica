@@ -7,6 +7,7 @@ import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks } from './lastfm.js';
 import { getRandomLyric } from './lyrics_db.js';
 import { compressImage } from './sync.js';
+import { pollHtml } from './poll.js';
 
 // ──────────────────────────────────────────
 // RENDER HELPERS
@@ -326,6 +327,7 @@ export function renderPostCard(post, options = {}) {
       ${renderLyricsCard(post)}
       ${imageHtml}
       ${songHtml}
+      ${pollHtml(post)}
       ${playlistHtml}
       ${linkHtml}
 
@@ -387,6 +389,7 @@ export function renderPostCreator(containerEl) {
       <div id="creator-song-attach"      style="display:none"></div>
       <div id="creator-playlist-attach"  style="display:none"></div>
       <div id="creator-image-attach"     style="display:none"></div>
+      <div id="creator-poll-attach"      style="display:none"></div>
       <div id="creator-rating-attach"    style="display:none"></div>
 
       <!-- Separator -->
@@ -410,6 +413,10 @@ export function renderPostCreator(containerEl) {
           <button class="btn-attach" title="Anexar imagem (URL ou arquivo)" onclick="window._creatorOpenImagePicker()">
             ${ICONS.image || '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>'}
             <span>Imagem</span>
+          </button>
+          <button class="btn-attach" title="Criar votação de músicas" onclick="window._creatorOpenPoll()">
+            ${ICONS.poll}
+            <span>Votação</span>
           </button>
           <button class="btn-attach" title="Dar nota" onclick="window._creatorToggleRating()">
             ${ICONS.star}

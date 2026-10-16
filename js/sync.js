@@ -18,6 +18,7 @@ let profileColumns = true;  // false until supabase/003_profiles_media.sql has b
 let profileDirty = false;   // your own profile has local changes not on the server yet
 let profileTimer = null;
 let warnedProfileSql = false;
+let votesTable = true;      // false until supabase/004_polls.sql has been run
 
 /** "agora", "há 5 min", "há 3 h", "há 2 d", or a date for older posts. */
 export function relativeTime(iso) {
@@ -71,7 +72,8 @@ function toBody(post) {
   return {
     text: post.text || '', lyrics: post.lyrics || '', lyricsSong: post.lyricsSong || '', lyricsArt: post.lyricsArt || '',
     tag: post.tag || '', rating: Number(post.rating) || 0, song: post.song || null, imageUrl: post.imageUrl || '',
-    playlistId: post.playlistId || null, playlist: playlistSnapshot(post)
+    playlistId: post.playlistId || null, playlist: playlistSnapshot(post),
+    poll: post.poll?.options?.length ? { options: post.poll.options.slice(0, 4) } : null
   };
 }
 
@@ -92,6 +94,8 @@ function fromRow(row) {
     text: b.text || '', lyrics: b.lyrics || '', lyricsSong: b.lyricsSong || '', lyricsArt: b.lyricsArt || '',
     tag: '', rating: Number(b.rating) || 0, song: b.song || null, imageUrl: b.imageUrl || '',
     playlistId: b.playlistId || null, playlist: b.playlist || null,
+    poll: Array.isArray(b.poll?.options) && b.poll.options.length >= 2 ? { options: b.poll.options.slice(0, 4) } : null,
+    votes: Object.fromEntries((row.post_votes || []).map(v => [v.user_id, v.option])),
     likes: (row.post_likes || []).map(l => l.user_id),
     reposts: (row.post_reposts || []).map(r => r.user_id),
     bookmarks: [], comments,
@@ -131,12 +135,9 @@ export function pullNow() {
   if (pulling) return pulling;
   pulling = (async () => {
     const db = getSupabase();
-    const postSelect = `id, author_id, body, edited, created_at,
-      post_likes(user_id), post_reposts(user_id),
-      post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS}))`;
     await uploadLegacyProfile(db);
     const [rows, follows, profiles] = await Promise.all([
-      must(db.from('posts').select(postSelect).order('created_at', { ascending: false }).limit(150)),
+      fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id').limit(5000)),
       fetchProfiles(db, q => q.eq('banned', false).limit(1000))
     ]);
@@ -151,7 +152,7 @@ export function pullNow() {
     Storage.replacePostsCache(posts, [...pending]);
 
     const signature = JSON.stringify([
-      posts.map(p => [p.id, p.likes.length, p.reposts.length, p.comments.length, p.updatedAt || '']),
+      posts.map(p => [p.id, p.likes.length, p.reposts.length, p.comments.length, p.updatedAt || '', JSON.stringify(p.votes)]),
       follows.length,
       profiles.map(p => [p.id, p.name, p.avatar_url, p.banner_url, p.bio, p.status, JSON.stringify(p.extras || {}).length])
     ]);
@@ -167,6 +168,22 @@ export function pullNow() {
     // Network blips: the next poll tries again; the cache keeps the app usable meanwhile
   }).finally(() => { pulling = null; });
   return pulling;
+}
+
+// Posts with likes, reposts, comments and (once 004 is run) poll votes
+async function fetchPosts(db, refine) {
+  const base = `id, author_id, body, edited, created_at,
+      post_likes(user_id), post_reposts(user_id),
+      post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS}))`;
+  if (votesTable) {
+    try { return await must(refine(db.from('posts').select(`${base}, post_votes(user_id, option)`))); }
+    catch (err) {
+      if (!(err?.code === 'PGRST200' && /post_votes/.test(err?.message || err?.details || ''))) throw err;
+      votesTable = false;
+      handlers.onError?.('A votação de músicas ainda não está no banco: rode supabase/004_polls.sql no SQL Editor do Supabase.');
+    }
+  }
+  return must(refine(db.from('posts').select(base)));
 }
 
 // ─── profile ────────────────────────────────────────────────────────────────
@@ -304,10 +321,7 @@ export async function searchPosts(q, limit = 40) {
   const term = cleanTerm(q);
   if (!isSyncing() || term.length < 2) return null;
   const fields = ['body->>text', 'body->>lyrics', 'body->>lyricsSong', 'body->>tag', 'body->song->>title', 'body->song->>artist', 'body->playlist->>title'];
-  const rows = await must(getSupabase().from('posts')
-    .select(`id, author_id, body, edited, created_at,
-      post_likes(user_id), post_reposts(user_id),
-      post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS}))`)
+  const rows = await fetchPosts(getSupabase(), q => q
     .or(fields.map(f => `${f}.ilike.*${term}*`).join(','))
     .order('created_at', { ascending: false })
     .limit(limit));
@@ -329,6 +343,13 @@ function write(task, failMessage) {
 const isAccountId = (id) => /^[0-9a-f-]{36}$/i.test(id || '');
 
 const hooks = {
+  vote(postId, option) {
+    if (!votesTable) return;
+    write(db => must(option === null
+      ? db.from('post_votes').delete().eq('post_id', postId).eq('user_id', me)
+      : db.from('post_votes').upsert({ post_id: postId, user_id: me, option }, { onConflict: 'post_id,user_id' })),
+      'Não foi possível registrar seu voto.');
+  },
   profileChanged() {
     scheduleProfilePush();
   },
@@ -384,6 +405,7 @@ export function startSync(userId, opts = {}) {
   disabled = false;
   profileColumns = true;
   warnedProfileSql = false;
+  votesTable = true;
   lastSignature = '';
   Storage.setRemoteHooks(hooks);
   timer = setInterval(pullNow, POLL_MS);

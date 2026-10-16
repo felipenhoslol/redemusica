@@ -6,6 +6,7 @@ import { renderPostCard } from './feed.js';
 import { openSearchModalForFeaturedSong } from './ui.js';
 import { getArtistImage } from './lastfm.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
+import { BIO_FONTS, bioFont, bioFontStyle } from './bioFonts.js';
 
 // ──────────────────────────────────────────
 // PROFILE RENDER
@@ -155,7 +156,7 @@ export function renderProfileView(container, targetUserId) {
               </div>
             `}
           </div>
-          <div class="profile-bio">${esc(user.bio || '')}</div>
+          ${user.bio ? `<div class="profile-bio" style="${bioFontStyle(user.bioFont)}">${esc(user.bio)}</div>` : ''}
           ${buildSocialsHtml(user, isMe)}
         </div>
         <div class="profile-stats-row">
@@ -706,8 +707,17 @@ export function renderProfileEditModal() {
       </div>
 
       <div>
-        <label class="form-label">Bio</label>
-        <textarea id="edit-bio" class="doodle-input" rows="2" placeholder="Fale sobre você...">${esc(user.bio || '')}</textarea>
+        <label class="form-label" for="edit-bio">Bio</label>
+        <textarea id="edit-bio" class="doodle-input bio-edit-input" rows="3" maxlength="500" placeholder="Fale sobre você e o que anda ouvindo" style="${bioFontStyle(user.bioFont)}"
+          oninput="document.getElementById('bio-count').textContent = this.value.length + '/500'">${esc(user.bio || '')}</textarea>
+        <div class="bio-edit-foot">
+          <div class="bio-font-picker" role="radiogroup" aria-label="Fonte da bio">
+            ${BIO_FONTS.map(f => `
+              <button type="button" role="radio" class="bio-font-chip${bioFont(user.bioFont).id === f.id ? ' active' : ''}" aria-checked="${bioFont(user.bioFont).id === f.id}"
+                data-bio-font="${f.id}" style="${bioFontStyle(f.id)}" onclick="window._pickBioFont('${f.id}')">${f.label}</button>`).join('')}
+          </div>
+          <span id="bio-count" class="bio-count">${(user.bio || '').length}/500</span>
+        </div>
       </div>
 
       <!-- REDES SOCIAIS -->
@@ -765,6 +775,18 @@ export function renderProfileEditModal() {
 
   openModal('profile-edit-modal');
 
+  let pickedBioFont = bioFont(user.bioFont).id;
+  window._pickBioFont = (id) => {
+    pickedBioFont = bioFont(id).id;
+    document.querySelectorAll('.bio-font-chip').forEach(b => {
+      const on = b.dataset.bioFont === pickedBioFont;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', String(on));
+    });
+    const input = document.getElementById('edit-bio');
+    if (input) input.setAttribute('style', bioFontStyle(pickedBioFont));
+  };
+
   window._saveProfileEdit = () => {
     const instaVal = document.getElementById('edit-instagram')?.value?.trim() || '';
     const twitVal = document.getElementById('edit-twitter')?.value?.trim() || '';
@@ -773,7 +795,8 @@ export function renderProfileEditModal() {
     const updates = {
       name:                 document.getElementById('edit-name')?.value?.trim() || user.name,
       handle:               document.getElementById('edit-handle')?.value?.trim() || user.handle,
-      bio:                  document.getElementById('edit-bio')?.value?.trim() || '',
+      bio:                  (document.getElementById('edit-bio')?.value?.trim() || '').slice(0, 500),
+      bioFont:              pickedBioFont,
       instagram:            instaVal,
       twitter:              twitVal,
       lastfm:               lastfmVal,

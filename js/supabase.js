@@ -34,6 +34,9 @@ function friendly(error) {
   if (msg.includes('email not confirmed')) return new AppError('auth', 'Confirme seu e-mail antes de entrar: procure a mensagem de confirmação na sua caixa de entrada.');
   if (msg.includes('user already registered')) return new AppError('auth', 'Já existe uma conta com esse e-mail. Tente entrar ou recuperar a senha.');
   if (msg.includes('password should be at least')) return new AppError('auth', 'A senha precisa ter pelo menos 8 caracteres.');
+  if (msg.includes('should be different from the old')) return new AppError('auth', 'A nova senha precisa ser diferente da atual.');
+  if (msg.includes('weak') || msg.includes('pwned')) return new AppError('auth', 'Essa senha é fácil de adivinhar. Use uma mais longa, misturando letras e números.');
+  if (msg.includes('reauthentication') || msg.includes('session')) return new AppError('auth', 'Sua sessão expirou. Saia e entre de novo para mudar a senha.');
   if (msg.includes('rate limit') || code === 429) return new AppError('rate', 'Muitas tentativas seguidas. Espere um minuto e tente de novo.');
   if (msg.includes('failed to fetch') || msg.includes('network')) return new AppError('network', 'Sem conexão com o servidor. Verifique sua internet.');
   if (code === 'PGRST205' || code === 'PGRST202') return new AppError('setup', 'O banco ainda não foi preparado: rode supabase/001_auth_feedback_admin.sql no SQL Editor do Supabase.');
