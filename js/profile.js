@@ -127,6 +127,12 @@ export function renderProfileView(container, targetUserId) {
       <div class="profile-info-card">
         <div class="profile-top-row">
           ${avatarHtml}
+          <div class="profile-identity">
+            <div class="profile-name">${esc(user.name)}</div>
+            <div class="profile-handle">${esc(user.handle || '@' + user.name.toLowerCase())}
+              ${presence.known ? `<span class="profile-presence${presence.online ? ' online' : ''}"><i aria-hidden="true"></i>${esc(presence.online ? 'Online' : presence.label.replace(/^visto/, 'Visto'))}</span>` : ''}
+            </div>
+          </div>
           <div class="profile-action-row">
             ${!isMe ? `
               <button class="doodle-btn doodle-btn-follow${following ? ' following' : ''}" id="follow-btn-${user.id}" data-follow-id="${user.id}"
@@ -145,10 +151,6 @@ export function renderProfileView(container, targetUserId) {
           </div>
         </div>
         <div class="profile-details">
-          <div class="profile-name">${esc(user.name)}</div>
-          <div class="profile-handle">${esc(user.handle || '@' + user.name.toLowerCase())}
-            ${presence.known ? `<span class="profile-presence${presence.online ? ' online' : ''}"><i aria-hidden="true"></i>${esc(presence.online ? 'Online' : presence.label.replace(/^visto/, 'Visto'))}</span>` : ''}
-          </div>
           <!-- Inline editable status (shown above actions) -->
           <div class="profile-status-wrap">
             ${isMe ? `

@@ -6,7 +6,7 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
          createPost, setFeaturedSong, addToShowcase, removeFromShowcase,
          getUnreadNotificationCount, getUnreadMessageCount, getFeedPosts, getChallengeAnswers,
          getActiveChallengeId, getChallengeAnswers as getAnswers,
-         updateUserMusicStats, updateUser, getAllPlaylists, getPlaylistById } from './storage.js';
+         updateUserMusicStats, updateUser, getAllPlaylists, getPlaylistById, publishChallengeAnswers } from './storage.js';
 
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
@@ -99,7 +99,7 @@ function startApp() {
       onUpdate: refreshFromServer,
       onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); renderNotifBadge(); showNotificationPopups(); },
       onError: (msg) => showDoodleToast(msg)
-    });
+    }).then(() => publishChallengeAnswers()); // answers saved before this version become visible to others
   }
 }
 
@@ -111,6 +111,7 @@ function refreshFromServer() {
   const friendsEl = document.getElementById('friends-widget');
   if (friendsEl) renderFriendsWidget(friendsEl);
   import('./profile.js').then(m => m.refreshProfileFollowState());
+  if (activeTab === 'comparar') window._refreshCompareView?.(); // someone's challenge answers may have arrived
   const active = document.activeElement;
   if (activeTab === 'feed') {
     const feedPosts = document.getElementById('feed-posts');

@@ -1105,3 +1105,27 @@
 .showcase-remove { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.75); color: #fff; cursor: pointer; }
 .showcase-remove svg { width: 13px; height: 13px; }
 .showcase-slot-empty { border: 1.5px dashed var(--line); background: none; font: inherit; color: inherit; cursor: pointer; padding: 0; }
+
+/* ─── Topo do perfil: foto sobre o banner, nome ao lado, ações no canto ─── */
+.profile-top-row {
+  display: flex; align-items: flex-end; gap: 16px; flex-wrap: nowrap;
+  padding: 0 22px 6px; margin-top: -66px; position: relative; z-index: 5;
+}
+.profile-main-avatar { width: 128px; height: 128px; font-size: 46px; }
+.profile-identity { flex: 1; min-width: 0; padding-bottom: 6px; }
+.profile-identity .profile-name { font-size: 1.5rem; line-height: 1.2; overflow-wrap: anywhere; }
+.profile-identity .profile-handle { margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 0 6px; }
+.profile-identity .profile-presence { margin-left: 2px; }
+.profile-action-row { position: absolute; top: 76px; right: 22px; }
+.profile-details { padding: 6px 22px 14px; }
+.profile-status-wrap { margin: 4px 0 8px; }
+
+@media (max-width: 700px) {
+  .profile-top-row { gap: 12px; padding: 0 14px 4px; margin-top: -44px; }
+  .profile-main-avatar { width: 88px; height: 88px; font-size: 34px; border-width: 3px; }
+  .profile-identity .profile-name { font-size: 1.2rem; }
+  .profile-identity { padding-bottom: 2px; }
+  /* Actions sit in the banner's lower-right corner so the name keeps the full width */
+  .profile-action-row { top: 52px; right: 14px; }
+  .profile-details { padding: 6px 14px 12px; }
+}

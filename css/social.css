@@ -861,3 +861,18 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .photo-viewer-nav.prev { left: 16px; top: 50%; transform: translateY(-50%); }
 .photo-viewer-nav.next { right: 16px; top: 50%; transform: translateY(-50%); }
 .photo-viewer-count { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); color: #fff; font-size: .85rem; background: rgba(0,0,0,.5); padding: 4px 10px; border-radius: 999px; }
+
+/* ─── Feed mais aproveitado: composer em menos linhas, coluna central um pouco mais larga ─── */
+.app-content { max-width: 1060px; }
+.feed-main { flex: 1 1 640px; max-width: 680px; }
+.creator-action-bar { flex-wrap: nowrap; padding-top: 6px; gap: 6px; }
+.creator-attach-btns { flex-wrap: wrap; gap: 0; min-width: 0; }
+.btn-attach { padding: 6px 8px; gap: 5px; }
+.creator-action-bar > div:last-child, .creator-action-bar .doodle-btn-primary { flex: none; }
+.create-post-textarea { min-height: 44px; }
+.post-card { padding-top: 10px; padding-bottom: 4px; }
+@media (max-width: 1100px) { .btn-attach span { display: none; } .btn-attach { padding: 8px; } }
+@media (max-width: 700px) {
+  .btn-attach span { display: none; }
+  .btn-attach { padding: 8px; min-width: 40px; justify-content: center; }
+}

@@ -260,7 +260,7 @@ export function upsertPostsCache(posts) {
 export const PROFILE_EXTRA_KEYS = [
   'instagram', 'twitter', 'lastfm', 'socials', 'featuredSong', 'songShowcase', 'pinnedPostId', 'bioFont',
   'topArtist', 'topArtistsMonth', 'topTracksMonth', 'musicService', 'spotifyUsername', 'spotifyConnected',
-  'musicPeriod', 'musicPeriodLabel', 'musicProfileUrl', 'musicSyncedAt'
+  'musicPeriod', 'musicPeriodLabel', 'musicProfileUrl', 'musicSyncedAt', 'challengeAnswers'
 ];
 
 /**
@@ -916,26 +916,63 @@ export function deleteCustomChallenge(challengeId) {
   if (getActiveChallengeId() === challengeId) setActiveChallengeId(all[0].id);
 }
 
+// Challenge answers: kept per browser (key per challenge) and published in the profile
+// (extras.challengeAnswers) so other people can see and compare them.
+const answersKey = (challengeId, userId) => `${STORAGE_KEYS.ANSWERS_PREFIX}${challengeId}_${userId}`;
+const liteTrack = (t) => ({
+  id: t.id, title: t.title, artist: t.artist, album: t.album || '', artwork: t.artwork || '',
+  previewUrl: t.previewUrl || '', duration: t.duration || '', userNote: (t.userNote || '').slice(0, 200)
+});
+
 export function getChallengeAnswers(challengeId = getActiveChallengeId(), userId = getActiveUserId()) {
-  const key = `${STORAGE_KEYS.ANSWERS_PREFIX}${challengeId}_${userId}`;
-  try { const raw = lsGet(key); return raw ? JSON.parse(raw) : {}; }
-  catch { return {}; }
+  const raw = lsGet(answersKey(challengeId, userId));
+  if (raw) { try { return JSON.parse(raw) || {}; } catch { return {}; } }
+  // Nothing saved in this browser (someone else, or you on another device): what the profile published
+  const published = getUserById(userId)?.challengeAnswers?.[challengeId];
+  return published && typeof published === 'object' ? { ...published } : {};
+}
+
+/** Put your answers in your profile (synced), if they changed. */
+export function publishChallengeAnswers() {
+  const me = getActiveUserId();
+  const prefix = STORAGE_KEYS.ANSWERS_PREFIX;
+  const all = {};
+  let keys = [];
+  try { keys = Object.keys(localStorage).filter(k => k.startsWith(prefix) && k.endsWith(`_${me}`)); } catch { /* storage unavailable */ }
+  keys.forEach(k => {
+    const cid = k.slice(prefix.length, k.length - me.length - 1);
+    try {
+      const answers = JSON.parse(lsGet(k)) || {};
+      const lite = Object.fromEntries(Object.entries(answers).map(([q, t]) => [q, liteTrack(t)]));
+      if (Object.keys(lite).length) all[cid] = lite;
+    } catch { /* skip a broken entry */ }
+  });
+  const user = getUserById(me);
+  if (!user) return;
+  const published = user.challengeAnswers || {};
+  // Answers that only exist in the profile (another device) stay published
+  Object.keys(published).forEach(cid => { if (!(cid in all) && !keys.includes(answersKey(cid, me))) all[cid] = published[cid]; });
+  // The profile's extras have a size limit on the server (~60 KB): trim the least important bits if needed
+  const size = () => JSON.stringify(all).length;
+  if (size() > 40000) Object.values(all).forEach(ans => Object.values(ans).forEach(t => { delete t.previewUrl; delete t.album; delete t.duration; }));
+  if (size() > 40000) Object.keys(all).filter(cid => cid !== getActiveChallengeId()).forEach(cid => { if (size() > 40000) delete all[cid]; });
+  if (JSON.stringify(all) !== JSON.stringify(published)) updateUser(me, { challengeAnswers: all });
 }
 
 export function saveChallengeAnswer(challengeId, questionId, trackData, userNote = '') {
   const userId = getActiveUserId();
   const answers = getChallengeAnswers(challengeId, userId);
   answers[questionId] = { ...trackData, userNote, answeredAt: new Date().toISOString() };
-  const key = `${STORAGE_KEYS.ANSWERS_PREFIX}${challengeId}_${userId}`;
-  lsSet(key, JSON.stringify(answers));
+  lsSet(answersKey(challengeId, userId), JSON.stringify(answers));
+  publishChallengeAnswers();
 }
 
 export function removeChallengeAnswer(challengeId, questionId) {
   const userId = getActiveUserId();
   const answers = getChallengeAnswers(challengeId, userId);
   delete answers[questionId];
-  const key = `${STORAGE_KEYS.ANSWERS_PREFIX}${challengeId}_${userId}`;
-  lsSet(key, JSON.stringify(answers));
+  lsSet(answersKey(challengeId, userId), JSON.stringify(answers));
+  publishChallengeAnswers();
 }
 
 // ──────────────────────────────────────────

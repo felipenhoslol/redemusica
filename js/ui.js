@@ -464,7 +464,12 @@ export function renderCompareView(container) {
   const allChallenges = storage.getAllChallenges();
 
   let selectedChallengeId = storage.getActiveChallengeId() || allChallenges[0]?.id || 'classic_30';
-  let compareUserId = users.find(u => u.id !== activeUser.id)?.id || users[0]?.id;
+  // Default: someone you follow who already answered this challenge, then anyone who answered
+  const following = new Set(storage.getFollowing(activeUser.id));
+  const others = users.filter(u => u.id !== activeUser.id && u.id !== 'user_me');
+  const answered = (u) => Object.keys(storage.getChallengeAnswers(selectedChallengeId, u.id)).length > 0;
+  let compareUserId = (others.find(u => following.has(u.id) && answered(u)) || others.find(answered)
+    || others.find(u => following.has(u.id)) || others[0] || users[0])?.id;
   let activeFilter = 'all'; // 'all' | 'both' | 'my' | 'theirs' | 'reviewed'
 
   function getAvatarMarkup(user, size = 44) {
