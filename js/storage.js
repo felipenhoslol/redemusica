@@ -210,9 +210,20 @@ export function setRemoteHooks(hooks) { remote = hooks; }
 const toRemote = (name, ...args) => { try { remote?.[name]?.(...args); } catch { /* sync is best-effort */ } };
 
 /** Replace the cached feed with the server's copy (keeps posts still on their way up). */
-export function replacePostsCache(posts, keepIds = []) {
+export function replacePostsCache(posts, keepIds = [], keepCommentIds = []) {
   const current = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
-  const pending = current.filter(p => keepIds.includes(p.id) && !posts.some(r => r.id === p.id));
+  const me = getActiveUserId();
+  const onServer = new Set(posts.map(p => p.id));
+  // Kept: posts on their way up, and anything you wrote that the server never confirmed (no server
+  // timestamp): the outbox in sync.js keeps resending those, so they must not vanish from the cache
+  const unsent = (p) => p.authorId === me && !p.createdAtIso;
+  const pending = current.filter(p => !onServer.has(p.id) && (keepIds.includes(p.id) || unsent(p)));
+  const byId = new Map(current.map(p => [p.id, p]));
+  posts.forEach(p => {
+    const local = (byId.get(p.id)?.comments || []).filter(c =>
+      (keepCommentIds.includes(c.id) || (c.userId === me && !c.createdAtIso)) && !p.comments.some(sc => sc.id === c.id));
+    if (local.length) p.comments = [...p.comments, ...local];
+  });
   lsSet(STORAGE_KEYS.POSTS, JSON.stringify([...pending, ...posts]));
 }
 
@@ -1032,7 +1043,9 @@ export function replaceMessagesCache(userId, messages, keepIds = []) {
   const current = readJson(STORAGE_KEYS.MESSAGES, []);
   const mine = (m) => m.fromUserId === userId || m.toUserId === userId;
   const others = current.filter(m => !mine(m));
-  const pending = current.filter(m => mine(m) && keepIds.includes(m.id) && !messages.some(r => r.id === m.id));
+  // Kept: messages on their way up and anything you sent that the server never had (the outbox resends it)
+  const onServer = new Set(messages.map(r => r.id));
+  const pending = current.filter(m => mine(m) && !onServer.has(m.id) && (keepIds.includes(m.id) || (m.fromUserId === userId && !m.synced)));
   lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify([...others, ...messages, ...pending]));
   return [...messages, ...pending];
 }

@@ -176,7 +176,7 @@ function fromMessageRow(r) {
     id: r.id, fromUserId: r.from_id, toUserId: r.to_id,
     text: b.text || '', song: b.song || null, imageUrl: b.imageUrl || '', gifUrl: b.gifUrl || '',
     link: b.link || null, replyTo: b.replyTo || null,
-    edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at
+    edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at, synced: true
   };
 }
 
@@ -190,32 +190,28 @@ function messageBody(m) {
   return { text: m.text || '', song: m.song || null, imageUrl: m.imageUrl || '', gifUrl: m.gifUrl || '', link: m.link || null, replyTo: reply };
 }
 
-// Messages written while the chat was local-only never reached anyone: send them once, in the
-// background. The flag is only set when every message was accepted or refused for good (a network
-// failure leaves it for the next session), and they stay in the cache while they go up.
-let legacyUploading = false;
-async function uploadLegacyMessages(db, serverIds) {
-  const key = `rmsn_messages_uploaded_${me}`;
-  if (legacyUploading || localStorage.getItem(key)) return;
-  const mine = Storage.getLocalMessagesFrom(me).filter(m => !serverIds.has(m.id) && isAccountId(m.toUserId) && /^msg_[A-Za-z0-9_]{4,60}$/.test(m.id));
-  if (!mine.length) { localStorage.setItem(key, '1'); return; }
-  legacyUploading = true;
-  mine.forEach(m => pendingMessages.add(m.id));
-  let retryLater = false;
-  try {
-    for (const m of mine) {
+// Messages outbox: anything you sent that the server never got (sent before the chat had a table,
+// or an insert that failed) is sent again on each full read, in the background. Messages that came
+// from the server carry synced: true and are never re-sent, so deletions stay deleted.
+let messageOutboxRunning = false;
+function flushMessageOutbox(db, serverIds) {
+  if (messageOutboxRunning) return;
+  const out = Storage.getLocalMessagesFrom(me).filter(m => !m.synced && !serverIds.has(m.id) && !pendingMessages.has(m.id)
+    && isAccountId(m.toUserId) && /^msg_[A-Za-z0-9_]{4,60}$/.test(m.id)).slice(0, OUTBOX_BATCH);
+  if (!out.length) return;
+  out.forEach(m => pendingMessages.add(m.id));
+  messageOutboxRunning = true;
+  (async () => {
+    for (const m of out) {
       try {
         const imageUrl = await hostImage(m.imageUrl, 'chat');
         await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody({ ...m, imageUrl }) }));
       } catch (err) {
-        // Constraint errors (too big, bad data, duplicate) won't get better: let it go.
-        // Anything else may: keep it in the cache and try again next session.
-        if (/^(23|42)/.test(err?.code || '')) pendingMessages.delete(m.id);
-        else retryLater = true;
+        pendingMessages.delete(m.id);
+        if (!alreadyThere(err)) console.warn('Mensagem não reenviada:', m.id, err?.code, err?.message);
       }
     }
-  } finally { legacyUploading = false; }
-  if (!retryLater) localStorage.setItem(key, '1');
+  })().finally(() => { messageOutboxRunning = false; setTimeout(pullMessages, 1000); });
 }
 
 const MESSAGE_FIELDS = 'id, from_id, to_id, body, edited, created_at';
@@ -241,8 +237,8 @@ export function pullMessages() {
       }
       return;
     }
-    if (full) uploadLegacyMessages(db, new Set(data.map(r => r.id))); // background
     data.forEach(r => pendingMessages.delete(r.id));
+    if (full) flushMessageOutbox(db, new Set(data.map(r => r.id))); // background
     if (!full && !data.length) return; // nothing new: no rewrite, no re-render
 
     const incoming = data.reverse().map(fromMessageRow);
@@ -328,17 +324,65 @@ function isMissingTable(err) {
 }
 
 // Posts written in this browser before the shared feed existed go up once
-async function uploadLegacyPosts(db, serverIds) {
-  const key = `rmsn_posts_uploaded_${me}`;
-  if (localStorage.getItem(key)) return;
-  const mine = Storage.getFeedPosts().filter(p => p.authorId === me && !serverIds.has(p.id) && /^post_[A-Za-z0-9_]{4,60}$/.test(p.id));
-  for (const post of mine) {
-    pending.add(post.id);
-    try { await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody(post) })); }
-    catch { /* a single bad post shouldn't block the rest */ }
-    finally { pending.delete(post.id); }
-  }
-  localStorage.setItem(key, '1');
+// ─── outbox: what this person wrote that the server never got ───────────────
+// A post or comment whose insert failed (offline, or the feed timing out) used to live only in its
+// author's browser, and the next successful pull dropped it from the cache. Now every pull looks for
+// them and sends them again. "Never on the server" = written here (no server timestamp, createdAtIso)
+// and not among the server's rows; things the server had and then deleted are never resurrected.
+const pendingComments = new Set(); // comment ids written here that no pull has seen yet
+const OUTBOX_BATCH = 30;
+let outboxRunning = false;
+const alreadyThere = (err) => err?.code === '23505'; // duplicate key: it was on the server after all
+
+function findPostOutbox(rows) {
+  const serverPosts = new Map(rows.map(r => [r.id, r]));
+  const posts = Storage.getFeedPosts('all');
+  // (ids already pending are on their way up right now)
+  const outPosts = posts.filter(p => p.authorId === me && !p.createdAtIso && !serverPosts.has(p.id) && !pending.has(p.id) && /^post_[A-Za-z0-9_]{4,60}$/.test(p.id));
+  const outComments = [];
+  posts.forEach(p => {
+    const server = serverPosts.get(p.id);
+    if (!server && !outPosts.includes(p)) return; // post gone from the server (or outside the window)
+    const known = new Set((server?.post_comments || []).map(c => c.id));
+    (p.comments || []).forEach(c => {
+      if (c.userId === me && !c.createdAtIso && !known.has(c.id) && !pendingComments.has(c.id) && /^c_[A-Za-z0-9_]{4,60}$/.test(c.id)) outComments.push({ postId: p.id, comment: c });
+    });
+  });
+  return { outPosts: outPosts.slice(0, OUTBOX_BATCH), outComments: outComments.slice(0, OUTBOX_BATCH) };
+}
+
+/** Marks the outbox as pending right away (so the cache keeps it) and sends it in the background. */
+function flushPostOutbox(db, rows) {
+  if (outboxRunning) return;
+  const { outPosts, outComments } = findPostOutbox(rows);
+  if (!outPosts.length && !outComments.length) return;
+  outPosts.forEach(p => pending.add(p.id));
+  outComments.forEach(({ comment }) => pendingComments.add(comment.id));
+  outboxRunning = true;
+  (async () => {
+    for (const post of outPosts) {
+      try {
+        const imageUrl = await hostImage(post.imageUrl, 'post');
+        await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody({ ...post, imageUrl }) }));
+      } catch (err) {
+        pending.delete(post.id); // already there (older than the feed window) or failed: next pull decides again
+        if (!alreadyThere(err)) console.warn('Post não reenviado:', post.id, err?.code, err?.message);
+      }
+    }
+    for (const { postId, comment: c } of outComments) {
+      try {
+        const imageUrl = await hostImage(c.imageUrl || '', 'comment');
+        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body: { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' } }));
+      } catch (err) {
+        pendingComments.delete(c.id);
+        if (!alreadyThere(err)) console.warn('Comentário não reenviado:', c.id, err?.code, err?.message);
+      }
+    }
+  })().finally(() => {
+    outboxRunning = false;
+    clearTimeout(pullSoonTimer);
+    pullSoonTimer = setTimeout(() => (pulling ? pulling.then(pullNow) : pullNow()), 1500);
+  });
 }
 
 // Profiles come in full once, then only the ones changed since (updated_at); a full re-read every
@@ -418,8 +462,11 @@ export function pullNow() {
       fetchPresence(db).catch(() => [])
     ]);
 
-    await uploadLegacyPosts(db, new Set(rows.map(r => r.id)));
-    rows.forEach(r => pending.delete(r.id));
+    rows.forEach(r => {
+      pending.delete(r.id);
+      (r.post_comments || []).forEach(c => pendingComments.delete(c.id));
+    });
+    flushPostOutbox(db, rows);
     migrateLegacyImages(db).catch(() => {}); // background
     const profilesChanged = trackProfiles(profiles);
 
@@ -437,7 +484,7 @@ export function pullNow() {
         p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length, Boolean(p.imageLazy)]),
       follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(','),
       others.map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
-      profilesVersion, [...pending]
+      profilesVersion, [...pending], [...pendingComments]
     ]);
     if (signature === lastSignature) { pullFailures = 0; return; }
     lastSignature = signature;
@@ -451,7 +498,7 @@ export function pullNow() {
       graph[me] = on ? [...list, target] : list;
     });
     Storage.replaceFollows(graph);
-    Storage.replacePostsCache(posts, [...pending]);
+    Storage.replacePostsCache(posts, [...pending], [...pendingComments]);
     Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows), 'feed');
     handlers.onUpdate?.();
     pullFailures = 0;
@@ -775,6 +822,7 @@ const hooks = {
     }, 'Não foi possível salvar a edição.');
   },
   deletePost(postId) {
+    pending.delete(postId);
     write(db => must(db.from('posts').delete().eq('id', postId)), 'Não foi possível apagar o post.');
   },
   like(postId, on) {
@@ -788,10 +836,14 @@ const hooks = {
       : db.from('post_reposts').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar o repost.');
   },
   addComment(postId, c) {
+    pendingComments.add(c.id);
     write(async db => {
-      const imageUrl = await hostImage(c.imageUrl || '', 'comment');
-      const body = { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' };
-      await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body }));
+      try {
+        const imageUrl = await hostImage(c.imageUrl || '', 'comment');
+        const body = { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' };
+        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body }));
+      } catch (err) { if (!alreadyThere(err)) { pendingComments.delete(c.id); throw err; } }
+      // stays pending until a pull sees it (the outbox resends it if it never arrives)
     }, 'Não foi possível enviar o comentário.');
   },
   likeComment(commentId, on) {
@@ -821,6 +873,7 @@ const hooks = {
     write(db => must(db.from('messages').delete().eq('id', id)), 'Não foi possível apagar a mensagem.');
   },
   deleteComment(commentId) {
+    pendingComments.delete(commentId);
     write(db => must(db.from('post_comments').delete().eq('id', commentId)), 'Não foi possível apagar o comentário.');
   },
   follow(targetId, on) {
@@ -883,6 +936,7 @@ export function stopSync() {
   messagesTimer = null;
   clearTimeout(pullSoonTimer);
   pendingFollows.clear();
+  pendingComments.clear();
   pendingLikes.clear();
   pendingReposts.clear();
   document.removeEventListener('visibilitychange', onVisible);
