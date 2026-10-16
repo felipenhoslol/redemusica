@@ -1,6 +1,7 @@
 // UI Controller — modals, search, music ask grid, compare, notifications, global search
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as storage from './storage.js';
+import { relativeTime } from './sync.js';
 import { globalAudio } from './audio.js';
 import { searchTracks } from './api.js';
 import { renderProfileView, renderFollowListModal, openModal, closeModal, showToast } from './profile.js';
@@ -882,6 +883,8 @@ window._submitNewChallenge = () => {
 // NOTIFICATIONS PANEL
 // ──────────────────────────────────────────
 
+const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat' };
+
 export function renderNotificationsPanel(container) {
   const notifs = storage.getMyNotifications();
   storage.markNotificationsRead();
@@ -893,20 +896,36 @@ export function renderNotificationsPanel(container) {
 
   container.innerHTML = notifs.map(n => {
     const fromUser = storage.getUserById(n.fromUserId);
-    const isImg = fromUser?.avatar && (isImageAvatar(fromUser.avatar));
-    const avatarHtml = isImg
+    const name = fromUser?.name || n.fromName || 'Alguém';
+    const avatarHtml = isImageAvatar(fromUser?.avatar)
       ? `<img src="${safeUrl(fromUser.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-      : esc(fromUser?.avatar || fromUser?.name?.[0] || '?');
-    const timeAgo = new Date(n.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      : esc(fromUser?.avatar || name[0] || '?');
+    const icon = ICONS[NOTIF_ICONS[n.type]] || '';
+    const profileId = fromUser ? n.fromUserId : '';
     return `
-      <div class="notif-item${!n.read ? ' unread' : ''}">
+      <div class="notif-item${!n.read ? ' unread' : ''}${profileId ? '' : ' no-link'}" ${profileId ? `role="button" tabindex="0" data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"` : ''}>
         <div class="notif-avatar" style="overflow:hidden;">${avatarHtml}</div>
-        <div>
-          <div class="notif-text"><strong>${esc(n.fromName || 'Alguém')}</strong> ${esc(n.text)}</div>
-          <div class="notif-time">${esc(timeAgo)}</div>
+        <div class="notif-body">
+          <div class="notif-text">
+            ${icon ? `<span class="notif-kind notif-kind-${esc(n.type)}" aria-hidden="true">${icon}</span>` : ''}
+            <strong>${esc(name)}</strong>${fromUser?.handle ? ` <span class="notif-handle">${esc(fromUser.handle)}</span>` : ''} ${esc(n.text)}
+          </div>
+          ${n.preview ? `<div class="notif-preview">“${esc(n.preview)}”</div>` : ''}
+          <div class="notif-time">${esc(relativeTime(n.createdAt))}</div>
         </div>
       </div>`;
   }).join('');
+
+  // Clicar mostra quem foi: abre o perfil da pessoa
+  container.onclick = (e) => {
+    const item = e.target.closest('[data-notif-profile]');
+    if (!item) return;
+    if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
+    window._goToProfile?.(item.dataset.notifProfile);
+  };
+  container.onkeydown = (e) => {
+    if (e.key === 'Enter' && e.target.matches('[data-notif-profile]')) e.target.click();
+  };
 }
 
 // ──────────────────────────────────────────

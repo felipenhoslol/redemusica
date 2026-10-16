@@ -125,7 +125,8 @@ export function renderProfileView(container, targetUserId) {
                 onclick="window._toggleFollow('${user.id}')">
                 ${following ? 'Seguindo' : 'Seguir'}
               </button>
-              <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openDMWith('${user.id}')">
+              <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" data-dm-id="${user.id}" onclick="window._openDMWith('${user.id}')"
+                title="Mandar mensagem" aria-label="Mandar mensagem"${following ? '' : ' hidden'}>
                 ${ICONS.chat}
               </button>
             ` : `

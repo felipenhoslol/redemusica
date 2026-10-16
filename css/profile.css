@@ -1035,3 +1035,6 @@
   border-color: var(--purple-accent) !important;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
 }
+
+/* Botão de mensagem: só aparece para quem você segue */
+.profile-action-row [data-dm-id][hidden] { display: none; }
