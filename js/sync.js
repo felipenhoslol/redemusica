@@ -142,12 +142,14 @@ function fromRow(row) {
       userName: c.author?.name || 'Alguém', userAvatar: c.author?.avatar_url || initialOf(c.author?.name),
       text: c.body?.text || '', song: c.body?.song || null, imageUrl: c.body?.imageUrl || '', gifUrl: c.body?.gifUrl || '',
       likes: (c.comment_likes || []).map(l => l.user_id),
+      ...(c.body?.imageInline ? { imageLazy: true } : {}),
       createdAt: relativeTime(c.created_at), createdAtIso: c.created_at
     }));
   return {
     id: row.id, authorId: row.author_id,
     text: b.text || '', lyrics: b.lyrics || '', lyricsSong: b.lyricsSong || '', lyricsArt: b.lyricsArt || '',
     tag: '', rating: Number(b.rating) || 0, song: b.song || null, imageUrl: b.imageUrl || '',
+    ...(b.imageInline ? { imageLazy: true } : {}),
     playlistId: b.playlistId || null, playlist: b.playlist || null,
     poll: Array.isArray(b.poll?.options) && b.poll.options.length >= 2 ? { options: b.poll.options.slice(0, 4) } : null,
     votes: Object.fromEntries((row.post_votes || []).map(v => [v.user_id, v.option])),
@@ -174,7 +176,7 @@ function fromMessageRow(r) {
     id: r.id, fromUserId: r.from_id, toUserId: r.to_id,
     text: b.text || '', song: b.song || null, imageUrl: b.imageUrl || '', gifUrl: b.gifUrl || '',
     link: b.link || null, replyTo: b.replyTo || null,
-    edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at
+    edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at, synced: true
   };
 }
 
@@ -188,32 +190,28 @@ function messageBody(m) {
   return { text: m.text || '', song: m.song || null, imageUrl: m.imageUrl || '', gifUrl: m.gifUrl || '', link: m.link || null, replyTo: reply };
 }
 
-// Messages written while the chat was local-only never reached anyone: send them once, in the
-// background. The flag is only set when every message was accepted or refused for good (a network
-// failure leaves it for the next session), and they stay in the cache while they go up.
-let legacyUploading = false;
-async function uploadLegacyMessages(db, serverIds) {
-  const key = `rmsn_messages_uploaded_${me}`;
-  if (legacyUploading || localStorage.getItem(key)) return;
-  const mine = Storage.getLocalMessagesFrom(me).filter(m => !serverIds.has(m.id) && isAccountId(m.toUserId) && /^msg_[A-Za-z0-9_]{4,60}$/.test(m.id));
-  if (!mine.length) { localStorage.setItem(key, '1'); return; }
-  legacyUploading = true;
-  mine.forEach(m => pendingMessages.add(m.id));
-  let retryLater = false;
-  try {
-    for (const m of mine) {
+// Messages outbox: anything you sent that the server never got (sent before the chat had a table,
+// or an insert that failed) is sent again on each full read, in the background. Messages that came
+// from the server carry synced: true and are never re-sent, so deletions stay deleted.
+let messageOutboxRunning = false;
+function flushMessageOutbox(db, serverIds) {
+  if (messageOutboxRunning) return;
+  const out = Storage.getLocalMessagesFrom(me).filter(m => !m.synced && !serverIds.has(m.id) && !pendingMessages.has(m.id)
+    && isAccountId(m.toUserId) && /^msg_[A-Za-z0-9_]{4,60}$/.test(m.id)).slice(0, OUTBOX_BATCH);
+  if (!out.length) return;
+  out.forEach(m => pendingMessages.add(m.id));
+  messageOutboxRunning = true;
+  (async () => {
+    for (const m of out) {
       try {
         const imageUrl = await hostImage(m.imageUrl, 'chat');
         await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody({ ...m, imageUrl }) }));
       } catch (err) {
-        // Constraint errors (too big, bad data, duplicate) won't get better: let it go.
-        // Anything else may: keep it in the cache and try again next session.
-        if (/^(23|42)/.test(err?.code || '')) pendingMessages.delete(m.id);
-        else retryLater = true;
+        pendingMessages.delete(m.id);
+        if (!alreadyThere(err)) console.warn('Mensagem não reenviada:', m.id, err?.code, err?.message);
       }
     }
-  } finally { legacyUploading = false; }
-  if (!retryLater) localStorage.setItem(key, '1');
+  })().finally(() => { messageOutboxRunning = false; setTimeout(pullMessages, 1000); });
 }
 
 const MESSAGE_FIELDS = 'id, from_id, to_id, body, edited, created_at';
@@ -239,8 +237,8 @@ export function pullMessages() {
       }
       return;
     }
-    if (full) uploadLegacyMessages(db, new Set(data.map(r => r.id))); // background
     data.forEach(r => pendingMessages.delete(r.id));
+    if (full) flushMessageOutbox(db, new Set(data.map(r => r.id))); // background
     if (!full && !data.length) return; // nothing new: no rewrite, no re-render
 
     const incoming = data.reverse().map(fromMessageRow);
@@ -326,17 +324,65 @@ function isMissingTable(err) {
 }
 
 // Posts written in this browser before the shared feed existed go up once
-async function uploadLegacyPosts(db, serverIds) {
-  const key = `rmsn_posts_uploaded_${me}`;
-  if (localStorage.getItem(key)) return;
-  const mine = Storage.getFeedPosts().filter(p => p.authorId === me && !serverIds.has(p.id) && /^post_[A-Za-z0-9_]{4,60}$/.test(p.id));
-  for (const post of mine) {
-    pending.add(post.id);
-    try { await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody(post) })); }
-    catch { /* a single bad post shouldn't block the rest */ }
-    finally { pending.delete(post.id); }
-  }
-  localStorage.setItem(key, '1');
+// ─── outbox: what this person wrote that the server never got ───────────────
+// A post or comment whose insert failed (offline, or the feed timing out) used to live only in its
+// author's browser, and the next successful pull dropped it from the cache. Now every pull looks for
+// them and sends them again. "Never on the server" = written here (no server timestamp, createdAtIso)
+// and not among the server's rows; things the server had and then deleted are never resurrected.
+const pendingComments = new Set(); // comment ids written here that no pull has seen yet
+const OUTBOX_BATCH = 30;
+let outboxRunning = false;
+const alreadyThere = (err) => err?.code === '23505'; // duplicate key: it was on the server after all
+
+function findPostOutbox(rows) {
+  const serverPosts = new Map(rows.map(r => [r.id, r]));
+  const posts = Storage.getFeedPosts('all');
+  // (ids already pending are on their way up right now)
+  const outPosts = posts.filter(p => p.authorId === me && !p.createdAtIso && !serverPosts.has(p.id) && !pending.has(p.id) && /^post_[A-Za-z0-9_]{4,60}$/.test(p.id));
+  const outComments = [];
+  posts.forEach(p => {
+    const server = serverPosts.get(p.id);
+    if (!server && !outPosts.includes(p)) return; // post gone from the server (or outside the window)
+    const known = new Set((server?.post_comments || []).map(c => c.id));
+    (p.comments || []).forEach(c => {
+      if (c.userId === me && !c.createdAtIso && !known.has(c.id) && !pendingComments.has(c.id) && /^c_[A-Za-z0-9_]{4,60}$/.test(c.id)) outComments.push({ postId: p.id, comment: c });
+    });
+  });
+  return { outPosts: outPosts.slice(0, OUTBOX_BATCH), outComments: outComments.slice(0, OUTBOX_BATCH) };
+}
+
+/** Marks the outbox as pending right away (so the cache keeps it) and sends it in the background. */
+function flushPostOutbox(db, rows) {
+  if (outboxRunning) return;
+  const { outPosts, outComments } = findPostOutbox(rows);
+  if (!outPosts.length && !outComments.length) return;
+  outPosts.forEach(p => pending.add(p.id));
+  outComments.forEach(({ comment }) => pendingComments.add(comment.id));
+  outboxRunning = true;
+  (async () => {
+    for (const post of outPosts) {
+      try {
+        const imageUrl = await hostImage(post.imageUrl, 'post');
+        await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody({ ...post, imageUrl }) }));
+      } catch (err) {
+        pending.delete(post.id); // already there (older than the feed window) or failed: next pull decides again
+        if (!alreadyThere(err)) console.warn('Post não reenviado:', post.id, err?.code, err?.message);
+      }
+    }
+    for (const { postId, comment: c } of outComments) {
+      try {
+        const imageUrl = await hostImage(c.imageUrl || '', 'comment');
+        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body: { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' } }));
+      } catch (err) {
+        pendingComments.delete(c.id);
+        if (!alreadyThere(err)) console.warn('Comentário não reenviado:', c.id, err?.code, err?.message);
+      }
+    }
+  })().finally(() => {
+    outboxRunning = false;
+    clearTimeout(pullSoonTimer);
+    pullSoonTimer = setTimeout(() => (pulling ? pulling.then(pullNow) : pullNow()), 1500);
+  });
 }
 
 // Profiles come in full once, then only the ones changed since (updated_at); a full re-read every
@@ -366,14 +412,18 @@ let legacyImagesStarted = false;
 const LEGACY_IMAGES_PER_SESSION = 25;
 const isInlineImage = (u) => typeof u === 'string' && u.startsWith('data:image/');
 
-async function migrateLegacyImages(db, rows) {
+async function migrateLegacyImages(db) {
   if (legacyImagesStarted) return;
   legacyImagesStarted = true;
-  const jobs = [];
-  rows.forEach(r => {
-    if (r.author_id === me && isInlineImage(r.body?.imageUrl)) jobs.push({ kind: 'post', row: r });
-    (r.post_comments || []).forEach(c => { if (c.user_id === me && isInlineImage(c.body?.imageUrl)) jobs.push({ kind: 'comment', row: c }); });
-  });
+  // Only this person's own heavy rows, a few at a time (the feed itself never downloads them)
+  const [posts, comments] = await Promise.all([
+    db.from('posts').select('id, body').eq('author_id', me).like('body->>imageUrl', 'data:image/%').limit(LEGACY_IMAGES_PER_SESSION),
+    db.from('post_comments').select('id, body').eq('user_id', me).like('body->>imageUrl', 'data:image/%').limit(LEGACY_IMAGES_PER_SESSION)
+  ]);
+  const jobs = [
+    ...(posts.data || []).map(row => ({ kind: 'post', row })),
+    ...(comments.data || []).map(row => ({ kind: 'comment', row }))
+  ];
   Storage.getLocalMessagesFrom(me).forEach(m => { if (isInlineImage(m.imageUrl) && !pendingMessages.has(m.id)) jobs.push({ kind: 'message', row: m }); });
 
   for (const job of jobs.slice(0, LEGACY_IMAGES_PER_SESSION)) {
@@ -388,7 +438,7 @@ async function migrateLegacyImages(db, rows) {
         const imageUrl = await uploadPhoto(row.body.imageUrl, job.kind);
         const table = job.kind === 'post' ? 'posts' : 'post_comments';
         await must(db.from(table).update({ body: { ...row.body, imageUrl } }).eq('id', row.id));
-        if (job.kind === 'post') Storage.patchPostCache(row.id, { imageUrl });
+        if (job.kind === 'post') Storage.patchPostCache(row.id, { imageUrl, imageLazy: false });
       }
     } catch (err) {
       // No permission yet (comments need supabase/009_performance.sql) or offline: try next session
@@ -412,9 +462,12 @@ export function pullNow() {
       fetchPresence(db).catch(() => [])
     ]);
 
-    await uploadLegacyPosts(db, new Set(rows.map(r => r.id)));
-    rows.forEach(r => pending.delete(r.id));
-    migrateLegacyImages(db, rows).catch(() => {}); // background
+    rows.forEach(r => {
+      pending.delete(r.id);
+      (r.post_comments || []).forEach(c => pendingComments.delete(c.id));
+    });
+    flushPostOutbox(db, rows);
+    migrateLegacyImages(db).catch(() => {}); // background
     const profilesChanged = trackProfiles(profiles);
 
     const posts = rows.map(fromRow);
@@ -428,10 +481,10 @@ export function pullNow() {
     // Same data as last time (the usual case): nothing to write, nothing to redraw
     const signature = JSON.stringify([
       posts.map(p => [p.id, p.likes, p.reposts, p.updatedAt || '', p.votes,
-        p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length]),
+        p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length, Boolean(p.imageLazy)]),
       follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(','),
       others.map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
-      profilesVersion, [...pending]
+      profilesVersion, [...pending], [...pendingComments]
     ]);
     if (signature === lastSignature) { pullFailures = 0; return; }
     lastSignature = signature;
@@ -445,7 +498,7 @@ export function pullNow() {
       graph[me] = on ? [...list, target] : list;
     });
     Storage.replaceFollows(graph);
-    Storage.replacePostsCache(posts, [...pending]);
+    Storage.replacePostsCache(posts, [...pending], [...pendingComments]);
     Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows), 'feed');
     handlers.onUpdate?.();
     pullFailures = 0;
@@ -457,7 +510,7 @@ export function pullNow() {
     }
     // Network blips: the next poll tries again. Anything that keeps failing gets reported (once)
     // instead of silently freezing the feed and the notifications.
-    console.warn('Feed sync failed:', err);
+    console.warn('Feed sync failed:', err?.code, err?.message || err, err?.details || '', err?.hint || '');
     pullFailures++;
     if (pullFailures === 3 && !warnedPullFailure) {
       warnedPullFailure = true;
@@ -469,12 +522,23 @@ export function pullNow() {
   return pulling;
 }
 
-// Posts with likes, reposts, comments and, once 004/005 are run, poll votes and comment likes
-async function fetchPosts(db, refine) {
+// The feed query never carries pictures: old posts keep base64 images inside body (hundreds of KB
+// each), and 150 of them made the query time out, freezing the feed. It asks for each body field
+// by name, leaving out imageUrl and the playlist cover; https pictures come in a second, tiny query,
+// and posts still holding a base64 image are marked so the card loads it alone when it scrolls in.
+const POST_FIELDS = `id, author_id, edited, created_at,
+  text:body->>text, lyrics:body->>lyrics, lyricsSong:body->>lyricsSong, lyricsArt:body->>lyricsArt,
+  tag:body->>tag, rating:body->rating, song:body->song, playlistId:body->>playlistId, poll:body->poll,
+  plId:body->playlist->>id, plTitle:body->playlist->>title, plDescription:body->playlist->>description,
+  plAuthorId:body->playlist->>authorId, plSongs:body->playlist->songs`;
+const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl`;
+const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll'];
+
+async function fetchPostRows(db, refine) {
   for (;;) {
-    const select = `id, author_id, body, edited, created_at,
+    const select = `${POST_FIELDS},
       post_likes(user_id, created_at), post_reposts(user_id, created_at),
-      post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS})${commentLikesTable ? ', comment_likes(user_id, created_at)' : ''})
+      post_comments(${COMMENT_FIELDS}, author:profiles(${PROFILE_FIELDS})${commentLikesTable ? ', comment_likes(user_id, created_at)' : ''})
       ${votesTable ? ', post_votes(user_id, option)' : ''}`;
     try { return await must(refine(db.from('posts').select(select))); }
     catch (err) {
@@ -489,6 +553,61 @@ async function fetchPosts(db, refine) {
       } else throw err;
     }
   }
+}
+
+// Picture links (https only) and which rows still hold a base64 picture, for a set of ids
+async function fetchPictures(db, table, ids) {
+  if (!ids.length) return { urls: new Map(), covers: new Map(), inline: new Set() };
+  const idList = ids.slice(0, 200);
+  const [urls, inline, covers] = await Promise.all([
+    must(db.from(table).select('id, url:body->>imageUrl').in('id', idList).like('body->>imageUrl', 'https://%')),
+    must(db.from(table).select('id').in('id', idList).like('body->>imageUrl', 'data:image/%')),
+    table === 'posts'
+      ? must(db.from(table).select('id, url:body->playlist->>coverUrl').in('id', idList).like('body->playlist->>coverUrl', 'https://%'))
+      : Promise.resolve([])
+  ]);
+  return {
+    urls: new Map(urls.map(r => [r.id, r.url])),
+    covers: new Map(covers.map(r => [r.id, r.url])),
+    inline: new Set(inline.map(r => r.id))
+  };
+}
+
+/** Posts with likes, reposts, comments (and poll votes / comment likes once 004/005 are run), in the row shape fromRow reads. */
+async function fetchPosts(db, refine) {
+  const rows = await fetchPostRows(db, refine);
+  const commentIds = rows.flatMap(r => (r.post_comments || []).map(c => c.id));
+  const [postPics, commentPics] = await Promise.all([
+    fetchPictures(db, 'posts', rows.map(r => r.id)),
+    fetchPictures(db, 'post_comments', commentIds)
+  ]);
+  return rows.map(r => {
+    const body = {};
+    LIGHT_KEYS.forEach(k => { if (r[k] !== null && r[k] !== undefined) body[k] = r[k]; });
+    body.imageUrl = postPics.urls.get(r.id) || '';
+    if (postPics.inline.has(r.id)) body.imageInline = true;
+    if (r.plId || r.plTitle) {
+      body.playlist = { id: r.plId, title: r.plTitle || '', description: r.plDescription || '', authorId: r.plAuthorId, songs: r.plSongs || [], coverUrl: postPics.covers.get(r.id) || '' };
+    }
+    const comments = (r.post_comments || []).map(c => ({
+      ...c,
+      body: { text: c.text || '', song: c.song || null, gifUrl: c.gifUrl || '', imageUrl: commentPics.urls.get(c.id) || '', ...(commentPics.inline.has(c.id) ? { imageInline: true } : {}) }
+    }));
+    return { id: r.id, author_id: r.author_id, edited: r.edited, created_at: r.created_at, body,
+      post_likes: r.post_likes, post_reposts: r.post_reposts, post_comments: comments, post_votes: r.post_votes };
+  });
+}
+
+// One base64 picture at a time, only for cards that actually scroll into view (kept in memory)
+const inlinePictures = new Map(); // "table:id" → Promise<string>
+export function loadInlinePicture(table, id) {
+  if (!['posts', 'post_comments'].includes(table) || !me) return Promise.resolve('');
+  const key = `${table}:${id}`;
+  if (!inlinePictures.has(key)) {
+    inlinePictures.set(key, getSupabase().from(table).select('url:body->>imageUrl').eq('id', id).maybeSingle()
+      .then(({ data }) => data?.url || '').catch(() => { inlinePictures.delete(key); return ''; }));
+  }
+  return inlinePictures.get(key);
 }
 
 // ─── profile ────────────────────────────────────────────────────────────────
@@ -695,12 +814,15 @@ const hooks = {
   },
   updatePost(post) {
     write(async db => {
-      const imageUrl = await hostImage(post.imageUrl, 'post');
+      // The feed never downloaded this post's base64 picture: fetch it so the edit doesn't drop it
+      const original = !post.imageUrl && post.imageLazy ? await loadInlinePicture('posts', post.id) : post.imageUrl;
+      const imageUrl = await hostImage(original, 'post');
       if (imageUrl !== post.imageUrl) Storage.patchPostCache(post.id, { imageUrl });
       await must(db.from('posts').update({ body: toBody({ ...post, imageUrl }), edited: true }).eq('id', post.id));
     }, 'Não foi possível salvar a edição.');
   },
   deletePost(postId) {
+    pending.delete(postId);
     write(db => must(db.from('posts').delete().eq('id', postId)), 'Não foi possível apagar o post.');
   },
   like(postId, on) {
@@ -714,10 +836,14 @@ const hooks = {
       : db.from('post_reposts').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar o repost.');
   },
   addComment(postId, c) {
+    pendingComments.add(c.id);
     write(async db => {
-      const imageUrl = await hostImage(c.imageUrl || '', 'comment');
-      const body = { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' };
-      await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body }));
+      try {
+        const imageUrl = await hostImage(c.imageUrl || '', 'comment');
+        const body = { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' };
+        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body }));
+      } catch (err) { if (!alreadyThere(err)) { pendingComments.delete(c.id); throw err; } }
+      // stays pending until a pull sees it (the outbox resends it if it never arrives)
     }, 'Não foi possível enviar o comentário.');
   },
   likeComment(commentId, on) {
@@ -747,6 +873,7 @@ const hooks = {
     write(db => must(db.from('messages').delete().eq('id', id)), 'Não foi possível apagar a mensagem.');
   },
   deleteComment(commentId) {
+    pendingComments.delete(commentId);
     write(db => must(db.from('post_comments').delete().eq('id', commentId)), 'Não foi possível apagar o comentário.');
   },
   follow(targetId, on) {
@@ -809,6 +936,7 @@ export function stopSync() {
   messagesTimer = null;
   clearTimeout(pullSoonTimer);
   pendingFollows.clear();
+  pendingComments.clear();
   pendingLikes.clear();
   pendingReposts.clear();
   document.removeEventListener('visibilitychange', onVisible);
