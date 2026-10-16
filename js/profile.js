@@ -170,12 +170,12 @@ export function renderProfileView(container, targetUserId) {
           ${user.bio ? `<div class="profile-bio" style="${bioFontStyle(user.bioFont)}">${esc(user.bio)}</div>` : ''}
           ${buildSocialsHtml(user, isMe)}
         </div>
-        <div class="profile-stats-row">
+        <div class="profile-stats-row" data-stats-user="${user.id}">
           <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'following')">
-            <strong>${followingList.length}</strong><span>seguindo</span>
+            <strong data-stat="following">${followingList.length}</strong><span>seguindo</span>
           </div>
           <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'followers')">
-            <strong>${followers.length}</strong><span>seguidores</span>
+            <strong data-stat="followers">${followers.length}</strong><span>seguidores</span>
           </div>
         </div>
         ${featuredHtml}
@@ -249,7 +249,7 @@ async function loadListening(section, username) {
     const row = (t, now) => `
       <div class="profile-listening-row${now ? ' now' : ''}" role="button" tabindex="0"
         onclick="window._playTrack(${jsArg({ title: t.title, artist: t.artist, artwork: t.artwork })})" title="Tocar prévia">
-        ${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy">` : `<span class="profile-listening-cover">${ICONS.music}</span>`}
+        ${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async">` : `<span class="profile-listening-cover">${ICONS.music}</span>`}
         <div class="profile-listening-text">
           <strong>${esc(t.title)}</strong>
           <span>${esc(t.artist)}</span>
@@ -324,7 +324,7 @@ const hasRealArtistPhoto = (url) => Boolean(url) && !/images\.unsplash\.com|\/im
 function artistPhotoHtml(artist, className) {
   const initial = esc((artist.name || '?').trim()[0] || '?');
   if (hasRealArtistPhoto(artist.imageUrl)) {
-    return `<img class="${className}" src="${safeUrl(artist.imageUrl)}" alt="${esc(artist.name)}" loading="lazy" data-fallback-initial="${initial}" onerror="window._artistPhotoFailed(this)">`;
+    return `<img class="${className}" src="${safeUrl(artist.imageUrl)}" alt="${esc(artist.name)}" loading="lazy" decoding="async" data-fallback-initial="${initial}" onerror="window._artistPhotoFailed(this)">`;
   }
   return `<span class="${className} artist-photo-fallback" data-artist-img="${esc(artist.name)}" aria-hidden="true">${initial}</span>`;
 }
@@ -424,7 +424,7 @@ function buildTopTracksHtml(user, periodLabel) {
           <li class="top-track-row">
             <span class="top-track-rank">${t.rank || i + 1}</span>
             ${t.artwork
-              ? `<img class="top-track-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+              ? `<img class="top-track-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">`
               : `<span class="top-track-cover artist-photo-fallback" aria-hidden="true">${esc((t.title || '?')[0])}</span>`}
             <div class="top-track-meta">
               <div class="top-track-title">${esc(t.title)}</div>
@@ -481,7 +481,7 @@ function buildShowcaseHtml(user, isMe) {
       return `
         <div class="showcase-slot" title="${esc(song.title)} — ${esc(song.artist)}"
           onclick="window._playTrack(${jsArg(song)})">
-          ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy">` : `<div class="showcase-slot-add" style="display:flex;align-items:center;justify-content:center;">${ICONS.music}</div>`}
+          ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy" decoding="async">` : `<div class="showcase-slot-add" style="display:flex;align-items:center;justify-content:center;">${ICONS.music}</div>`}
           ${isMe ? `<button onclick="event.stopPropagation();window._removeShowcase('${song.id}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.8);border:none;color:#fff;font-size:10px;cursor:pointer;border-radius:3px;padding:1px 3px;">${ICONS.close}</button>` : ''}
         </div>`;
     }
@@ -896,6 +896,26 @@ export function renderPeopleListModal(title, ids, emptyText = 'Ninguém aqui ain
     `<div class="empty-state"><div class="empty-state-sub">${esc(emptyText)}</div></div>`;
 
   openModal('follow-list-modal');
+}
+
+/**
+ * Bring the open profile's follow numbers, follow button and message button in line with the
+ * latest follow graph (after a sync or a follow click), without re-rendering the page.
+ */
+export function refreshProfileFollowState() {
+  const row = document.querySelector('[data-stats-user]');
+  if (!row) return;
+  const userId = row.dataset.statsUser;
+  const following = row.querySelector('[data-stat="following"]');
+  const followers = row.querySelector('[data-stat="followers"]');
+  if (following) following.textContent = Storage.getFollowing(userId).length;
+  if (followers) followers.textContent = Storage.getFollowers(userId).length;
+  const isFollowing = Storage.isFollowing(userId);
+  document.querySelectorAll(`.profile-action-row [data-follow-id="${userId}"]`).forEach(btn => {
+    btn.textContent = isFollowing ? 'Seguindo' : 'Seguir';
+    btn.classList.toggle('following', isFollowing);
+  });
+  document.querySelectorAll(`[data-dm-id="${userId}"]`).forEach(btn => { btn.hidden = !isFollowing; });
 }
 
 // helpers re-exported for app.js

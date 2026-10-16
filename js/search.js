@@ -119,7 +119,7 @@ function songRow(t, { number } = {}) {
   return `
     <div class="search-row search-song" role="button" tabindex="0" data-play='${esc(JSON.stringify(t))}'>
       ${number != null ? `<span class="search-track-no">${number}</span>` : ''}
-      ${t.artwork ? `<img class="search-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'search-cover search-cover-empty'}))">` : `<span class="search-cover search-cover-empty"></span>`}
+      ${t.artwork ? `<img class="search-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'search-cover search-cover-empty'}))">` : `<span class="search-cover search-cover-empty"></span>`}
       <div class="search-row-text">
         <div class="search-row-title">${hl(t.title)}</div>
         <div class="search-row-sub">
@@ -145,7 +145,7 @@ function artistCard(a) {
 function albumCard(al) {
   return `
     <button type="button" class="search-album" data-album="${esc(al.id)}">
-      ${al.artwork ? `<img src="${safeUrl(al.artwork)}" alt="" loading="lazy">` : '<span class="search-cover-empty"></span>'}
+      ${al.artwork ? `<img src="${safeUrl(al.artwork)}" alt="" loading="lazy" decoding="async">` : '<span class="search-cover-empty"></span>'}
       <span class="search-album-title">${hl(al.title)}</span>
       <span class="search-album-sub">${hl(al.artist)}${al.year ? ` · ${esc(al.year)}` : ''}</span>
     </button>`;
@@ -183,7 +183,7 @@ function hydrateArtistPhotos(scope) {
     el.dataset.loaded = '1';
     try {
       const url = await getArtistImage(el.dataset.artistPhoto);
-      if (url) el.innerHTML = `<img src="${safeUrl(url)}" alt="" loading="lazy">`;
+      if (url) el.innerHTML = `<img src="${safeUrl(url)}" alt="" loading="lazy" decoding="async">`;
     } catch { /* keep the initial */ }
   });
 }

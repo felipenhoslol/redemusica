@@ -640,3 +640,6 @@
   margin-left: 4px;
   font-style: italic;
 }
+
+/* Mensagens não lidas na lista de conversas */
+.chat-unread-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font: 700 .68rem/18px var(--f-ui, inherit); text-align: center; margin-left: 6px; }

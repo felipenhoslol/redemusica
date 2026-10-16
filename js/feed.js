@@ -22,7 +22,7 @@ function renderLyricsCard(post) {
       <blockquote>${esc(post.lyrics)}</blockquote>
       ${post.lyricsSong ? `
         <figcaption>
-          ${post.lyricsArt ? `<img src="${safeUrl(post.lyricsArt)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+          ${post.lyricsArt ? `<img src="${safeUrl(post.lyricsArt)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}
           <span>${esc(post.lyricsSong)}</span>
         </figcaption>` : ''}
     </figure>`;
@@ -167,12 +167,12 @@ export function renderCommentRow(c, postId, isMaximized = false) {
 
   const imageAttachmentHtml = c.imageUrl ? `
     <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
-      <img src="${safeUrl(c.imageUrl)}" alt="Anexo" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy">
+      <img src="${safeUrl(c.imageUrl)}" alt="Anexo" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy" decoding="async">
     </div>` : '';
 
   const gifAttachmentHtml = c.gifUrl ? `
     <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
-      <img src="${safeUrl(c.gifUrl)}" alt="GIF" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy">
+      <img src="${safeUrl(c.gifUrl)}" alt="GIF" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy" decoding="async">
     </div>` : '';
 
   const deleteBtnHtml = canDelete ? `
@@ -283,7 +283,7 @@ export function renderPostCard(post, options = {}) {
     </div>` : '';
 
   const playlistHtml = renderPostPlaylistCard(post);
-  const imageHtml = post.imageUrl ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="post image" loading="lazy">` : '';
+  const imageHtml = post.imageUrl ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="post image" loading="lazy" decoding="async">` : '';
   const detectedPostUrl = extractFirstUrl(post.text);
   const linkHtml = post.link ? renderRichLinkCard(post.link) : (detectedPostUrl ? renderRichLinkCard(detectedPostUrl) : '');
 
@@ -682,8 +682,37 @@ export function renderFeed(container, filterMode = 'all') {
     return;
   }
 
-  container.innerHTML = `<div class="feed-posts-list">${posts.map(p => renderPostCard(p)).join('')}</div>`;
+  // Drawn in pages: the first cards show up right away and the rest come in as you scroll.
+  // A refresh keeps however many were already on screen (and the scroll position with them).
+  const shown = Math.max(FEED_PAGE, Number(container.dataset.shown) || 0);
+  const first = posts.slice(0, shown);
+  container.dataset.shown = String(first.length);
+  container.innerHTML = `<div class="feed-posts-list">${first.map(p => renderPostCard(p)).join('')}</div>`;
+  attachFeedPager(container, posts);
   // Outside-click closing of option dropdowns is bound once in app.js (bindGlobalHandlers)
+}
+
+const FEED_PAGE = 15;
+const feedPagers = new WeakMap(); // container → IntersectionObserver
+
+function attachFeedPager(container, posts) {
+  feedPagers.get(container)?.disconnect();
+  if (Number(container.dataset.shown) >= posts.length) return;
+  const list = container.querySelector('.feed-posts-list');
+  const sentinel = document.createElement('div');
+  sentinel.className = 'feed-sentinel';
+  sentinel.setAttribute('aria-hidden', 'true');
+  container.appendChild(sentinel);
+  const observer = new IntersectionObserver((entries) => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    const from = Number(container.dataset.shown) || 0;
+    const next = posts.slice(from, from + FEED_PAGE);
+    list.insertAdjacentHTML('beforeend', next.map(p => renderPostCard(p)).join(''));
+    container.dataset.shown = String(from + next.length);
+    if (from + next.length >= posts.length) { observer.disconnect(); sentinel.remove(); }
+  }, { rootMargin: '900px 0px' }); // start well before the end so scrolling never hits a gap
+  observer.observe(sentinel);
+  feedPagers.set(container, observer);
 }
 
 // ──────────────────────────────────────────
@@ -833,7 +862,7 @@ window._openCommentGifPicker = (postId) => {
     }
     return gifs.map(g => `
       <div class="gif-picker-item" onclick="window._setCommentGif('${postId}', ${jsArg(g.url)})" title="Clique para anexar">
-        <img src="${safeUrl(g.url)}" alt="" loading="lazy">
+        <img src="${safeUrl(g.url)}" alt="" loading="lazy" decoding="async">
       </div>
     `).join('');
   };

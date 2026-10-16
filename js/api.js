@@ -199,16 +199,20 @@ export function extractFirstUrl(text) {
  * @param {string} rawUrl 
  * @returns {Promise<object>}
  */
-export async function fetchLinkMetadata(rawUrl) {
-  if (!rawUrl || !rawUrl.trim()) return null;
-  let url = rawUrl.trim();
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
-  }
+const linkMetadataInflight = new Map(); // url → Promise: a link shown in many cards is fetched once
 
-  if (linkMetadataCache.has(url)) {
-    return linkMetadataCache.get(url);
+export function fetchLinkMetadata(rawUrl) {
+  if (!rawUrl || !rawUrl.trim()) return Promise.resolve(null);
+  let url = rawUrl.trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+  if (linkMetadataCache.has(url)) return Promise.resolve(linkMetadataCache.get(url));
+  if (!linkMetadataInflight.has(url)) {
+    linkMetadataInflight.set(url, loadLinkMetadata(url).finally(() => linkMetadataInflight.delete(url)));
   }
+  return linkMetadataInflight.get(url);
+}
+
+async function loadLinkMetadata(url) {
 
   let domain = '';
   try {
@@ -280,8 +284,9 @@ export function renderRichLinkCard(linkOrUrl) {
 
   if (!rawUrl) return '';
 
-  if (!linkData && linkMetadataCache.has(rawUrl)) {
-    linkData = linkMetadataCache.get(rawUrl);
+  if (!linkData) {
+    const normalized = /^https?:\/\//.test(rawUrl) ? rawUrl : 'https://' + rawUrl;
+    linkData = linkMetadataCache.get(rawUrl) || linkMetadataCache.get(normalized) || null;
   }
 
   if (!linkData) {
@@ -307,7 +312,7 @@ export function renderRichLinkCard(linkOrUrl) {
     <a href="${safeUrl(linkData.url)}" target="_blank" rel="noopener noreferrer" class="rich-link-card" onclick="event.stopPropagation();">
       ${linkData.image ? `
         <div class="rich-link-cover">
-          <img src="${safeUrl(linkData.image)}" alt="${esc(linkData.title || '')}" loading="lazy" onerror="this.parentElement.style.display='none'">
+          <img src="${safeUrl(linkData.image)}" alt="${esc(linkData.title || '')}" loading="lazy" decoding="async" onerror="this.parentElement.style.display='none'">
         </div>` : ''}
       <div class="rich-link-body">
         <div class="rich-link-header">

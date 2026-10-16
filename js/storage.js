@@ -40,13 +40,81 @@ const DEMO_POST_IDS = ['post_seed_1', 'post_seed_2'];
 const DEMO_PLAYLIST_IDS = ['pl_sample_1', 'pl_sample_2', 'pl_sample_3'];
 const DEMO_CLEANUP_KEY = 'rmsn_demo_removed_v1';
 
+// ─── Safe storage ───────────────────────────────────────────────────────────
+// localStorage holds ~5 MB per site, shared with the Supabase session. The feed and chat caches
+// (posts and messages carry images) can outgrow it: once full, the session token can't be saved
+// (people had to log in again) and every later write threw, freezing feed and notifications.
+// Big server caches live in memory instead (the server has them anyway), and any write that hits
+// the quota moves those caches out of localStorage and retries.
+const memStore = new Map();
+const SERVER_CACHES = new Set([STORAGE_KEYS.POSTS, STORAGE_KEYS.MESSAGES]);
+const MAX_PERSISTED_CACHE = 1_000_000; // chars
+
+function lsGet(key) {
+  if (memStore.has(key)) return memStore.get(key);
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function freeServerCaches() {
+  SERVER_CACHES.forEach(k => {
+    if (memStore.has(k)) return;
+    try {
+      const v = localStorage.getItem(k);
+      if (v !== null) { memStore.set(k, v); localStorage.removeItem(k); }
+    } catch { /* nothing to free */ }
+  });
+}
+
+// Parsed values of the hot read paths (users, posts, follows...), so rendering 150 post cards
+// doesn't re-parse the whole cache several times per card. Any write to a key drops its entry.
+const parsedCache = new Map();
+function cachedJson(key, fallback) {
+  if (!parsedCache.has(key)) {
+    let value = null;
+    try { value = JSON.parse(lsGet(key)); } catch { /* corrupt or missing */ }
+    parsedCache.set(key, value);
+  }
+  return parsedCache.get(key) ?? fallback;
+}
+// Another tab changed something: forget what we parsed
+window.addEventListener('storage', (e) => { if (e.key) parsedCache.delete(e.key); else parsedCache.clear(); });
+
+function lsSet(key, value) {
+  parsedCache.delete(key);
+  if (SERVER_CACHES.has(key) && value.length > MAX_PERSISTED_CACHE) {
+    memStore.set(key, value);
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
+    return;
+  }
+  try {
+    localStorage.setItem(key, value);
+    memStore.delete(key);
+  } catch {
+    freeServerCaches();
+    try { localStorage.setItem(key, value); memStore.delete(key); }
+    catch {
+      memStore.set(key, value); // still usable this session
+      try { localStorage.removeItem(key); } catch { /* ignore */ }
+    }
+  }
+}
+
+// Browsers already full from earlier versions: move the oversized caches to memory right away,
+// before the Supabase client tries to save the session
+SERVER_CACHES.forEach(k => {
+  try {
+    const v = localStorage.getItem(k);
+    if (v && v.length > MAX_PERSISTED_CACHE) { memStore.set(k, v); localStorage.removeItem(k); }
+  } catch { /* storage unavailable */ }
+});
+
 function readJson(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  try { return JSON.parse(lsGet(key)) ?? fallback; }
   catch { return fallback; }
 }
 
 function removeDemoContent() {
-  if (localStorage.getItem(DEMO_CLEANUP_KEY)) return;
+  if (lsGet(DEMO_CLEANUP_KEY)) return;
   const isDemoUser = (id) => DEMO_USER_IDS.includes(id);
 
   const users = readJson(STORAGE_KEYS.USERS, null);
@@ -57,26 +125,26 @@ function removeDemoContent() {
     if (me && (me.lastfm === 'voce_scrobbles' || me.handle === '@marina.ouve')) {
       Object.assign(me, INITIAL_USERS[0]);
     }
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(kept));
+    lsSet(STORAGE_KEYS.USERS, JSON.stringify(kept));
   }
 
   const posts = readJson(STORAGE_KEYS.POSTS, null);
   if (Array.isArray(posts)) {
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(
+    lsSet(STORAGE_KEYS.POSTS, JSON.stringify(
       posts.filter(p => !DEMO_POST_IDS.includes(p.id) && !isDemoUser(p.authorId))
     ));
   }
 
   const playlists = readJson(STORAGE_KEYS.PLAYLISTS, null);
   if (Array.isArray(playlists)) {
-    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(
+    lsSet(STORAGE_KEYS.PLAYLISTS, JSON.stringify(
       playlists.filter(p => !DEMO_PLAYLIST_IDS.includes(p.id) && !isDemoUser(p.authorId))
     ));
   }
 
   const messages = readJson(STORAGE_KEYS.MESSAGES, null);
   if (Array.isArray(messages)) {
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(
+    lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(
       messages.filter(m => !isDemoUser(m.fromUserId) && !isDemoUser(m.toUserId))
     ));
   }
@@ -87,12 +155,12 @@ function removeDemoContent() {
     Object.entries(follows).forEach(([id, list]) => {
       if (!isDemoUser(id)) clean[id] = (list || []).filter(f => !isDemoUser(f));
     });
-    localStorage.setItem(STORAGE_KEYS.FOLLOWS, JSON.stringify(clean));
+    lsSet(STORAGE_KEYS.FOLLOWS, JSON.stringify(clean));
   }
 
   const notifications = readJson(STORAGE_KEYS.NOTIFICATIONS, null);
   if (Array.isArray(notifications)) {
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(
+    lsSet(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(
       notifications.filter(n => !isDemoUser(n.fromUserId) && !isDemoUser(n.targetUserId))
     ));
   }
@@ -101,7 +169,7 @@ function removeDemoContent() {
     .filter(k => k.startsWith(STORAGE_KEYS.ANSWERS_PREFIX) && DEMO_USER_IDS.some(id => k.endsWith(`_${id}`)))
     .forEach(k => localStorage.removeItem(k));
 
-  localStorage.setItem(DEMO_CLEANUP_KEY, '1');
+  lsSet(DEMO_CLEANUP_KEY, '1');
 }
 
 // ──────────────────────────────────────────
@@ -122,13 +190,13 @@ export function initStorage() {
     [STORAGE_KEYS.PLAYLISTS]: [],
   };
   Object.entries(defaults).forEach(([key, value]) => {
-    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value));
+    if (!lsGet(key)) lsSet(key, JSON.stringify(value));
   });
-  if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_USER)) {
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, 'user_me');
+  if (!lsGet(STORAGE_KEYS.ACTIVE_USER)) {
+    lsSet(STORAGE_KEYS.ACTIVE_USER, 'user_me');
   }
-  if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_CHALLENGE)) {
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_CHALLENGE, 'classic_30');
+  if (!lsGet(STORAGE_KEYS.ACTIVE_CHALLENGE)) {
+    lsSet(STORAGE_KEYS.ACTIVE_CHALLENGE, 'classic_30');
   }
 }
 
@@ -143,19 +211,37 @@ const toRemote = (name, ...args) => { try { remote?.[name]?.(...args); } catch {
 
 /** Replace the cached feed with the server's copy (keeps posts still on their way up). */
 export function replacePostsCache(posts, keepIds = []) {
-  const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const current = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const pending = current.filter(p => keepIds.includes(p.id) && !posts.some(r => r.id === p.id));
-  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify([...pending, ...posts]));
+  lsSet(STORAGE_KEYS.POSTS, JSON.stringify([...pending, ...posts]));
+}
+
+/** Change fields of a cached post without syncing it (e.g. its image now lives at a URL). */
+export function patchPostCache(postId, fields) {
+  const posts = readJson(STORAGE_KEYS.POSTS, []);
+  const post = posts.find(p => p.id === postId);
+  if (!post) return;
+  Object.assign(post, fields);
+  lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+}
+
+/** Change fields of a cached message without syncing it. */
+export function patchMessageCache(messageId, fields) {
+  const all = readJson(STORAGE_KEYS.MESSAGES, []);
+  const msg = all.find(m => m.id === messageId);
+  if (!msg) return;
+  Object.assign(msg, fields);
+  lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
 }
 
 /** Add or refresh posts fetched outside the feed (e.g. search results) without dropping the others. */
 export function upsertPostsCache(posts) {
-  const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const current = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   posts.forEach(p => {
     const i = current.findIndex(c => c.id === p.id);
     if (i === -1) current.push(p); else current[i] = p;
   });
-  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(current));
+  lsSet(STORAGE_KEYS.POSTS, JSON.stringify(current));
 }
 
 /** Add or refresh other people's public profiles in the local user list. */
@@ -190,7 +276,7 @@ export function mergeRemoteProfiles(profiles, opts = {}) {
     if (existing) Object.assign(existing, fields);
     else users.push({ id: p.id, bio: '', status: '', pinnedPostId: null, songShowcase: [], topArtistsMonth: [], featuredSong: null, ...fields });
   });
-  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  lsSet(STORAGE_KEYS.USERS, JSON.stringify(users));
 }
 
 /** Store when people were last seen online ({ userId: isoDate }). */
@@ -200,12 +286,12 @@ export function setPresence(map) {
   users.forEach(u => {
     if (map[u.id] && map[u.id] !== u.lastSeenAt) { u.lastSeenAt = map[u.id]; changed = true; }
   });
-  if (changed) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  if (changed) lsSet(STORAGE_KEYS.USERS, JSON.stringify(users));
 }
 
 /** Replace the follow graph with the server's copy ({ followerId: [followingId] }). */
 export function replaceFollows(map) {
-  localStorage.setItem(STORAGE_KEYS.FOLLOWS, JSON.stringify(map));
+  lsSet(STORAGE_KEYS.FOLLOWS, JSON.stringify(map));
 }
 
 // ──────────────────────────────────────────
@@ -213,12 +299,11 @@ export function replaceFollows(map) {
 // ──────────────────────────────────────────
 
 export function getAllUsers() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || []; }
-  catch { return INITIAL_USERS; }
+  return cachedJson(STORAGE_KEYS.USERS, null) || [];
 }
 
 export function getActiveUserId() {
-  return localStorage.getItem(STORAGE_KEYS.ACTIVE_USER) || 'user_me';
+  return lsGet(STORAGE_KEYS.ACTIVE_USER) || 'user_me';
 }
 
 export function getActiveUser() {
@@ -232,7 +317,7 @@ export function getUserById(userId) {
 }
 
 export function setActiveUser(userId) {
-  localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, userId);
+  lsSet(STORAGE_KEYS.ACTIVE_USER, userId);
 }
 
 /**
@@ -243,7 +328,7 @@ export function updateUser(userId, updates, opts = {}) {
   const index = users.findIndex(u => u.id === userId);
   if (index !== -1) {
     users[index] = { ...users[index], ...updates };
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    lsSet(STORAGE_KEYS.USERS, JSON.stringify(users));
     if (!opts.silent && userId === getActiveUserId()) toRemote('profileChanged');
   }
 }
@@ -275,7 +360,7 @@ export function ensureAccountUser(account) {
       featuredSong: null
     });
   }
-  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  lsSet(STORAGE_KEYS.USERS, JSON.stringify(users));
   setActiveUser(account.id);
 }
 
@@ -326,12 +411,12 @@ export function removeFromShowcase(trackId) {
 // ──────────────────────────────────────────
 
 function getAllFollows() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.FOLLOWS)) || {}; }
+  try { return cachedJson(STORAGE_KEYS.FOLLOWS, null) || {}; }
   catch { return {}; }
 }
 
 function saveAllFollows(data) {
-  localStorage.setItem(STORAGE_KEYS.FOLLOWS, JSON.stringify(data));
+  lsSet(STORAGE_KEYS.FOLLOWS, JSON.stringify(data));
 }
 
 export function getFollowing(userId = getActiveUserId()) {
@@ -377,7 +462,7 @@ export function toggleFollow(targetUserId) {
 // ──────────────────────────────────────────
 
 function getAllBlocked() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.BLOCKED)) || {}; }
+  try { return cachedJson(STORAGE_KEYS.BLOCKED, null) || {}; }
   catch { return {}; }
 }
 
@@ -397,7 +482,7 @@ export function toggleBlock(userId) {
   } else {
     all[activeId].splice(idx, 1);
   }
-  localStorage.setItem(STORAGE_KEYS.BLOCKED, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.BLOCKED, JSON.stringify(all));
 }
 
 // ──────────────────────────────────────────
@@ -405,7 +490,7 @@ export function toggleBlock(userId) {
 // ──────────────────────────────────────────
 
 function getAllBookmarks() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.BOOKMARKS)) || {}; }
+  try { return cachedJson(STORAGE_KEYS.BOOKMARKS, null) || {}; }
   catch { return {}; }
 }
 
@@ -425,7 +510,7 @@ export function toggleBookmark(postId) {
   } else {
     all[activeId].splice(idx, 1);
   }
-  localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.BOOKMARKS, JSON.stringify(all));
   return !~idx;
 }
 
@@ -441,7 +526,7 @@ export function getUserBookmarkedPosts() {
 // ──────────────────────────────────────────
 
 export function getAllNotifications() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) || []; }
+  try { return cachedJson(STORAGE_KEYS.NOTIFICATIONS, null) || []; }
   catch { return []; }
 }
 
@@ -468,32 +553,33 @@ export function markNotificationsRead() {
   const all = getAllNotifications();
   const activeId = getActiveUserId();
   all.forEach(n => { if (n.targetUserId === activeId) n.read = true; });
-  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all));
 }
 
 /**
  * Replace your server-made notifications (likes, reposts, comments, follows) with a fresh list,
  * keeping what you already read. The first sync on a browser starts with everything read.
  */
-export function mergeRemoteNotifications(userId, list) {
+export function mergeRemoteNotifications(userId, list, source = 'feed') {
   const all = getAllNotifications();
-  const seededKey = `rmsn_notifs_seeded_${userId}`;
-  const seeded = Boolean(localStorage.getItem(seededKey));
+  const seededKey = `rmsn_notifs_seeded_${userId}${source === 'feed' ? '' : '_' + source}`;
+  const seeded = Boolean(lsGet(seededKey));
+  const sourceOf = (n) => n.source || 'feed';
   const readIds = new Set(all.filter(n => n.remote && n.read).map(n => n.id));
-  const kept = all.filter(n => !(n.remote && n.targetUserId === userId));
+  const kept = all.filter(n => !(n.remote && n.targetUserId === userId && sourceOf(n) === source));
   const fresh = list
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 60)
-    .map(n => ({ ...n, remote: true, targetUserId: userId, read: !seeded || readIds.has(n.id) }));
-  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([...fresh, ...kept].slice(0, 160)));
-  if (!seeded) localStorage.setItem(seededKey, '1');
+    .map(n => ({ ...n, source, remote: true, targetUserId: userId, read: !seeded || readIds.has(n.id) }));
+  lsSet(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([...fresh, ...kept].slice(0, 160)));
+  if (!seeded) lsSet(seededKey, '1');
 }
 
 export function addNotification(targetUserId, data) {
   if (targetUserId === getActiveUserId()) return; // don't notify yourself
   const all = getAllNotifications();
   all.unshift({ id: 'notif_' + Date.now(), targetUserId, read: false, ...data });
-  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all.slice(0, 100)));
+  lsSet(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all.slice(0, 100)));
 }
 
 // ──────────────────────────────────────────
@@ -502,7 +588,7 @@ export function addNotification(targetUserId, data) {
 
 export function getFeedPosts(filterBy = 'all') {
   try {
-    const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+    const posts = cachedJson(STORAGE_KEYS.POSTS, null) || [];
     const activeId = getActiveUserId();
     const blocked = getAllBlocked()[activeId] || [];
     const filtered = posts.filter(p => !blocked.includes(p.authorId));
@@ -534,12 +620,12 @@ export function getFeedPosts(filterBy = 'all') {
 }
 
 export function getPostById(postId) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = cachedJson(STORAGE_KEYS.POSTS, null) || [];
   return posts.find(p => p.id === postId) || null;
 }
 
 export function createPost(postData) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const activeUser = getActiveUser();
 
   const newPost = {
@@ -565,17 +651,17 @@ export function createPost(postData) {
   };
 
   posts.unshift(newPost);
-  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+  lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
   toRemote('createPost', newPost);
   return newPost;
 }
 
 export function updatePost(postId, updates) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const idx = posts.findIndex(p => p.id === postId);
   if (idx !== -1) {
     posts[idx] = { ...posts[idx], ...updates, updatedAt: 'editado agora' };
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
     toRemote('updatePost', posts[idx]);
     return posts[idx];
   }
@@ -583,7 +669,7 @@ export function updatePost(postId, updates) {
 }
 
 export function toggleLikePost(postId) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const activeUser = getActiveUser();
   const post = posts.find(p => p.id === postId);
   if (post) {
@@ -602,13 +688,13 @@ export function toggleLikePost(postId) {
     } else {
       post.likes.splice(idx, 1);
     }
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
     toRemote('like', postId, idx === -1);
   }
 }
 
 export function toggleRepostPost(postId) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const activeUser = getActiveUser();
   const post = posts.find(p => p.id === postId);
   if (post) {
@@ -627,7 +713,7 @@ export function toggleRepostPost(postId) {
     } else {
       post.reposts.splice(idx, 1);
     }
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
     toRemote('repost', postId, idx === -1);
   }
 }
@@ -649,7 +735,7 @@ export function addCommentToPost(postId, commentData) {
 
   if (!text && !song && !imageUrl && !gifUrl) return null;
 
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const activeUser = getActiveUser();
   const post = posts.find(p => p.id === postId);
   if (post) {
@@ -674,7 +760,7 @@ export function addCommentToPost(postId, commentData) {
       text: `comentou em seu post`,
       createdAt: new Date().toISOString()
     });
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
     toRemote('addComment', postId, newComment);
     return newComment;
   }
@@ -683,21 +769,21 @@ export function addCommentToPost(postId, commentData) {
 
 /** Like or unlike a comment. Returns the updated comment (null if it no longer exists). */
 export function toggleLikeComment(postId, commentId) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const comment = posts.find(p => p.id === postId)?.comments?.find(c => c.id === commentId);
   if (!comment) return null;
   const me = getActiveUserId();
   if (!Array.isArray(comment.likes)) comment.likes = [];
   const idx = comment.likes.indexOf(me);
   if (idx === -1) comment.likes.push(me); else comment.likes.splice(idx, 1);
-  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+  lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
   toRemote('likeComment', commentId, idx === -1);
   return comment;
 }
 
 /** Delete a comment: allowed for its author, the post's author, or anyone with opts.force (admins). */
 export function deleteComment(postId, commentId, opts = {}) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const activeUser = getActiveUser();
   const post = posts.find(p => p.id === postId);
   if (post && Array.isArray(post.comments)) {
@@ -706,7 +792,7 @@ export function deleteComment(postId, commentId, opts = {}) {
       const comment = post.comments[idx];
       if (opts.force || comment.userId === activeUser.id || post.authorId === activeUser.id) {
         post.comments.splice(idx, 1);
-        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+        lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
         toRemote('deleteComment', commentId);
         return true;
       }
@@ -719,14 +805,14 @@ export function deleteComment(postId, commentId, opts = {}) {
  * Vote on a song poll (null removes your vote). Returns the updated post.
  */
 export function votePoll(postId, option) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const post = posts.find(p => p.id === postId);
   const count = post?.poll?.options?.length || 0;
   if (!post || (option !== null && !(option >= 0 && option < count))) return null;
   const me = getActiveUserId();
   post.votes = { ...(post.votes || {}) };
   if (option === null) delete post.votes[me]; else post.votes[me] = option;
-  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+  lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
   toRemote('vote', postId, option);
   return post;
 }
@@ -739,9 +825,9 @@ export function pinPost(postId) {
 }
 
 export function deletePost(postId) {
-  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
   const filtered = posts.filter(p => p.id !== postId);
-  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(filtered));
+  lsSet(STORAGE_KEYS.POSTS, JSON.stringify(filtered));
   toRemote('deletePost', postId);
 
   // Clean up user pin if this was pinned
@@ -755,7 +841,7 @@ export function deletePost(postId) {
   Object.keys(bookmarks).forEach(uid => {
     bookmarks[uid] = (bookmarks[uid] || []).filter(id => id !== postId);
   });
-  localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(bookmarks));
+  lsSet(STORAGE_KEYS.BOOKMARKS, JSON.stringify(bookmarks));
 }
 
 // ──────────────────────────────────────────
@@ -763,16 +849,16 @@ export function deletePost(postId) {
 // ──────────────────────────────────────────
 
 export function getAllChallenges() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.CHALLENGES)) || DEFAULT_CHALLENGES; }
+  try { return JSON.parse(lsGet(STORAGE_KEYS.CHALLENGES)) || DEFAULT_CHALLENGES; }
   catch { return DEFAULT_CHALLENGES; }
 }
 
 export function getActiveChallengeId() {
-  return localStorage.getItem(STORAGE_KEYS.ACTIVE_CHALLENGE) || 'classic_30';
+  return lsGet(STORAGE_KEYS.ACTIVE_CHALLENGE) || 'classic_30';
 }
 
 export function setActiveChallengeId(id) {
-  localStorage.setItem(STORAGE_KEYS.ACTIVE_CHALLENGE, id);
+  lsSet(STORAGE_KEYS.ACTIVE_CHALLENGE, id);
 }
 
 export function getActiveChallenge() {
@@ -795,7 +881,7 @@ export function createCustomChallenge(title, description, questions) {
     }))
   };
   all.push(newChallenge);
-  localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.CHALLENGES, JSON.stringify(all));
   setActiveChallengeId(newChallenge.id);
   return newChallenge;
 }
@@ -804,13 +890,13 @@ export function deleteCustomChallenge(challengeId) {
   let all = getAllChallenges();
   if (all.length <= 1) return;
   all = all.filter(c => c.id !== challengeId);
-  localStorage.setItem(STORAGE_KEYS.CHALLENGES, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.CHALLENGES, JSON.stringify(all));
   if (getActiveChallengeId() === challengeId) setActiveChallengeId(all[0].id);
 }
 
 export function getChallengeAnswers(challengeId = getActiveChallengeId(), userId = getActiveUserId()) {
   const key = `${STORAGE_KEYS.ANSWERS_PREFIX}${challengeId}_${userId}`;
-  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : {}; }
+  try { const raw = lsGet(key); return raw ? JSON.parse(raw) : {}; }
   catch { return {}; }
 }
 
@@ -819,7 +905,7 @@ export function saveChallengeAnswer(challengeId, questionId, trackData, userNote
   const answers = getChallengeAnswers(challengeId, userId);
   answers[questionId] = { ...trackData, userNote, answeredAt: new Date().toISOString() };
   const key = `${STORAGE_KEYS.ANSWERS_PREFIX}${challengeId}_${userId}`;
-  localStorage.setItem(key, JSON.stringify(answers));
+  lsSet(key, JSON.stringify(answers));
 }
 
 export function removeChallengeAnswer(challengeId, questionId) {
@@ -827,7 +913,7 @@ export function removeChallengeAnswer(challengeId, questionId) {
   const answers = getChallengeAnswers(challengeId, userId);
   delete answers[questionId];
   const key = `${STORAGE_KEYS.ANSWERS_PREFIX}${challengeId}_${userId}`;
-  localStorage.setItem(key, JSON.stringify(answers));
+  lsSet(key, JSON.stringify(answers));
 }
 
 // ──────────────────────────────────────────
@@ -836,7 +922,7 @@ export function removeChallengeAnswer(challengeId, questionId) {
 
 export function getChatMessages(userId1, userId2) {
   try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
+    const all = JSON.parse(lsGet(STORAGE_KEYS.MESSAGES)) || [];
     return all.filter(m =>
       (m.fromUserId === userId1 && m.toUserId === userId2) ||
       (m.fromUserId === userId2 && m.toUserId === userId1)
@@ -846,7 +932,7 @@ export function getChatMessages(userId1, userId2) {
 
 export function sendMessage(fromUserId, toUserId, text, song = null, imageUrl = '', gifUrl = '', replyTo = null, link = null) {
   try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
+    const all = JSON.parse(lsGet(STORAGE_KEYS.MESSAGES)) || [];
     const now = new Date();
     const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
     const newMsg = {
@@ -860,29 +946,26 @@ export function sendMessage(fromUserId, toUserId, text, song = null, imageUrl = 
       link: link || null,
       replyTo: replyTo || null,
       edited: false,
-      createdAt: timeStr
+      createdAt: timeStr,
+      createdAtIso: now.toISOString()
     };
     all.push(newMsg);
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
-    addNotification(toUserId, {
-      type: 'message',
-      fromUserId,
-      fromName: getUserById(fromUserId)?.name || 'Alguém',
-      text: `te enviou uma mensagem`,
-      createdAt: new Date().toISOString()
-    });
+    lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+    toRemote('sendMessage', newMsg);
+    // The recipient's notification comes from the server (sync.js), not from this browser
     return newMsg;
   } catch (e) { console.error(e); }
 }
 
 export function editMessage(messageId, newText) {
   try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
+    const all = JSON.parse(lsGet(STORAGE_KEYS.MESSAGES)) || [];
     const msg = all.find(m => m.id === messageId);
     if (msg) {
       msg.text = (newText || '').trim();
       msg.edited = true;
-      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+      lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+      toRemote('editMessage', msg);
       return msg;
     }
   } catch (e) { console.error(e); }
@@ -891,18 +974,83 @@ export function editMessage(messageId, newText) {
 
 export function deleteMessage(messageId) {
   try {
-    let all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
+    let all = JSON.parse(lsGet(STORAGE_KEYS.MESSAGES)) || [];
     all = all.filter(m => m.id !== messageId);
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+    lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+    toRemote('deleteMessage', messageId);
     return true;
   } catch (e) { console.error(e); return false; }
 }
 
-export function getUnreadMessageCount(userId = getActiveUserId()) {
+// When each conversation was last read ({ contactId: iso }), per account. The time stored is the
+// server timestamp of the newest message seen, so a phone with a wrong clock still counts right.
+const chatReadKey = () => `rmsn_chat_read_${getActiveUserId()}`;
+const getChatRead = () => readJson(chatReadKey(), {});
+
+/** Mark a conversation as read up to its newest message. */
+export function markChatRead(contactId) {
+  if (!contactId) return;
+  const me = getActiveUserId();
+  // Only messages they sent count: those carry server timestamps (ours may still have the local clock's)
+  const newest = getChatMessages(me, contactId).filter(m => m.fromUserId === contactId)
+    .reduce((max, m) => (m.createdAtIso && m.createdAtIso > max ? m.createdAtIso : max), '');
+  if (!newest) return;
+  const read = getChatRead();
+  if (read[contactId] && read[contactId] >= newest) return;
+  read[contactId] = newest;
+  lsSet(chatReadKey(), JSON.stringify(read));
+}
+
+/** First sync on this browser: everything already in the history counts as read. */
+export function seedChatRead(userId, messages) {
+  const key = `rmsn_chat_read_${userId}`;
+  if (lsGet(key) !== null) return;
+  const read = {};
+  messages.forEach(m => {
+    const other = m.fromUserId === userId ? m.toUserId : m.fromUserId;
+    if (m.createdAtIso && (!read[other] || m.createdAtIso > read[other])) read[other] = m.createdAtIso;
+  });
+  lsSet(key, JSON.stringify(read));
+}
+
+/** Messages received after the conversation was last read (all contacts, or one). */
+export function getUnreadMessageCount(userId = getActiveUserId(), fromUserId = null) {
   try {
-    const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
-    return all.filter(m => m.toUserId === userId && !m.read).length;
+    const all = readJson(STORAGE_KEYS.MESSAGES, []);
+    const read = getChatRead();
+    return all.filter(m => m.toUserId === userId && m.createdAtIso
+      && (!fromUserId || m.fromUserId === fromUserId)
+      && (!read[m.fromUserId] || m.createdAtIso > read[m.fromUserId])).length;
   } catch { return 0; }
+}
+
+/**
+ * Replace the cached conversations of an account with the server's copy, keeping messages still
+ * on their way up and other accounts' local messages. Returns the account's messages.
+ */
+export function replaceMessagesCache(userId, messages, keepIds = []) {
+  const current = readJson(STORAGE_KEYS.MESSAGES, []);
+  const mine = (m) => m.fromUserId === userId || m.toUserId === userId;
+  const others = current.filter(m => !mine(m));
+  const pending = current.filter(m => mine(m) && keepIds.includes(m.id) && !messages.some(r => r.id === m.id));
+  lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify([...others, ...messages, ...pending]));
+  return [...messages, ...pending];
+}
+
+/** Add newly arrived messages (or refresh ones already cached). Returns the account's messages. */
+export function addMessagesToCache(userId, messages) {
+  const current = readJson(STORAGE_KEYS.MESSAGES, []);
+  messages.forEach(m => {
+    const i = current.findIndex(c => c.id === m.id);
+    if (i === -1) current.push(m); else current[i] = m;
+  });
+  lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(current));
+  return current.filter(m => m.fromUserId === userId || m.toUserId === userId);
+}
+
+/** Messages this account wrote while the chat was still local-only. */
+export function getLocalMessagesFrom(userId) {
+  return readJson(STORAGE_KEYS.MESSAGES, []).filter(m => m.fromUserId === userId);
 }
 
 // ──────────────────────────────────────────
@@ -910,7 +1058,7 @@ export function getUnreadMessageCount(userId = getActiveUserId()) {
 // ──────────────────────────────────────────
 
 export function getAllReviews() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.REVIEWS)) || {}; }
+  try { return JSON.parse(lsGet(STORAGE_KEYS.REVIEWS)) || {}; }
   catch { return {}; }
 }
 
@@ -944,7 +1092,7 @@ export function saveSongReview(targetUserId, challengeId, questionId, rating, co
     questionId: questionId,
     createdAt: 'agora'
   };
-  localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.REVIEWS, JSON.stringify(all));
   addNotification(targetUserId, {
     type: 'review',
     fromUserId: activeUser.id,
@@ -961,7 +1109,7 @@ export function saveSongReview(targetUserId, challengeId, questionId, rating, co
 
 export function getAllPlaylists() {
   try {
-    const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYLISTS));
+    const list = JSON.parse(lsGet(STORAGE_KEYS.PLAYLISTS));
     if (Array.isArray(list)) return list;
     return [];
   } catch {
@@ -988,7 +1136,7 @@ export function createPlaylist({ title, description = '', coverUrl = '' }) {
     songs: []
   };
   all.unshift(newPl);
-  localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
   return newPl;
 }
 
@@ -997,7 +1145,7 @@ export function updatePlaylist(id, updates) {
   const idx = all.findIndex(p => p.id === id);
   if (idx !== -1) {
     all[idx] = { ...all[idx], ...updates, updatedAt: 'editado agora' };
-    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+    lsSet(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
     return all[idx];
   }
   return null;
@@ -1006,7 +1154,7 @@ export function updatePlaylist(id, updates) {
 export function deletePlaylist(id) {
   const all = getAllPlaylists();
   const filtered = all.filter(p => p.id !== id);
-  localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(filtered));
+  lsSet(STORAGE_KEYS.PLAYLISTS, JSON.stringify(filtered));
   return true;
 }
 
@@ -1029,7 +1177,7 @@ export function addSongToPlaylist(playlistId, track, note = '') {
   };
 
   pl.songs.push(songEntry);
-  localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
   return songEntry;
 }
 
@@ -1039,7 +1187,7 @@ export function removeSongFromPlaylist(playlistId, songIndex) {
   if (!pl || !Array.isArray(pl.songs)) return false;
   if (songIndex >= 0 && songIndex < pl.songs.length) {
     pl.songs.splice(songIndex, 1);
-    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+    lsSet(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
     return true;
   }
   return false;
@@ -1052,7 +1200,7 @@ export function reorderPlaylistSongs(playlistId, fromIndex, toIndex) {
   if (fromIndex < 0 || fromIndex >= pl.songs.length || toIndex < 0 || toIndex >= pl.songs.length) return false;
   const [moved] = pl.songs.splice(fromIndex, 1);
   pl.songs.splice(toIndex, 0, moved);
-  localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+  lsSet(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
   return true;
 }
 
@@ -1077,7 +1225,7 @@ export function toggleLikePlaylist(playlistId) {
     } else {
       pl.likes.splice(idx, 1);
     }
-    localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
+    lsSet(STORAGE_KEYS.PLAYLISTS, JSON.stringify(all));
     return pl;
   }
   return null;

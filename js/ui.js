@@ -2,6 +2,8 @@
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as storage from './storage.js';
 import { relativeTime } from './sync.js';
+import { auth, needsEmailConfirmation, markEmailReminderSeen } from './auth.js';
+import { sendVerificationLink } from './supabase.js';
 import { globalAudio } from './audio.js';
 import { searchTracks, searchArtists, lookupArtist, lookupAlbum } from './api.js';
 import { getArtistImage } from './lastfm.js';
@@ -150,7 +152,7 @@ function modalTrackRow(t, { number } = {}) {
   return `
     <div class="search-result-item" role="button" tabindex="0" data-pick="${key}">
       ${number != null ? `<span class="msearch-no">${number}</span>` : ''}
-      ${t.artwork ? `<img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="search-result-cover"></span>'}
+      ${t.artwork ? `<img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">` : '<span class="search-result-cover"></span>'}
       <div class="msearch-text">
         <div class="search-result-title">${esc(t.title)}</div>
         <div class="search-result-artist">
@@ -259,7 +261,7 @@ function hydrateModalArtistPhotos(scope) {
   scope.querySelectorAll('[data-m-photo]').forEach(async el => {
     try {
       const url = await getArtistImage(el.dataset.mPhoto);
-      if (url && el.isConnected) el.innerHTML = `<img src="${safeUrl(url)}" alt="" loading="lazy">`;
+      if (url && el.isConnected) el.innerHTML = `<img src="${safeUrl(url)}" alt="" loading="lazy" decoding="async">`;
     } catch { /* keep the initial */ }
   });
 }
@@ -284,7 +286,7 @@ async function openModalView(view) {
           <div class="msearch-albums">
             ${albums.map(al => `
               <button type="button" class="msearch-album" data-m-album="${esc(al.id)}">
-                ${al.artwork ? `<img src="${safeUrl(al.artwork)}" alt="" loading="lazy">` : '<span></span>'}
+                ${al.artwork ? `<img src="${safeUrl(al.artwork)}" alt="" loading="lazy" decoding="async">` : '<span></span>'}
                 <span class="msearch-album-title">${esc(al.title)}</span>
                 <span class="msearch-album-sub">${esc(al.year || '')}</span>
               </button>`).join('')}
@@ -393,7 +395,7 @@ export function renderMusicAskGrid(container, challengeId, userId) {
     return `
       <div class="q-card${hasAns ? ' answered' : ''}" onclick="${isMe ? `window._openQuestion('${cid}',${q.id})` : ''}">
         <div class="q-card-cover">
-          ${hasAns && ans.artwork ? `<img src="${safeUrl(ans.artwork)}" alt="${esc(ans.title)}" loading="lazy">` : `<span style="color:var(--dimmed);display:flex;align-items:center;justify-content:center;">${ICONS.music}</span>`}
+          ${hasAns && ans.artwork ? `<img src="${safeUrl(ans.artwork)}" alt="${esc(ans.title)}" loading="lazy" decoding="async">` : `<span style="color:var(--dimmed);display:flex;align-items:center;justify-content:center;">${ICONS.music}</span>`}
         </div>
         ${hasAns ? `<div class="q-card-answered-badge">${ICONS.check}</div>` : ''}
         <div class="q-card-info">
@@ -1004,18 +1006,49 @@ window._submitNewChallenge = () => {
 // NOTIFICATIONS PANEL
 // ──────────────────────────────────────────
 
-const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat' };
+const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', message: 'send' };
+
+function emailReminderHtml() {
+  if (!needsEmailConfirmation()) return '';
+  return `
+    <div class="notif-item notif-reminder no-link">
+      <div class="notif-avatar notif-reminder-icon" aria-hidden="true">${ICONS.lock}</div>
+      <div class="notif-body">
+        <div class="notif-text"><strong>Confirme seu e-mail</strong></div>
+        <div class="notif-preview" style="white-space:normal">Assim dá para recuperar a conta se esquecer a senha. Toque abaixo e mandamos um link para <strong>${esc(auth.user.email)}</strong>; é só abrir.</div>
+        <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm notif-reminder-btn" data-send-verify>Enviar link de confirmação</button>
+      </div>
+    </div>`;
+}
 
 export function renderNotificationsPanel(container) {
   const notifs = storage.getMyNotifications();
   storage.markNotificationsRead();
+  markEmailReminderSeen();
+  const reminder = emailReminderHtml();
+
+  // The reminder button works whatever else is in the list
+  container.onclick = (e) => {
+    const verify = e.target.closest('[data-send-verify]');
+    if (verify) { sendVerify(verify); return; }
+    const item = e.target.closest('[data-notif-profile], [data-notif-chat]');
+    if (!item) return;
+    if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
+    if (item.dataset.notifChat) {
+      // Opens even if you don't follow them back: it's a conversation they started
+      window.switchTab?.('chat');
+      setTimeout(() => window._selectChatContact?.(item.dataset.notifChat), 60);
+    } else {
+      window._goToProfile?.(item.dataset.notifProfile);
+    }
+  };
 
   if (!notifs.length) {
-    container.innerHTML = `<div class="notif-empty">Sem notificações ainda.</div>`;
+    container.innerHTML = `${reminder}${reminder ? '' : '<div class="notif-empty">Sem notificações ainda.</div>'}`;
     return;
   }
 
-  container.innerHTML = notifs.map(n => {
+  container.innerHTML = reminder + notifs.map(n => {
     const fromUser = storage.getUserById(n.fromUserId);
     const name = fromUser?.name || n.fromName || 'Alguém';
     const avatarHtml = isImageAvatar(fromUser?.avatar)
@@ -1024,7 +1057,7 @@ export function renderNotificationsPanel(container) {
     const icon = ICONS[NOTIF_ICONS[n.type]] || '';
     const profileId = fromUser ? n.fromUserId : '';
     return `
-      <div class="notif-item${!n.read ? ' unread' : ''}${profileId ? '' : ' no-link'}" ${profileId ? `role="button" tabindex="0" data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"` : ''}>
+      <div class="notif-item${!n.read ? ' unread' : ''}${profileId ? '' : ' no-link'}" ${profileId ? `role="button" tabindex="0" ${n.type === 'message' ? `data-notif-chat="${esc(profileId)}" title="Abrir conversa com ${esc(name)}"` : `data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"`}` : ''}>
         <div class="notif-avatar" style="overflow:hidden;">${avatarHtml}</div>
         <div class="notif-body">
           <div class="notif-text">
@@ -1037,16 +1070,22 @@ export function renderNotificationsPanel(container) {
       </div>`;
   }).join('');
 
-  // Clicar mostra quem foi: abre o perfil da pessoa
-  container.onclick = (e) => {
-    const item = e.target.closest('[data-notif-profile]');
-    if (!item) return;
-    if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
-    window._goToProfile?.(item.dataset.notifProfile);
-  };
   container.onkeydown = (e) => {
-    if (e.key === 'Enter' && e.target.matches('[data-notif-profile]')) e.target.click();
+    if (e.key === 'Enter' && e.target.matches('[data-notif-profile], [data-notif-chat]')) e.target.click();
   };
+}
+
+async function sendVerify(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  try {
+    await sendVerificationLink(auth.user.email);
+    btn.textContent = 'Link enviado! Confira seu e-mail';
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Enviar link de confirmação';
+    showToast(err?.message || 'Não foi possível enviar o link. Tente de novo.');
+  }
 }
 
 // ──────────────────────────────────────────
