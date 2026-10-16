@@ -160,3 +160,4 @@
   .search-artist-photo { width: 80px; height: 80px; }
   .search-duration { display: none; }
 }
+.search-more-people { display: block; margin: 12px auto 4px; }

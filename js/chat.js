@@ -817,6 +817,11 @@ window._setChatGif = (url) => {
 // ──────────────────────────────────────────
 
 export function initChatBindings() {
+  // Which conversation is on screen (pop-ups skip messages from it)
+  window._visibleChatContactId = () => (
+    (document.getElementById('chat-tab-main')?.isConnected && document.getElementById('chat-tab-messages')) ||
+    document.getElementById('dm-window')?.classList.contains('open')
+  ) ? activeContactId : null;
   window._closeDM = () => closeDMWindow();
   window._dmSelectContact = (id) => renderMessages(id);
   window._dmSend = () => sendDMMessage(false);

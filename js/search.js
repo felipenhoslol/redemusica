@@ -200,6 +200,21 @@ function paint(html, mySeq) {
   return el;
 }
 
+// Everyone on the network: people you don't follow yet first, then the rest
+const PEOPLE_PAGE = 50;
+function renderPeopleView(view, mySeq) {
+  const me = Storage.getActiveUser()?.id;
+  const people = Storage.getAllUsers().filter(u => u.id !== me && !/^user_me$/.test(u.id))
+    .sort((a, b) => (Storage.isFollowing(a.id) - Storage.isFollowing(b.id)) || (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+  const shown = view.shown || PEOPLE_PAGE;
+  paint(`
+    <section class="search-section">
+      <div class="search-section-head"><h2>Pessoas</h2><span class="search-row-sub">${people.length}</span></div>
+      ${people.length ? people.slice(0, shown).map(personRow).join('') : '<div class="search-empty"><div class="search-empty-title">Ainda não há outras pessoas por aqui.</div></div>'}
+      ${people.length > shown ? `<button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm search-more-people" data-more-people>Ver mais pessoas</button>` : ''}
+    </section>`, mySeq);
+}
+
 async function renderExplore(mySeq) {
   const recents = getRecents();
   const me = Storage.getActiveUser()?.id;
@@ -385,6 +400,7 @@ function run({ animate = 0 } = {}) {
   const el = body();
   if (animate && el) animatePanel(el, animate);
   const q = state.q.trim();
+  if (state.view?.type === 'people') return renderPeopleView(state.view, mySeq);
   if (state.view?.type === 'artist') return renderArtistView(state.view, mySeq);
   if (state.view?.type === 'album') return renderAlbumView(state.view, mySeq);
   if (state.view?.type === 'playlist') return renderPlaylistView(state.view, mySeq);
@@ -490,7 +506,12 @@ export function renderSearchPage(container) {
     if (t.classList.contains('search-clear')) { input.value = ''; state.q = ''; state.view = null; run(); input.focus(); return; }
     if (t.classList.contains('search-back')) { state.view = state.view?.back || null; run({ animate: -1 }); return; }
     if (t.closest('.search-tabs') && t.dataset.tab) { setTab(t.dataset.tab); return; }
-    if (t.dataset.tab && t.classList.contains('search-see-all')) { setTab(t.dataset.tab); return; }
+    if (t.dataset.tab && t.classList.contains('search-see-all')) {
+      // Without a search there is no "Pessoas" tab to switch to: open the full list of people instead
+      if (t.dataset.tab === 'pessoas' && state.q.trim().length < 2) { openView({ type: 'people', shown: PEOPLE_PAGE }); return; }
+      setTab(t.dataset.tab); return;
+    }
+    if (t.hasAttribute('data-more-people')) { state.view = { ...state.view, shown: (state.view?.shown || PEOPLE_PAGE) + PEOPLE_PAGE }; run(); return; }
     if (t.hasAttribute('data-clear-recents')) { removeRecent(null); run(); return; }
     if (t.dataset.removeRecent) { removeRecent(t.dataset.removeRecent); run(); return; }
     if (t.dataset.query) {

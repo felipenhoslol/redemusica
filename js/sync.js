@@ -126,6 +126,8 @@ function toBody(post) {
   return {
     text: post.text || '', lyrics: post.lyrics || '', lyricsSong: post.lyricsSong || '', lyricsArt: post.lyricsArt || '',
     tag: post.tag || '', rating: Number(post.rating) || 0, song: post.song || null, imageUrl: post.imageUrl || '',
+    images: (post.images || []).filter(u => /^https:\/\//.test(u)).slice(0, 4),
+    mentions: (post.mentions || []).filter(isAccountId).slice(0, 20),
     playlistId: post.playlistId || null, playlist: playlistSnapshot(post),
     poll: post.poll?.options?.length ? { options: post.poll.options.slice(0, 4) } : null
   };
@@ -149,6 +151,8 @@ function fromRow(row) {
     id: row.id, authorId: row.author_id,
     text: b.text || '', lyrics: b.lyrics || '', lyricsSong: b.lyricsSong || '', lyricsArt: b.lyricsArt || '',
     tag: '', rating: Number(b.rating) || 0, song: b.song || null, imageUrl: b.imageUrl || '',
+    images: Array.isArray(b.images) ? b.images.filter(u => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 4) : [],
+    mentions: Array.isArray(b.mentions) ? b.mentions.filter(isAccountId) : [],
     ...(b.imageInline ? { imageLazy: true } : {}),
     playlistId: b.playlistId || null, playlist: b.playlist || null,
     poll: Array.isArray(b.poll?.options) && b.poll.options.length >= 2 ? { options: b.poll.options.slice(0, 4) } : null,
@@ -296,6 +300,9 @@ function buildNotifications(rows, follows) {
   });
   rows.forEach(row => {
     const preview = postLabel(row.body);
+    if (row.author_id !== me && Array.isArray(row.body?.mentions) && row.body.mentions.includes(me)) {
+      add('mention', row.author_id, row.created_at, 'te marcou em um post', { key: row.id, postId: row.id, preview });
+    }
     if (row.author_id === me) {
       (row.post_likes || []).forEach(l => add('like', l.user_id, l.created_at, 'curtiu seu post', { key: row.id, postId: row.id, preview }));
       (row.post_reposts || []).forEach(r => add('repost', r.user_id, r.created_at, 'repostou seu post', { key: row.id, postId: row.id, preview }));
@@ -362,8 +369,9 @@ function flushPostOutbox(db, rows) {
   (async () => {
     for (const post of outPosts) {
       try {
-        const imageUrl = await hostImage(post.imageUrl, 'post');
-        await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody({ ...post, imageUrl }) }));
+        const images = await hostImages(post.images);
+        const imageUrl = images[0] || await hostImage(post.imageUrl, 'post');
+        await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody({ ...post, imageUrl, images }) }));
       } catch (err) {
         pending.delete(post.id); // already there (older than the feed window) or failed: next pull decides again
         if (!alreadyThere(err)) console.warn('Post não reenviado:', post.id, err?.code, err?.message);
@@ -544,10 +552,11 @@ export function pullNow() {
 const POST_FIELDS = `id, author_id, edited, created_at,
   text:body->>text, lyrics:body->>lyrics, lyricsSong:body->>lyricsSong, lyricsArt:body->>lyricsArt,
   tag:body->>tag, rating:body->rating, song:body->song, playlistId:body->>playlistId, poll:body->poll,
+  images:body->images, mentions:body->mentions,
   plId:body->playlist->>id, plTitle:body->playlist->>title, plDescription:body->playlist->>description,
   plAuthorId:body->playlist->>authorId, plSongs:body->playlist->songs`;
 const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl`;
-const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll'];
+const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll', 'images', 'mentions'];
 
 async function fetchPostRows(db, refine) {
   for (;;) {
@@ -706,6 +715,16 @@ async function hostImage(url, kind) {
   catch { return url; }
 }
 
+/** Host every picture of a post; ones that fail to upload are dropped from the gallery (never inlined). */
+async function hostImages(list) {
+  const out = [];
+  for (const url of (list || []).slice(0, 4)) {
+    const hosted = await hostImage(url, 'post');
+    if (/^https:\/\//.test(hosted)) out.push(hosted);
+  }
+  return out;
+}
+
 let serverPhotos = { avatar: null, banner: null }; // what the server had, to clean up replaced files
 
 async function pushProfile() {
@@ -851,9 +870,13 @@ const hooks = {
     pending.add(post.id);
     write(async db => {
       try {
-        const imageUrl = await hostImage(post.imageUrl, 'post');
-        if (imageUrl !== post.imageUrl) Storage.patchPostCache(post.id, { imageUrl });
-        await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody({ ...post, imageUrl }) }));
+        const images = await hostImages(post.images);
+        // The first picture also goes in imageUrl, so older versions of the app still show one
+        const imageUrl = images[0] || await hostImage(post.imageUrl, 'post');
+        if (imageUrl !== post.imageUrl || images.length !== (post.images || []).length || images.some((u, i) => u !== post.images[i])) {
+          Storage.patchPostCache(post.id, { imageUrl, images });
+        }
+        await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody({ ...post, imageUrl, images }) }));
       } catch (err) { pending.delete(post.id); throw err; }
       // stays pending until a pull sees it, so a pull that read the server just before can't drop it
     }, 'Não foi possível publicar o post. Verifique sua conexão.');

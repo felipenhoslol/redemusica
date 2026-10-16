@@ -39,40 +39,60 @@ async function fetchItunesData(term, limit = 25, entity = 'song') {
   return fetchItunesUrl(directUrl);
 }
 
-async function fetchItunesUrl(directUrl) {
+// iTunes requests: on iPhones (Safari/WebKit) the plain fetch to itunes.apple.com often fails on CORS
+// or simply hangs, which broke every music search there (attach a song, featured song, showcase,
+// lyric excerpt). The chain is now: fetch with a time limit → JSONP (the iTunes API supports
+// ?callback=, no CORS involved) → public proxies. Whatever worked last is tried first next time.
+const ITUNES_TIMEOUT_MS = 6000;
+let itunesPreferJsonp = false;
 
-  // Strategy 1: Direct native fetch (supported by Apple with Access-Control-Allow-Origin: *)
-  try {
-    const res = await fetch(directUrl);
-    if (res.ok) {
-      const text = await res.text();
-      if (text && text.trim()) {
-        const data = JSON.parse(text.trim());
-        if (data && Array.isArray(data.results)) return data;
-      }
+function itunesJsonp(url, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const cb = `__itunes_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement('script');
+    const cleanup = () => { clearTimeout(timer); delete window[cb]; script.remove(); };
+    const timer = setTimeout(() => { cleanup(); reject(new Error('iTunes JSONP timeout')); }, timeoutMs);
+    window[cb] = (data) => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error('iTunes JSONP error')); };
+    script.src = `${url}&callback=${cb}`;
+    document.head.appendChild(script);
+  });
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(ITUNES_TIMEOUT_MS) : undefined });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = (await res.text()).trim();
+  if (!text) throw new Error('empty');
+  return JSON.parse(text);
+}
+
+const validItunes = (data) => data && Array.isArray(data.results) ? data : null;
+
+async function fetchItunesUrl(directUrl) {
+  const direct = async () => validItunes(await fetchJson(directUrl));
+  const jsonp = async () => validItunes(await itunesJsonp(directUrl));
+  const order = itunesPreferJsonp ? [['jsonp', jsonp], ['direct', direct]] : [['direct', direct], ['jsonp', jsonp]];
+  for (const [name, attempt] of order) {
+    try {
+      const data = await attempt();
+      if (data) { itunesPreferJsonp = name === 'jsonp'; return data; }
+    } catch (err) {
+      console.warn(`iTunes (${name}) falhou:`, err?.message || err);
     }
-  } catch (err) {
-    console.warn('Direct iTunes fetch error, trying proxies...', err);
   }
 
-  // Strategy 2: Fast HTTPS Proxies if direct request is blocked by browser/network
+  // Last resort: public CORS proxies
   const proxies = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`,
     `https://corsproxy.io/?${encodeURIComponent(directUrl)}`
   ];
-
   for (const proxy of proxies) {
     try {
-      const res = await fetch(proxy);
-      if (res.ok) {
-        const text = await res.text();
-        if (text && text.trim()) {
-          const data = JSON.parse(text.trim());
-          if (data && Array.isArray(data.results)) return data;
-        }
-      }
+      const data = validItunes(await fetchJson(proxy));
+      if (data) return data;
     } catch (e) {
-      console.warn('Proxy fetch error:', e);
+      console.warn('Proxy do iTunes falhou:', e?.message || e);
     }
   }
 

@@ -586,6 +586,15 @@ export function mergeRemoteNotifications(userId, list, source = 'feed') {
   if (!seeded) lsSet(seededKey, '1');
 }
 
+/** Mark one notification as read (e.g. after opening it from a pop-up). */
+export function markNotificationRead(id) {
+  const all = getAllNotifications();
+  const n = all.find(x => x.id === id);
+  if (!n || n.read) return;
+  n.read = true;
+  lsSet(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all));
+}
+
 export function addNotification(targetUserId, data) {
   if (targetUserId === getActiveUserId()) return; // don't notify yourself
   const all = getAllNotifications();
@@ -653,7 +662,9 @@ export function createPost(postData) {
     playlistId: postData.playlistId || null,
     poll: postData.poll || null,
     votes: {},
-    imageUrl: postData.imageUrl || '',
+    imageUrl: postData.imageUrl || (postData.images || [])[0] || '',
+    images: (postData.images || []).slice(0, 4),
+    mentions: (postData.mentions || []).slice(0, 20),
     likes: [],
     comments: [],
     reposts: [],

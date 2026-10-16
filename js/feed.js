@@ -8,6 +8,7 @@ import { fetchLastFmTrendingTracks, fetchLastFmRecentTracks, lastFmUserOf } from
 import { compressImage, presenceOf, loadInlinePicture } from './sync.js';
 import { pollHtml } from './poll.js';
 import { auth } from './auth.js';
+import { linkMentions, attachMentionAutocomplete } from './mentions.js';
 import { openLyricPicker, EXCERPT_MAX_LINES, EXCERPT_MAX_CHARS } from './lyricPicker.js';
 
 // ──────────────────────────────────────────
@@ -202,7 +203,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
             ${deleteBtnHtml}
           </div>
         </div>
-        ${c.text ? `<div class="comment-text" style="word-break:break-word;">${esc(c.text)}</div>` : ''}
+        ${c.text ? `<div class="comment-text" style="word-break:break-word;">${linkMentions(esc(c.text))}</div>` : ''}
         ${songAttachmentHtml}
         ${imageAttachmentHtml}
         ${gifAttachmentHtml}
@@ -286,8 +287,14 @@ export function renderPostCard(post, options = {}) {
     </div>` : '';
 
   const playlistHtml = renderPostPlaylistCard(post);
-  const imageHtml = post.imageUrl
-    ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="post image" loading="lazy" decoding="async">`
+  const gallery = (post.images || []).filter(Boolean);
+  const imageHtml = gallery.length > 1
+    ? `<div class="post-gallery post-gallery-${Math.min(gallery.length, 4)}">${gallery.map((u, i) => `
+        <button type="button" class="post-gallery-item" onclick="event.stopPropagation();window._openPhotoViewer(${jsArg(gallery)}, ${i})" aria-label="Ver foto ${i + 1} de ${gallery.length}">
+          <img src="${safeUrl(u)}" alt="" loading="lazy" decoding="async">
+        </button>`).join('')}</div>`
+    : post.imageUrl
+    ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="post image" loading="lazy" decoding="async" onclick="event.stopPropagation();window._openPhotoViewer(${jsArg([post.imageUrl])}, 0)">`
     : post.imageLazy ? `<img class="post-attached-image lazy-picture" data-lazy-img="posts:${esc(post.id)}" alt="post image" decoding="async">` : '';
   const detectedPostUrl = extractFirstUrl(post.text);
   const linkHtml = post.link ? renderRichLinkCard(post.link) : (detectedPostUrl ? renderRichLinkCard(detectedPostUrl) : '');
@@ -340,7 +347,7 @@ export function renderPostCard(post, options = {}) {
         ${!isOwner && auth.isAdmin ? `<button class="post-options-item danger" onclick="window._deletePost('${post.id}')">Excluir post (admin)</button>` : ''}
       </div>
 
-      ${post.text ? `<div class="post-text">${esc(post.text)}</div>` : ''}
+      ${post.text ? `<div class="post-text">${linkMentions(esc(post.text))}</div>` : ''}
       ${ratingHtml}
       ${renderLyricsCard(post)}
       ${imageHtml}
@@ -446,6 +453,9 @@ export function renderPostCreator(containerEl) {
         </div>
       </div>
     </div>`;
+
+  attachMentionAutocomplete(containerEl.querySelector('#creator-text'));
+  window._pendingCreatorImages = [];
 
   // Re-bind creator global handlers
   // "Letra": pick lines from the real lyrics (LRCLIB), or write the excerpt yourself
@@ -585,8 +595,8 @@ export function renderPostCreator(containerEl) {
         <div>
           <label class="doodle-btn doodle-btn-secondary" style="width:100%;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;padding:12px;font-weight:700;">
             ${ICONS.image || ''}
-            <span>Escolher imagem do computador / celular</span>
-            <input type="file" id="post-img-file-input" accept="image/*" style="display:none;" onchange="window._handlePostImageUpload(event)">
+            <span>Escolher imagens do computador / celular (até ${MAX_POST_IMAGES})</span>
+            <input type="file" id="post-img-file-input" accept="image/*" multiple style="display:none;" onchange="window._handlePostImageUpload(event)">
           </label>
         </div>
       </div>`;
@@ -595,36 +605,46 @@ export function renderPostCreator(containerEl) {
   };
 
   window._handlePostImageUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    compressImage(file)
-      .then(url => window._setPostCreatorImage(url))
-      .catch(err => window.showDoodleToast?.(err.message));
+    const room = MAX_POST_IMAGES - (window._pendingCreatorImages || []).length;
+    const files = [...(event.target.files || [])].slice(0, Math.max(0, room));
+    if (!files.length) { window.showDoodleToast?.(`Um post pode ter até ${MAX_POST_IMAGES} fotos.`); return; }
+    Promise.all(files.map(f => compressImage(f).catch(err => { window.showDoodleToast?.(err.message); return null; })))
+      .then(urls => urls.filter(Boolean).forEach(u => window._setPostCreatorImage(u, { quiet: true })))
+      .then(() => window.closeDoodleModal?.('post-image-modal'));
   };
 
-  window._setPostCreatorImage = (url) => {
-    window._pendingCreatorImage = url;
-    if (window.closeDoodleModal) window.closeDoodleModal('post-image-modal');
-    const el = document.getElementById('creator-image-attach');
-    if (el) {
-      el.style.display = 'block';
-      el.innerHTML = `
-        <div style="position:relative;display:inline-block;max-width:320px;border-radius:10px;overflow:hidden;border:1.5px solid var(--accent);box-shadow:0 4px 12px rgba(0,0,0,0.3);margin-top:10px;">
-          <img src="${safeUrl(url)}" alt="Imagem do post" style="width:100%;max-height:220px;object-fit:cover;display:block;">
-          <button type="button" onclick="window._removeCreatorImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:900;display:flex;align-items:center;justify-content:center;" title="Remover imagem">✕</button>
-        </div>`;
-    }
-    import('./ui.js').then(u => u.showToast('Imagem anexada à publicação!'));
+  // Pictures of the post being written (up to MAX_POST_IMAGES), shown as removable thumbnails
+  window._setPostCreatorImage = (url, opts = {}) => {
+    const list = window._pendingCreatorImages || (window._pendingCreatorImages = []);
+    if (list.length >= MAX_POST_IMAGES) { window.showDoodleToast?.(`Um post pode ter até ${MAX_POST_IMAGES} fotos.`); return; }
+    list.push(url);
+    if (!opts.quiet) window.closeDoodleModal?.('post-image-modal');
+    renderCreatorImages();
   };
 
-  window._removeCreatorImage = () => {
-    window._pendingCreatorImage = null;
-    const el = document.getElementById('creator-image-attach');
-    if (el) {
-      el.style.display = 'none';
-      el.innerHTML = '';
-    }
+  window._removeCreatorImage = (index) => {
+    const list = window._pendingCreatorImages || [];
+    if (index === undefined) list.length = 0; else list.splice(index, 1);
+    renderCreatorImages();
   };
+}
+
+const MAX_POST_IMAGES = 4;
+
+function renderCreatorImages() {
+  const list = window._pendingCreatorImages || [];
+  const el = document.getElementById('creator-image-attach');
+  if (!el) return;
+  el.style.display = list.length ? 'block' : 'none';
+  el.innerHTML = list.length ? `
+    <div class="creator-images">
+      ${list.map((url, i) => `
+        <div class="creator-image-thumb">
+          <img src="${safeUrl(url)}" alt="Foto ${i + 1} do post">
+          <button type="button" onclick="window._removeCreatorImage(${i})" aria-label="Tirar a foto ${i + 1}" title="Tirar foto">✕</button>
+        </div>`).join('')}
+      ${list.length < MAX_POST_IMAGES ? `<button type="button" class="creator-image-add" onclick="window._creatorOpenImagePicker()" aria-label="Adicionar mais fotos">${ICONS.plus}</button>` : ''}
+    </div>` : '';
 }
 
 function renderCreatorRating(el) {
@@ -1104,6 +1124,7 @@ window._toggleComments = (postId, btn, event) => {
 
   const isHidden = window.getComputedStyle(commentsSection).display === 'none' || commentsSection.style.display === 'none' || !commentsSection.style.display;
   commentsSection.style.display = isHidden ? 'flex' : 'none';
+  if (isHidden) attachMentionAutocomplete(commentsSection.querySelector('input[id^="comment-input-"]'));
 
   if (isHidden) {
     const input = commentsSection.querySelector('.doodle-input');
@@ -1270,3 +1291,53 @@ function watchLazyPictures(node) {
 }
 new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(watchLazyPictures)))
   .observe(document.documentElement, { childList: true, subtree: true });
+
+// ─── Photo viewer: tap a post picture to see it big (swipe or arrows between a post's photos) ───
+window._openPhotoViewer = (urls, start = 0) => {
+  const list = (urls || []).filter(u => /^(https:\/\/|data:image\/)/.test(u));
+  if (!list.length) return;
+  document.getElementById('photo-viewer')?.remove();
+  let i = Math.min(Math.max(0, start), list.length - 1);
+  const root = document.createElement('div');
+  root.id = 'photo-viewer';
+  root.className = 'photo-viewer';
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-label', 'Foto do post');
+  root.innerHTML = `
+    <button type="button" class="photo-viewer-close" data-close aria-label="Fechar">${ICONS.close}</button>
+    ${list.length > 1 ? `<button type="button" class="photo-viewer-nav prev" data-step="-1" aria-label="Foto anterior">${ICONS.chevronLeft}</button>
+    <button type="button" class="photo-viewer-nav next" data-step="1" aria-label="Próxima foto">${ICONS.chevronRight}</button>` : ''}
+    <img alt="">
+    ${list.length > 1 ? '<div class="photo-viewer-count"></div>' : ''}`;
+  const img = root.querySelector('img');
+  const show = () => {
+    img.src = list[i];
+    const c = root.querySelector('.photo-viewer-count');
+    if (c) c.textContent = `${i + 1} / ${list.length}`;
+  };
+  const step = (d) => { i = (i + d + list.length) % list.length; show(); };
+  const close = () => { document.removeEventListener('keydown', onKey); root.remove(); };
+  const onKey = (e) => {
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowRight') step(1);
+    if (e.key === 'ArrowLeft') step(-1);
+  };
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-step], [data-close]');
+    if (b?.dataset.step) step(Number(b.dataset.step));
+    else if (b || e.target === root) close();
+  });
+  let touchX = null;
+  root.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+  root.addEventListener('touchend', (e) => {
+    if (touchX === null || list.length < 2) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1);
+    touchX = null;
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(root);
+  show();
+  root.querySelector('[data-close]').focus({ preventScroll: true });
+};

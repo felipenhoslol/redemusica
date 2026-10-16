@@ -1069,3 +1069,39 @@
 
 /* Banner no mesmo formato do editor (3:1): mostra exatamente o enquadramento escolhido */
 .profile-banner { height: auto; aspect-ratio: 3 / 1; max-height: 300px; }
+
+/* "Ouvindo agora": capa vira um vinil girando, brilho pulsando e equalizador */
+.profile-listening.is-playing {
+  position: relative;
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--accent-soft), transparent 60%),
+    var(--surface, var(--bg-card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  animation: np-glow 2.4s ease-in-out infinite;
+}
+@keyframes np-glow {
+  50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 28%, transparent); }
+}
+.np-disc {
+  position: relative; flex: none; width: 52px; height: 52px; border-radius: 50%;
+  background: repeating-radial-gradient(circle, #111 0 2px, #1d1d1d 2px 4px);
+  display: grid; place-items: center; box-shadow: 0 2px 10px rgba(0,0,0,.45);
+  animation: np-spin 3.2s linear infinite;
+}
+.np-disc img, .np-disc .profile-listening-cover { width: 60% !important; height: 60% !important; border-radius: 50% !important; object-fit: cover; }
+.np-disc::after { content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--bg, #000); box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+@keyframes np-spin { to { transform: rotate(360deg); } }
+.profile-listening-row.now .profile-listening-text strong { font-size: .95rem; }
+.profile-listening-row.now .eq { height: 14px; gap: 2px; }
+.profile-listening-row.now .eq i { width: 3px; }
+.eq i:nth-child(4) { animation-delay: -.45s; }
+.profile-listening.is-playing .profile-listening-head svg { animation: np-bob 1.2s ease-in-out infinite; }
+@keyframes np-bob { 50% { transform: translateY(-2px) rotate(-6deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .profile-listening.is-playing, .np-disc, .profile-listening.is-playing .profile-listening-head svg { animation: none; }
+}
+
+/* Vitrine: botão de tirar música do tamanho de um dedo, vaga vazia como botão de verdade */
+.showcase-remove { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.75); color: #fff; cursor: pointer; }
+.showcase-remove svg { width: 13px; height: 13px; }
+.showcase-slot-empty { border: 1.5px dashed var(--line); background: none; font: inherit; color: inherit; cursor: pointer; padding: 0; }

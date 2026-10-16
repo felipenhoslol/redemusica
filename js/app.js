@@ -18,6 +18,7 @@ import { openDisplaySettings, initDisplay } from './display.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { startSync, stopSync, pullNow } from './sync.js';
 import { renderSearchPage, openSearch } from './search.js';
+import { mentionedIds } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
@@ -33,7 +34,7 @@ import {
   initSearchModal, openSearchModalForFeed, openSearchModalForLyrics, openSearchModalForFeaturedSong,
   openSearchModalForChat, openSearchModalForShowcase,
   renderMusicAskGrid, renderChallengePills, renderCompareView,
-  renderNotificationsPanel, renderPlayerBar
+  renderNotificationsPanel, renderPlayerBar, showNotificationPopups
 } from './ui.js';
 import {
   renderPostCreator, renderFeed,
@@ -96,7 +97,7 @@ function startApp() {
   if (auth.mode === 'signed-in') {
     startSync(auth.user.id, {
       onUpdate: refreshFromServer,
-      onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); renderNotifBadge(); },
+      onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); renderNotifBadge(); showNotificationPopups(); },
       onError: (msg) => showDoodleToast(msg)
     });
   }
@@ -105,6 +106,7 @@ function startApp() {
 // New data from the server: redraw what's on screen, unless the person is typing in it
 function refreshFromServer() {
   renderNotifBadge();
+  showNotificationPopups();
   renderChatBadge();
   const friendsEl = document.getElementById('friends-widget');
   if (friendsEl) renderFriendsWidget(friendsEl);
@@ -595,6 +597,7 @@ function renderChatBadge() {
   });
 }
 window._renderChatBadge = renderChatBadge;
+window._renderNotifBadge = () => renderNotifBadge();
 
 function renderNotifBadge() {
   const count = (getUnreadNotificationCount() + emailReminderUnread());
@@ -914,7 +917,8 @@ function bindGlobalHandlers() {
     const isRatingActive = ratingBox && ratingBox.style.display !== 'none';
 
     const pollOptions = window._pendingCreatorPoll || null;
-    if (!text && !lyrics && !window._pendingCreatorSong && !window._pendingCreatorImage && !window._pendingCreatorPlaylist && !pollOptions) {
+    const images = [...(window._pendingCreatorImages || [])];
+    if (!text && !lyrics && !window._pendingCreatorSong && !images.length && !window._pendingCreatorPlaylist && !pollOptions) {
       showToast('Escreva algo ou anexe uma música, foto, playlist, letra ou votação.');
       return;
     }
@@ -928,7 +932,9 @@ function bindGlobalHandlers() {
         lyricsSong,
         lyricsArt,
         rating: finalRating,
-        imageUrl: window._pendingCreatorImage || '',
+        imageUrl: images[0] || '',
+        images,
+        mentions: mentionedIds(text),
         song: window._pendingCreatorSong || null,
         playlistId: window._pendingCreatorPlaylist?.id || null,
         poll: pollOptions ? { options: pollOptions } : null
@@ -938,7 +944,7 @@ function bindGlobalHandlers() {
       if (textEl) textEl.value = '';
       window._pendingCreatorSong = null;
       window._pendingCreatorPlaylist = null;
-      window._pendingCreatorImage = null;
+      window._pendingCreatorImages = [];
       window._removeCreatorPoll();
       if (window._creatorRemoveLyrics) window._creatorRemoveLyrics();
       if (window._removeCreatorSong) window._removeCreatorSong();

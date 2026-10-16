@@ -85,7 +85,7 @@ export function renderProfileView(container, targetUserId) {
         </div>
       </div>
     </div>` : (isMe ? `
-    <div class="featured-song-box empty" style="cursor:pointer;justify-content:center;padding:18px 20px;" onclick="window._editFeaturedSong()">
+    <div class="featured-song-box empty" role="button" tabindex="0" style="cursor:pointer;justify-content:center;padding:18px 20px;" onclick="window._editFeaturedSong()" onkeydown="if(event.key==='Enter')window._editFeaturedSong()">
       <span style="font-size:0.86rem;color:var(--purple-light);font-weight:700;display:flex;align-items:center;gap:8px;">
         ${ICONS.disc || ICONS.music} Escolher música em destaque
       </span>
@@ -249,18 +249,21 @@ async function loadListening(section, username) {
     const row = (t, now) => `
       <div class="profile-listening-row${now ? ' now' : ''}" role="button" tabindex="0"
         onclick="window._playTrack(${jsArg({ title: t.title, artist: t.artist, artwork: t.artwork })})" title="Tocar prévia">
-        ${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async">` : `<span class="profile-listening-cover">${ICONS.music}</span>`}
+        ${now
+          ? `<span class="np-disc" aria-hidden="true">${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" decoding="async">` : `<span class="profile-listening-cover">${ICONS.music}</span>`}</span>`
+          : t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async">` : `<span class="profile-listening-cover">${ICONS.music}</span>`}
         <div class="profile-listening-text">
           <strong>${esc(t.title)}</strong>
           <span>${esc(t.artist)}</span>
         </div>
-        <span class="profile-listening-when">${now ? '<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span> agora' : esc(t.playedAt ? relativeTime(t.playedAt) : '')}</span>
+        <span class="profile-listening-when">${now ? '<span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span> agora' : esc(t.playedAt ? relativeTime(t.playedAt) : '')}</span>
       </div>`;
     if (!nowPlaying && !recent.length) {
       body.innerHTML = `<div class="profile-listening-empty">Nada registrado no Last.fm ainda.</div>`;
       return;
     }
     section.querySelector('.profile-listening-head span').textContent = nowPlaying ? 'Ouvindo agora' : 'Ouviu por último';
+    section.classList.toggle('is-playing', Boolean(nowPlaying));
     body.innerHTML = `${nowPlaying ? row(nowPlaying, true) : ''}${recent.slice(0, nowPlaying ? 4 : 5).map(t => row(t, false)).join('')}`;
   } catch (err) {
     if (section.isConnected) body.innerHTML = `<div class="profile-listening-empty">${esc(err?.code === 17 ? 'O histórico desse perfil é privado no Last.fm.' : 'Não foi possível ver o Last.fm agora.')}</div>`;
@@ -474,7 +477,9 @@ export async function hydrateArtistImages(root, userId) {
 
 function buildShowcaseHtml(user, isMe) {
   const showcase = user.songShowcase || [];
-  const slots = Array.from({ length: 5 }, (_, i) => showcase[i] || null);
+  // Other people's profiles only show the songs they picked (empty "+" slots did nothing there)
+  if (!isMe && !showcase.length) return '';
+  const slots = isMe ? Array.from({ length: 5 }, (_, i) => showcase[i] || null) : showcase.slice(0, 5);
 
   const html = slots.map((song, i) => {
     if (song) {
@@ -482,12 +487,12 @@ function buildShowcaseHtml(user, isMe) {
         <div class="showcase-slot" title="${esc(song.title)} — ${esc(song.artist)}"
           onclick="window._playTrack(${jsArg(song)})">
           ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy" decoding="async">` : `<div class="showcase-slot-add" style="display:flex;align-items:center;justify-content:center;">${ICONS.music}</div>`}
-          ${isMe ? `<button onclick="event.stopPropagation();window._removeShowcase('${song.id}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.8);border:none;color:#fff;font-size:10px;cursor:pointer;border-radius:3px;padding:1px 3px;">${ICONS.close}</button>` : ''}
+          ${isMe ? `<button type="button" class="showcase-remove" onclick="event.stopPropagation();window._removeShowcase(${jsArg(song.id)})" aria-label="Tirar ${esc(song.title)} da vitrine" title="Tirar da vitrine">${ICONS.close}</button>` : ''}
         </div>`;
     }
-    return `<div class="showcase-slot" ${isMe ? `onclick="window._addToShowcase()"` : ''}>
+    return `<button type="button" class="showcase-slot showcase-slot-empty" onclick="window._addToShowcase()" aria-label="Adicionar música à vitrine">
       <span class="showcase-slot-add">+</span>
-    </div>`;
+    </button>`;
   }).join('');
 
   return `
