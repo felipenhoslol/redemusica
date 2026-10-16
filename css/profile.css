@@ -1129,3 +1129,26 @@
   .profile-action-row { top: 52px; right: 14px; }
   .profile-details { padding: 6px 14px 12px; }
 }
+
+/* ─── Topo do perfil no estilo do X: foto com metade sobre o banner e metade abaixo,
+   ações à direita logo abaixo do banner, nome e @ embaixo da foto ─── */
+.profile-top-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  margin-top: 0; padding: 0 22px; position: relative; z-index: 5;
+}
+.profile-main-avatar { width: 136px; height: 136px; font-size: 48px; border-width: 4px; }
+/* The shift lives on the photo itself: exactly half of it rises over the banner */
+.profile-avatar-wrap { margin-top: -72px; flex: none; }
+.profile-action-row { position: static; padding-top: 12px; }
+.profile-details { padding: 8px 22px 14px; }
+.profile-identity { padding: 0; }
+.profile-identity .profile-name { font-size: 1.45rem; }
+
+@media (max-width: 700px) {
+  .profile-top-row { padding: 0 14px; margin-top: 0; }
+  .profile-main-avatar { width: 92px; height: 92px; font-size: 34px; border-width: 3px; }
+  .profile-avatar-wrap { margin-top: -49px; }
+  .profile-action-row { position: static; padding-top: 10px; }
+  .profile-details { padding: 6px 14px 12px; }
+  .profile-identity .profile-name { font-size: 1.25rem; }
+}

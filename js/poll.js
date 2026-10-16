@@ -1,6 +1,6 @@
 // Song polls: a post with 2–4 songs that people vote on. Results show after voting (or to the author),
 // so nobody is swayed before choosing. Votes live in post.votes ({ userId: optionIndex }) and sync via sync.js.
-import { esc, safeUrl, jsArg } from './dom.js';
+import { esc, safeUrl, jsArg, avatarInner } from './dom.js';
 import { ICONS } from './icons.js';
 import * as Storage from './storage.js';
 import { searchTracks } from './api.js';
@@ -46,7 +46,7 @@ export function pollHtml(post) {
           <button type="button" class="poll-play" onclick="window._playTrack(${jsArg(t)})" aria-label="Tocar prévia de ${esc(t.title)}">${ICONS.play}</button>
         </div>`;
       }).join('')}
-      <div class="poll-meta">${total === 1 ? '1 voto' : `${total} votos`} · ${mine !== null ? 'toque na sua escolha para tirar o voto' : 'toque numa música para votar'}</div>
+      <div class="poll-meta">${total === 1 ? '1 voto' : `${total} votos`} · ${mine !== null ? 'toque na sua escolha para tirar o voto' : 'toque numa música para votar'}${showResults && total ? ` · <button type="button" class="poll-see-votes" onclick="window._showPollVotes(${jsArg(post.id)})">Ver votos</button>` : ''}</div>
     </div>`;
 }
 
@@ -163,3 +163,56 @@ export function openPollBuilder(initial, onDone) {
   paint();
   requestAnimationFrame(() => { root.classList.add('open'); input.focus({ preventScroll: true }); });
 }
+
+// Who voted for what (same rule as the results: after voting, or for the poll's author)
+window._showPollVotes = (postId) => {
+  const post = Storage.getPostById(postId);
+  const options = post?.poll?.options || [];
+  if (!post || options.length < POLL_MIN) return;
+  const me = Storage.getActiveUserId();
+  const votes = post.votes || {};
+  if (!Number.isInteger(votes[me]) && post.authorId !== me) return;
+  const voters = options.map((_, i) => Object.keys(votes).filter(uid => votes[uid] === i));
+  const total = voters.reduce((n, list) => n + list.length, 0);
+
+  document.getElementById('poll-votes')?.remove();
+  const root = document.createElement('div');
+  root.id = 'poll-votes';
+  root.className = 'app-dialog';
+  root.innerHTML = `
+    <div class="app-dialog-scrim" data-close></div>
+    <div class="app-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="poll-votes-title">
+      <div class="app-dialog-head">
+        <button type="button" class="photo-editor-icon" data-close aria-label="Fechar">${ICONS.close}</button>
+        <h2 id="poll-votes-title">Votos (${total})</h2>
+      </div>
+      <div class="app-dialog-body poll-votes-body">
+        ${options.map((t, i) => `
+          <section class="poll-votes-option">
+            <div class="poll-votes-head">
+              ${t.artwork ? `<img class="poll-cover" src="${safeUrl(t.artwork)}" alt="" decoding="async">` : '<span class="poll-cover"></span>'}
+              <span class="poll-text"><span class="poll-title">${esc(t.title)}</span><span class="poll-artist">${esc(t.artist)}</span></span>
+              <span class="poll-votes-count">${voters[i].length}</span>
+            </div>
+            ${voters[i].length ? voters[i].map(uid => {
+              const u = Storage.getUserById(uid);
+              return `
+                <button type="button" class="poll-voter" data-profile="${esc(uid)}">
+                  <span class="post-author-avatar poll-voter-avatar">${avatarInner(u?.avatar, u?.name || '?')}</span>
+                  <span class="poll-voter-text"><strong>${esc(uid === me ? 'Você' : (u?.name || 'Alguém'))}</strong><span>${esc(u?.handle || '')}</span></span>
+                </button>`;
+            }).join('') : '<p class="poll-votes-none">Ninguém votou nesta ainda.</p>'}
+          </section>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(root);
+  const close = () => { document.removeEventListener('keydown', onKey); root.classList.remove('open'); setTimeout(() => root.remove(), 200); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  root.addEventListener('click', (e) => {
+    if (e.target.closest('[data-close]')) return close();
+    const voter = e.target.closest('[data-profile]');
+    if (voter) { close(); document.getElementById('post-view')?.remove(); window._goToProfile?.(voter.dataset.profile); }
+  });
+  requestAnimationFrame(() => root.classList.add('open'));
+};
