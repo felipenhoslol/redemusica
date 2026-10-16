@@ -6,7 +6,8 @@ export const auth = {
   mode: 'signed-out',   // 'signed-in' | 'signed-out' | 'local' (Supabase not configured) | 'recovery' | 'banned'
   user: null,           // Supabase auth user
   profile: null,        // row from public.profiles
-  isAdmin: false
+  isAdmin: false,
+  emailVerified: true   // false: signed in without confirming the e-mail yet (reminder in notifications)
 };
 
 const LOCAL_MODE_KEY = 'rmsn_local_mode_v1';
@@ -24,12 +25,12 @@ export function enterLocalMode() {
 
 async function applySession(session) {
   if (!session) {
-    Object.assign(auth, { mode: 'signed-out', user: null, profile: null, isAdmin: false });
+    Object.assign(auth, { mode: 'signed-out', user: null, profile: null, isAdmin: false, emailVerified: true });
     return auth;
   }
   const profile = await sb.getMyProfile(session.user.id);
   const isAdmin = await sb.checkIsAdmin();
-  Object.assign(auth, { user: session.user, profile, isAdmin });
+  Object.assign(auth, { user: session.user, profile, isAdmin, emailVerified: await resolveEmailVerified(profile) });
 
   if (profile?.banned) {
     auth.mode = 'banned';
@@ -42,6 +43,16 @@ async function applySession(session) {
     handle: profile?.handle || ('@' + (session.user.user_metadata?.handle || 'voce'))
   });
   return auth;
+}
+
+// Confirmed already, or this session came from an e-mail link (which confirms it now)?
+async function resolveEmailVerified(profile) {
+  if (!profile || !('email_verified_at' in profile)) return true; // server without 008: nothing to remind
+  if (profile.email_verified_at) return true;
+  try {
+    const verified = await sb.markEmailVerified();
+    return verified === null ? true : verified;
+  } catch { return true; }
 }
 
 /**
@@ -84,6 +95,20 @@ export async function initAuth(onChange) {
   // A recovery link opens the app with a session plus a recovery marker in the URL
   if (/type=recovery/.test(window.location.hash)) auth.mode = 'recovery';
   return auth;
+}
+
+/** Signed in without having confirmed the e-mail yet. */
+export const needsEmailConfirmation = () => auth.mode === 'signed-in' && !auth.emailVerified && Boolean(auth.user?.email);
+
+const REMINDER_SEEN_KEY = 'rmsn_email_reminder_seen';
+/** The reminder counts on the bell once a day, until the notifications are opened that day. */
+export function emailReminderUnread() {
+  if (!needsEmailConfirmation()) return 0;
+  try { return localStorage.getItem(REMINDER_SEEN_KEY) === new Date().toDateString() ? 0 : 1; }
+  catch { return 1; }
+}
+export function markEmailReminderSeen() {
+  try { localStorage.setItem(REMINDER_SEEN_KEY, new Date().toDateString()); } catch { /* optional */ }
 }
 
 export async function loginWithPassword(email, password) {

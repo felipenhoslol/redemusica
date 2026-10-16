@@ -793,3 +793,9 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .friend-online-dot.online { background: var(--success) !important; }
 .friend-sub.now-playing { color: var(--accent) !important; display: block; }
 .friend-sub.now-playing svg { width: 11px; height: 11px; vertical-align: -1px; }
+
+/* Lembrete de confirmar o e-mail nas notificações */
+.notif-reminder { background: var(--accent-softer, transparent); }
+.notif-reminder-icon { background: var(--accent-soft) !important; color: var(--accent) !important; }
+.notif-reminder-icon svg { width: 15px; height: 15px; }
+.notif-reminder-btn { margin-top: 8px; }

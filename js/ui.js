@@ -2,6 +2,8 @@
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as storage from './storage.js';
 import { relativeTime } from './sync.js';
+import { auth, needsEmailConfirmation, markEmailReminderSeen } from './auth.js';
+import { sendVerificationLink } from './supabase.js';
 import { globalAudio } from './audio.js';
 import { searchTracks, searchArtists, lookupArtist, lookupAlbum } from './api.js';
 import { getArtistImage } from './lastfm.js';
@@ -1006,16 +1008,41 @@ window._submitNewChallenge = () => {
 
 const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat' };
 
+function emailReminderHtml() {
+  if (!needsEmailConfirmation()) return '';
+  return `
+    <div class="notif-item notif-reminder no-link">
+      <div class="notif-avatar notif-reminder-icon" aria-hidden="true">${ICONS.lock}</div>
+      <div class="notif-body">
+        <div class="notif-text"><strong>Confirme seu e-mail</strong></div>
+        <div class="notif-preview" style="white-space:normal">Assim dá para recuperar a conta se esquecer a senha. Toque abaixo e mandamos um link para <strong>${esc(auth.user.email)}</strong>; é só abrir.</div>
+        <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm notif-reminder-btn" data-send-verify>Enviar link de confirmação</button>
+      </div>
+    </div>`;
+}
+
 export function renderNotificationsPanel(container) {
   const notifs = storage.getMyNotifications();
   storage.markNotificationsRead();
+  markEmailReminderSeen();
+  const reminder = emailReminderHtml();
+
+  // The reminder button works whatever else is in the list
+  container.onclick = (e) => {
+    const verify = e.target.closest('[data-send-verify]');
+    if (verify) { sendVerify(verify); return; }
+    const item = e.target.closest('[data-notif-profile]');
+    if (!item) return;
+    if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
+    window._goToProfile?.(item.dataset.notifProfile);
+  };
 
   if (!notifs.length) {
-    container.innerHTML = `<div class="notif-empty">Sem notificações ainda.</div>`;
+    container.innerHTML = `${reminder}${reminder ? '' : '<div class="notif-empty">Sem notificações ainda.</div>'}`;
     return;
   }
 
-  container.innerHTML = notifs.map(n => {
+  container.innerHTML = reminder + notifs.map(n => {
     const fromUser = storage.getUserById(n.fromUserId);
     const name = fromUser?.name || n.fromName || 'Alguém';
     const avatarHtml = isImageAvatar(fromUser?.avatar)
@@ -1037,16 +1064,22 @@ export function renderNotificationsPanel(container) {
       </div>`;
   }).join('');
 
-  // Clicar mostra quem foi: abre o perfil da pessoa
-  container.onclick = (e) => {
-    const item = e.target.closest('[data-notif-profile]');
-    if (!item) return;
-    if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
-    window._goToProfile?.(item.dataset.notifProfile);
-  };
   container.onkeydown = (e) => {
     if (e.key === 'Enter' && e.target.matches('[data-notif-profile]')) e.target.click();
   };
+}
+
+async function sendVerify(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  try {
+    await sendVerificationLink(auth.user.email);
+    btn.textContent = 'Link enviado! Confira seu e-mail';
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Enviar link de confirmação';
+    showToast(err?.message || 'Não foi possível enviar o link. Tente de novo.');
+  }
 }
 
 // ──────────────────────────────────────────

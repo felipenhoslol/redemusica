@@ -112,7 +112,29 @@ export async function signOut() {
 }
 
 export async function getMyProfile(userId) {
-  return run(getSupabase().from('profiles').select('id, name, handle, avatar_url, banned').eq('id', userId).maybeSingle());
+  try {
+    return await run(getSupabase().from('profiles').select('id, name, handle, avatar_url, banned, email_verified_at').eq('id', userId).maybeSingle());
+  } catch {
+    // Before supabase/008_email_verified.sql the column doesn't exist
+    return run(getSupabase().from('profiles').select('id, name, handle, avatar_url, banned').eq('id', userId).maybeSingle());
+  }
+}
+
+/**
+ * Record the e-mail as confirmed when this session came from an e-mail link.
+ * @returns {Promise<boolean|null>} confirmed?, or null when the server doesn't support it yet
+ */
+export async function markEmailVerified() {
+  const { data, error } = await getSupabase().rpc('mark_email_verified');
+  return error ? null : Boolean(data);
+}
+
+/** E-mail a sign-in link; opening it proves the address belongs to the person. */
+export async function sendVerificationLink(email) {
+  return run(getSupabase().auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false, emailRedirectTo: window.location.origin + window.location.pathname }
+  }));
 }
 
 export async function checkIsAdmin() {

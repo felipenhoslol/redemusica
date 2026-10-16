@@ -70,8 +70,11 @@ export function openPhotoEditor({ kind, src = '', onSave }) {
     img.style.transform = `translate(${x}px, ${y}px) scale(${scale()})`;
     zoomInput.value = String(zoom);
   };
+  // Layout size, not getBoundingClientRect: the panel opens with a scale animation, and a
+  // scaled measurement made the crop cover less than the frame and saved a shifted/zoomed photo
+  const stageSize = () => ({ width: stage.clientWidth, height: stage.clientHeight });
   const measure = () => {
-    const r = stage.getBoundingClientRect();
+    const r = stageSize();
     const prevScale = scale();
     // Keep the same point in the middle when the stage changes size
     const cx = (W / 2 - x) / (prevScale || 1), cy = (H / 2 - y) / (prevScale || 1);
@@ -103,7 +106,7 @@ export function openPhotoEditor({ kind, src = '', onSave }) {
         loaded = true;
         tainted = !cors && !isLocal;
         zoom = 1;
-        const r = stage.getBoundingClientRect();
+        const r = stageSize();
         W = r.width; H = r.height;
         base = Math.max(W / img.naturalWidth, H / img.naturalHeight);
         x = (W - img.naturalWidth * base) / 2;

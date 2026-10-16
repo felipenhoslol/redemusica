@@ -8,6 +8,12 @@ const PROFILE_FIELDS = 'id, name, handle, avatar_url';
 const FULL_PROFILE_FIELDS = `${PROFILE_FIELDS}, banner_url, bio, status, extras`;
 
 const pending = new Set();  // post ids created here that the server hasn't confirmed yet
+// Follows/likes/reposts clicked here and still on their way up: a pull that started before
+// the write landed must not undo them on screen
+const pendingFollows = new Map(); // targetId → following?
+const pendingLikes = new Map();   // postId → liked?
+const pendingReposts = new Map(); // postId → reposted?
+let pullSoonTimer = null;
 let me = null;
 let handlers = {};
 let lastSignature = '';
@@ -22,6 +28,12 @@ let votesTable = true;      // false until supabase/004_polls.sql has been run
 let commentLikesTable = true; // false until supabase/005_comment_likes.sql has been run
 let presenceOn = true;      // false until supabase/006_presence.sql has been run
 let presenceTimer = null;
+let messagesOn = true;      // false until supabase/007_messages.sql has been run
+let messagesTimer = null;
+let messagesPulling = null;
+let lastMessagesSignature = '';
+const pendingMessages = new Set();
+const MESSAGES_POLL_MS = 8000;
 const PRESENCE_MS = 60000;
 const ONLINE_WINDOW_MS = 2.5 * 60000; // a missed heartbeat or two still counts as online
 
@@ -93,6 +105,8 @@ export function compressImage(file, maxSide = 1280, quality = 0.82) {
   });
 }
 
+const isAccountId = (id) => /^[0-9a-f-]{36}$/i.test(id || '');
+
 // ─── local ⇄ server shapes ──────────────────────────────────────────────────
 
 function playlistSnapshot(post) {
@@ -142,6 +156,78 @@ function fromRow(row) {
     ...(row.edited ? { updatedAt: 'editado' } : {})
   };
 }
+
+// ─── messages ───────────────────────────────────────────────────────────────
+
+function messageTime(iso) {
+  const d = new Date(iso);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const hm = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return sameDay ? hm : `${d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} ${hm}`;
+}
+
+function fromMessageRow(r) {
+  const b = r.body || {};
+  return {
+    id: r.id, fromUserId: r.from_id, toUserId: r.to_id,
+    text: b.text || '', song: b.song || null, imageUrl: b.imageUrl || '', gifUrl: b.gifUrl || '',
+    link: b.link || null, replyTo: b.replyTo || null,
+    edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at
+  };
+}
+
+function messageBody(m) {
+  const reply = m.replyTo ? {
+    id: m.replyTo.id, fromUserId: m.replyTo.fromUserId, text: (m.replyTo.text || '').slice(0, 300),
+    song: m.replyTo.song ? { title: m.replyTo.song.title, artist: m.replyTo.song.artist } : null,
+    imageUrl: /^https?:/.test(m.replyTo.imageUrl || '') ? m.replyTo.imageUrl : (m.replyTo.imageUrl ? 'imagem' : ''),
+    gifUrl: m.replyTo.gifUrl || ''
+  } : null;
+  return { text: m.text || '', song: m.song || null, imageUrl: m.imageUrl || '', gifUrl: m.gifUrl || '', link: m.link || null, replyTo: reply };
+}
+
+// Messages written while the chat was local-only never reached anyone: send them once
+async function uploadLegacyMessages(db, serverIds) {
+  const key = `rmsn_messages_uploaded_${me}`;
+  if (localStorage.getItem(key)) return;
+  const mine = Storage.getLocalMessagesFrom(me).filter(m => !serverIds.has(m.id) && isAccountId(m.toUserId) && /^msg_[A-Za-z0-9_]{4,60}$/.test(m.id));
+  for (const m of mine) {
+    try { await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody(m) })); }
+    catch { /* skip the ones the server refuses */ }
+  }
+  localStorage.setItem(key, '1');
+}
+
+export function pullMessages() {
+  if (!me || disabled || !messagesOn) return Promise.resolve();
+  if (messagesPulling) return messagesPulling;
+  messagesPulling = (async () => {
+    const db = getSupabase();
+    const { data, error } = await db.from('messages')
+      .select('id, from_id, to_id, body, edited, created_at')
+      .or(`from_id.eq.${me},to_id.eq.${me}`)
+      .order('created_at', { ascending: false })
+      .limit(800);
+    if (error) {
+      if (isMissingTable(error)) {
+        messagesOn = false;
+        handlers.onError?.('O chat ainda não está no banco: rode supabase/007_messages.sql no SQL Editor do Supabase. Até lá as mensagens não chegam.');
+      }
+      return;
+    }
+    await uploadLegacyMessages(db, new Set(data.map(r => r.id)));
+    const messages = data.reverse().map(fromMessageRow);
+    Storage.replaceMessagesCache(me, messages, [...pendingMessages]);
+    const signature = messages.map(m => `${m.id}:${m.edited ? 1 : 0}:${m.text.length}`).join(',');
+    if (signature !== lastMessagesSignature) {
+      lastMessagesSignature = signature;
+      handlers.onMessages?.();
+    }
+  })().catch(() => { /* network blip: next poll */ }).finally(() => { messagesPulling = null; });
+  return messagesPulling;
+}
+
+const pollMessages = () => { if (document.visibilityState === 'visible') pullMessages(); };
 
 // ─── notifications ──────────────────────────────────────────────────────────
 
@@ -223,15 +309,24 @@ export function pullNow() {
     Storage.setPresence(Object.fromEntries(presence.filter(p => p.id !== me).map(p => [p.id, p.last_seen_at])));
     const graph = {};
     follows.forEach(f => { (graph[f.follower_id] ||= []).push(f.following_id); });
+    pendingFollows.forEach((on, target) => {
+      const list = (graph[me] ||= []).filter(id => id !== target);
+      graph[me] = on ? [...list, target] : list;
+    });
     Storage.replaceFollows(graph);
     const posts = rows.map(fromRow);
+    const overlay = (list, on) => { const rest = list.filter(id => id !== me); return on ? [...rest, me] : rest; };
+    posts.forEach(p => {
+      if (pendingLikes.has(p.id)) p.likes = overlay(p.likes, pendingLikes.get(p.id));
+      if (pendingReposts.has(p.id)) p.reposts = overlay(p.reposts, pendingReposts.get(p.id));
+    });
     Storage.replacePostsCache(posts, [...pending]);
     Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows));
 
     const signature = JSON.stringify([
       posts.map(p => [p.id, p.likes.length, p.reposts.length, p.updatedAt || '', JSON.stringify(p.votes),
         p.comments.map(c => `${c.id}:${c.likes.length}`).join(',')]),
-      follows.length,
+      follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(','),
       presence.filter(p => p.id !== me).map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
       profiles.map(p => [p.id, p.name, p.avatar_url, p.banner_url, p.bio, p.status, JSON.stringify(p.extras || {}).length])
     ]);
@@ -425,7 +520,20 @@ function write(task, failMessage) {
   });
 }
 
-const isAccountId = (id) => /^[0-9a-f-]{36}$/i.test(id || '');
+
+// A write whose optimistic state stays on screen until the server has it, then a quick re-pull
+function tracked(map, key, on, task, failMessage) {
+  map.set(key, on);
+  write(async db => {
+    try { await task(db); }
+    finally {
+      if (map.get(key) === on) map.delete(key);
+      clearTimeout(pullSoonTimer);
+      // A pull already running may have read the server before this write: chain a fresh one
+      pullSoonTimer = setTimeout(() => (pulling ? pulling.then(pullNow) : pullNow()), 1200);
+    }
+  }, failMessage);
+}
 
 const hooks = {
   vote(postId, option) {
@@ -452,12 +560,12 @@ const hooks = {
     write(db => must(db.from('posts').delete().eq('id', postId)), 'Não foi possível apagar o post.');
   },
   like(postId, on) {
-    write(db => must(on
+    tracked(pendingLikes, postId, on, db => must(on
       ? db.from('post_likes').upsert({ post_id: postId, user_id: me }, { onConflict: 'post_id,user_id', ignoreDuplicates: true })
       : db.from('post_likes').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar a curtida.');
   },
   repost(postId, on) {
-    write(db => must(on
+    tracked(pendingReposts, postId, on, db => must(on
       ? db.from('post_reposts').upsert({ post_id: postId, user_id: me }, { onConflict: 'post_id,user_id', ignoreDuplicates: true })
       : db.from('post_reposts').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar o repost.');
   },
@@ -471,18 +579,34 @@ const hooks = {
       ? db.from('comment_likes').upsert({ comment_id: commentId, user_id: me }, { onConflict: 'comment_id,user_id', ignoreDuplicates: true })
       : db.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', me)), 'Não foi possível salvar a curtida.');
   },
+  sendMessage(m) {
+    if (!messagesOn || !isAccountId(m.toUserId)) return;
+    pendingMessages.add(m.id);
+    write(async db => {
+      try { await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody(m) })); }
+      finally { pendingMessages.delete(m.id); }
+    }, 'Não foi possível enviar a mensagem. Verifique sua conexão.');
+  },
+  editMessage(m) {
+    if (!messagesOn) return;
+    write(db => must(db.from('messages').update({ body: messageBody(m), edited: true }).eq('id', m.id)), 'Não foi possível editar a mensagem.');
+  },
+  deleteMessage(id) {
+    if (!messagesOn) return;
+    write(db => must(db.from('messages').delete().eq('id', id)), 'Não foi possível apagar a mensagem.');
+  },
   deleteComment(commentId) {
     write(db => must(db.from('post_comments').delete().eq('id', commentId)), 'Não foi possível apagar o comentário.');
   },
   follow(targetId, on) {
     if (!isAccountId(targetId)) return;
-    write(db => must(on
+    tracked(pendingFollows, targetId, on, db => must(on
       ? db.from('follows').upsert({ follower_id: me, following_id: targetId }, { onConflict: 'follower_id,following_id', ignoreDuplicates: true })
       : db.from('follows').delete().eq('follower_id', me).eq('following_id', targetId)), 'Não foi possível atualizar quem você segue.');
   }
 };
 
-const onVisible = () => { if (document.visibilityState === 'visible') { heartbeat(); pullNow(); } };
+const onVisible = () => { if (document.visibilityState === 'visible') { heartbeat(); pullNow(); pullMessages(); } };
 
 /**
  * Start mirroring the feed for a signed-in account.
@@ -499,11 +623,15 @@ export function startSync(userId, opts = {}) {
   votesTable = true;
   commentLikesTable = true;
   presenceOn = true;
+  messagesOn = true;
   lastSignature = '';
+  lastMessagesSignature = '';
   Storage.setRemoteHooks(hooks);
   timer = setInterval(pullNow, POLL_MS);
   presenceTimer = setInterval(heartbeat, PRESENCE_MS);
   heartbeat();
+  messagesTimer = setInterval(pollMessages, MESSAGES_POLL_MS);
+  pullMessages();
   document.addEventListener('visibilitychange', onVisible);
   return pullNow();
 }
@@ -517,6 +645,12 @@ export function stopSync() {
   timer = null;
   clearInterval(presenceTimer);
   presenceTimer = null;
+  clearInterval(messagesTimer);
+  messagesTimer = null;
+  clearTimeout(pullSoonTimer);
+  pendingFollows.clear();
+  pendingLikes.clear();
+  pendingReposts.clear();
   document.removeEventListener('visibilitychange', onVisible);
   me = null;
 }

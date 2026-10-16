@@ -860,10 +860,12 @@ export function sendMessage(fromUserId, toUserId, text, song = null, imageUrl = 
       link: link || null,
       replyTo: replyTo || null,
       edited: false,
-      createdAt: timeStr
+      createdAt: timeStr,
+      createdAtIso: now.toISOString()
     };
     all.push(newMsg);
     localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+    toRemote('sendMessage', newMsg);
     addNotification(toUserId, {
       type: 'message',
       fromUserId,
@@ -883,6 +885,7 @@ export function editMessage(messageId, newText) {
       msg.text = (newText || '').trim();
       msg.edited = true;
       localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+      toRemote('editMessage', msg);
       return msg;
     }
   } catch (e) { console.error(e); }
@@ -894,15 +897,49 @@ export function deleteMessage(messageId) {
     let all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
     all = all.filter(m => m.id !== messageId);
     localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+    toRemote('deleteMessage', messageId);
     return true;
   } catch (e) { console.error(e); return false; }
 }
 
-export function getUnreadMessageCount(userId = getActiveUserId()) {
+// When each conversation was last opened ({ contactId: iso }), per account
+const chatReadKey = () => `rmsn_chat_read_${getActiveUserId()}`;
+const getChatRead = () => readJson(chatReadKey(), {});
+
+/** Mark a conversation as read up to now. */
+export function markChatRead(contactId) {
+  if (!contactId) return;
+  const read = getChatRead();
+  read[contactId] = new Date().toISOString();
+  localStorage.setItem(chatReadKey(), JSON.stringify(read));
+}
+
+/** Messages received after the conversation was last opened (all contacts, or one). */
+export function getUnreadMessageCount(userId = getActiveUserId(), fromUserId = null) {
   try {
     const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
-    return all.filter(m => m.toUserId === userId && !m.read).length;
+    const read = getChatRead();
+    return all.filter(m => m.toUserId === userId && m.createdAtIso
+      && (!fromUserId || m.fromUserId === fromUserId)
+      && (!read[m.fromUserId] || m.createdAtIso > read[m.fromUserId])).length;
   } catch { return 0; }
+}
+
+/**
+ * Replace the cached conversations of an account with the server's copy,
+ * keeping messages still on their way up and other accounts' local messages.
+ */
+export function replaceMessagesCache(userId, messages, keepIds = []) {
+  const current = readJson(STORAGE_KEYS.MESSAGES, []);
+  const mine = (m) => m.fromUserId === userId || m.toUserId === userId;
+  const others = current.filter(m => !mine(m));
+  const pending = current.filter(m => mine(m) && keepIds.includes(m.id) && !messages.some(r => r.id === m.id));
+  localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify([...others, ...messages, ...pending]));
+}
+
+/** Messages this account wrote while the chat was still local-only. */
+export function getLocalMessagesFrom(userId) {
+  return readJson(STORAGE_KEYS.MESSAGES, []).filter(m => m.fromUserId === userId);
 }
 
 // ──────────────────────────────────────────

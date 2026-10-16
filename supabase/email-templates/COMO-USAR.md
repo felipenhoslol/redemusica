@@ -12,6 +12,7 @@ No painel do Supabase: **Authentication → Emails → Templates** (em versões 
 | **Confirm signup**      | `Confirme seu e-mail na rede de música`   | `confirm-signup.html`            |
 | **Reset password**      | `Crie uma nova senha na rede de música`   | `reset-password.html`            |
 | **Change Email Address** | `Confirme seu novo e-mail na rede de música` | `change-email.html`           |
+| **Magic Link**          | `Confirme seu e-mail na rede de música`   | `magic-link.html`                |
 
 Salve cada um. O próximo cadastro ou pedido de senha já usa o modelo novo.
 
@@ -33,3 +34,11 @@ SMTP próprio em *Authentication → Emails → SMTP Settings* (Resend, Brevo e 
 Em *Authentication → Providers → Email*, a opção **Secure email change** (ligada por padrão) faz o Supabase
 mandar a confirmação para o e-mail antigo **e** para o novo: a troca só vale depois que os dois links forem abertos.
 Desligada, basta confirmar no e-mail novo.
+
+## Entrar sem confirmar o e-mail
+
+1. Rode `supabase/008_email_verified.sql` no SQL Editor.
+2. Em *Authentication → Providers → Email* (ou *Sign In / Providers*), desligue **Confirm email**.
+
+Quem se cadastra passa a entrar direto. Enquanto não confirmar, aparece um lembrete nas notificações com o
+botão "Enviar link de confirmação": ele manda o modelo **Magic Link**, e abrir esse link confirma o e-mail.

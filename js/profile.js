@@ -170,12 +170,12 @@ export function renderProfileView(container, targetUserId) {
           ${user.bio ? `<div class="profile-bio" style="${bioFontStyle(user.bioFont)}">${esc(user.bio)}</div>` : ''}
           ${buildSocialsHtml(user, isMe)}
         </div>
-        <div class="profile-stats-row">
+        <div class="profile-stats-row" data-stats-user="${user.id}">
           <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'following')">
-            <strong>${followingList.length}</strong><span>seguindo</span>
+            <strong data-stat="following">${followingList.length}</strong><span>seguindo</span>
           </div>
           <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'followers')">
-            <strong>${followers.length}</strong><span>seguidores</span>
+            <strong data-stat="followers">${followers.length}</strong><span>seguidores</span>
           </div>
         </div>
         ${featuredHtml}
@@ -896,6 +896,26 @@ export function renderPeopleListModal(title, ids, emptyText = 'Ninguém aqui ain
     `<div class="empty-state"><div class="empty-state-sub">${esc(emptyText)}</div></div>`;
 
   openModal('follow-list-modal');
+}
+
+/**
+ * Bring the open profile's follow numbers, follow button and message button in line with the
+ * latest follow graph (after a sync or a follow click), without re-rendering the page.
+ */
+export function refreshProfileFollowState() {
+  const row = document.querySelector('[data-stats-user]');
+  if (!row) return;
+  const userId = row.dataset.statsUser;
+  const following = row.querySelector('[data-stat="following"]');
+  const followers = row.querySelector('[data-stat="followers"]');
+  if (following) following.textContent = Storage.getFollowing(userId).length;
+  if (followers) followers.textContent = Storage.getFollowers(userId).length;
+  const isFollowing = Storage.isFollowing(userId);
+  document.querySelectorAll(`.profile-action-row [data-follow-id="${userId}"]`).forEach(btn => {
+    btn.textContent = isFollowing ? 'Seguindo' : 'Seguir';
+    btn.classList.toggle('following', isFollowing);
+  });
+  document.querySelectorAll(`[data-dm-id="${userId}"]`).forEach(btn => { btn.hidden = !isFollowing; });
 }
 
 // helpers re-exported for app.js

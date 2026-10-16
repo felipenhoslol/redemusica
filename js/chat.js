@@ -4,6 +4,7 @@ import * as Storage from './storage.js';
 import { ICONS } from './icons.js';
 import { globalAudio } from './audio.js';
 import { fetchLinkMetadata, renderRichLinkCard, extractFirstUrl } from './api.js';
+import { compressImage } from './sync.js';
 
 let activeContactId = null;
 let attachedSong = null;
@@ -167,6 +168,10 @@ function getSortedContacts() {
 
     if (hasMsgsA && !hasMsgsB) return -1;
     if (!hasMsgsA && hasMsgsB) return 1;
+    // Most recent conversation first
+    const lastA = msgsA[msgsA.length - 1]?.createdAtIso || '';
+    const lastB = msgsB[msgsB.length - 1]?.createdAtIso || '';
+    if (lastA !== lastB) return lastB.localeCompare(lastA);
 
     const followA = following.includes(a.id);
     const followB = following.includes(b.id);
@@ -250,6 +255,7 @@ function renderChatTabContacts() {
   container.innerHTML = contacts.map(u => {
     const msgs = Storage.getChatMessages(activeUser.id, u.id);
     const last = msgs[msgs.length - 1];
+    const unread = Storage.getUnreadMessageCount(activeUser.id, u.id);
     let previewText = 'Iniciar conversa';
     if (last) {
       if (last.text) previewText = last.text;
@@ -269,6 +275,7 @@ function renderChatTabContacts() {
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div class="chat-contact-card-name">${esc(u.name)}</div>
             ${last ? `<span style="font-size:0.68rem;color:var(--muted);">${esc(last.createdAt || '')}</span>` : ''}
+            ${unread && activeContactId !== u.id ? `<span class="chat-unread-badge" aria-label="${unread} não lidas">${unread > 9 ? '9+' : unread}</span>` : ''}
           </div>
           <div class="chat-contact-card-preview">${esc(previewText)}</div>
         </div>
@@ -299,6 +306,8 @@ function renderChatTabMain(contactId) {
   if (!contact) return;
 
   const msgs = Storage.getChatMessages(activeUser.id, contactId);
+  Storage.markChatRead(contactId);
+  window._renderChatBadge?.();
 
   const cAvatarHtml = isImageAvatar(contact.avatar)
     ? `<img src="${safeUrl(contact.avatar)}" alt="${esc(contact.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
@@ -540,8 +549,33 @@ export function renderMessages(contactId) {
     msgArea.innerHTML = renderMessagesListHtml(msgs, activeUser.id);
     msgArea.scrollTop = msgArea.scrollHeight;
   }
+  if (document.getElementById('dm-window')?.classList.contains('open')) {
+    Storage.markChatRead(contactId);
+    window._renderChatBadge?.();
+  }
 
   renderContacts();
+}
+
+/**
+ * New messages arrived from the server: refresh the lists and the open conversation
+ * without touching what is being typed.
+ */
+export function refreshChatFromServer() {
+  const me = Storage.getActiveUserId();
+  renderChatTabContacts();
+  renderContacts();
+  if (!activeContactId) return;
+  const msgs = Storage.getChatMessages(me, activeContactId);
+  [['chat-tab-messages', Boolean(document.getElementById('chat-tab-main'))],
+   ['dm-messages-area', document.getElementById('dm-window')?.classList.contains('open')]].forEach(([id, visible]) => {
+    const area = document.getElementById(id);
+    if (!area || !visible) return;
+    const nearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+    area.innerHTML = renderMessagesListHtml(msgs, me);
+    if (nearBottom) area.scrollTop = area.scrollHeight;
+    Storage.markChatRead(activeContactId);
+  });
 }
 
 // ──────────────────────────────────────────
@@ -668,11 +702,10 @@ window._handleChatImageUpload = (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    window._setChatImage(e.target.result);
-  };
-  reader.readAsDataURL(file);
+  // Shrunk like post images, so the message fits on the server
+  compressImage(file, 1024, 0.8)
+    .then(url => window._setChatImage(url))
+    .catch(err => import('./ui.js').then(u => u.showToast(err.message || 'Não foi possível ler a imagem.')));
 };
 
 window._openChatGifPicker = () => {

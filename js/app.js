@@ -4,14 +4,14 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
          toggleBookmark, addCommentToPost, pinPost, deletePost,
          updatePost, getPostById,
          createPost, setFeaturedSong, addToShowcase, removeFromShowcase,
-         getUnreadNotificationCount, getFeedPosts, getChallengeAnswers,
+         getUnreadNotificationCount, getUnreadMessageCount, getFeedPosts, getChallengeAnswers,
          getActiveChallengeId, getChallengeAnswers as getAnswers,
          updateUserMusicStats, updateUser, getAllPlaylists, getPlaylistById } from './storage.js';
 
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
 import { catLogoHtml, setCatMood, initCatLogo } from './logo.js';
-import { auth, initAuth, logout } from './auth.js';
+import { auth, initAuth, logout, emailReminderUnread } from './auth.js';
 import { showAuthScreen } from './authScreen.js';
 import { openFeedbackModal } from './feedback.js';
 import { openDisplaySettings, initDisplay } from './display.js';
@@ -81,6 +81,7 @@ function startApp() {
   initChatBindings();
   bindGlobalHandlers();
   renderNotifBadge();
+  renderChatBadge();
 
   // Expose switchTab for the HTML shim
   window._switchTabFn = switchTab;
@@ -93,15 +94,21 @@ function startApp() {
   else { switchTab('feed'); }
 
   if (auth.mode === 'signed-in') {
-    startSync(auth.user.id, { onUpdate: refreshFromServer, onError: (msg) => showDoodleToast(msg) });
+    startSync(auth.user.id, {
+      onUpdate: refreshFromServer,
+      onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); },
+      onError: (msg) => showDoodleToast(msg)
+    });
   }
 }
 
 // New data from the server: redraw what's on screen, unless the person is typing in it
 function refreshFromServer() {
   renderNotifBadge();
+  renderChatBadge();
   const friendsEl = document.getElementById('friends-widget');
   if (friendsEl) renderFriendsWidget(friendsEl);
+  import('./profile.js').then(m => m.refreshProfileFollowState());
   const active = document.activeElement;
   if (activeTab === 'feed') {
     const feedPosts = document.getElementById('feed-posts');
@@ -116,7 +123,7 @@ function refreshFromServer() {
 
 function renderSidebar() {
   const user = getActiveUser();
-  const unread = getUnreadNotificationCount();
+  const unread = (getUnreadNotificationCount() + emailReminderUnread());
   const sidebar = document.getElementById('app-sidebar');
   if (!sidebar) return;
 
@@ -206,7 +213,7 @@ function refreshSidebarUser() {
 
 function renderMobileNav() {
   const user = getActiveUser();
-  const unread = getUnreadNotificationCount();
+  const unread = (getUnreadNotificationCount() + emailReminderUnread());
   const badge = unread ? `<span class="mobile-badge">${unread > 9 ? '9+' : unread}</span>` : '';
 
   // Top bar: the cat (reacts like the sidebar one) and notifications
@@ -572,8 +579,24 @@ function toggleNotifPanel() {
 
 window.toggleNotifPanel = toggleNotifPanel;
 
+// Unread messages on the Chat buttons (sidebar and phone tab bar)
+function renderChatBadge() {
+  const count = getUnreadMessageCount();
+  document.querySelectorAll('#nav-chat, #mobile-tabbar [data-tab="chat"]').forEach(btn => {
+    let badge = btn.querySelector('.chat-nav-badge');
+    if (!count) { badge?.remove(); return; }
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = `${btn.id === 'nav-chat' ? 'nav-badge' : 'mobile-badge'} chat-nav-badge`;
+      btn.appendChild(badge);
+    }
+    badge.textContent = count > 9 ? '9+' : String(count);
+  });
+}
+window._renderChatBadge = renderChatBadge;
+
 function renderNotifBadge() {
-  const count = getUnreadNotificationCount();
+  const count = (getUnreadNotificationCount() + emailReminderUnread());
   const badge = document.querySelector('#nav-notif .nav-badge');
   const parent = document.getElementById('nav-notif');
   if (count > 0) {
@@ -630,8 +653,9 @@ function bindGlobalHandlers() {
       btn.textContent = nowFollowing ? 'Seguindo' : 'Seguir';
       btn.classList.toggle('following', nowFollowing);
     });
-    // Mensagens só com quem você segue
+    // Mensagens só com quem você segue; números do perfil aberto na hora
     document.querySelectorAll(`[data-dm-id="${userId}"]`).forEach(btn => { btn.hidden = !nowFollowing; });
+    import('./profile.js').then(m => m.refreshProfileFollowState());
 
     // Update friend list
     const friendsEl = document.getElementById('friends-widget');
