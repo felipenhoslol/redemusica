@@ -643,3 +643,18 @@
 
 /* Mensagens não lidas na lista de conversas */
 .chat-unread-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font: 700 .68rem/18px var(--f-ui, inherit); text-align: center; margin-left: 6px; }
+
+/* "Enviada" / "Visto" embaixo da sua última mensagem */
+.chat-seen { align-self: flex-end; margin: -2px 6px 6px 0; font-size: .72rem; color: var(--text-2, var(--muted)); display: inline-flex; align-items: center; gap: 3px; }
+.chat-seen.seen { color: var(--accent); font-weight: 600; }
+.chat-seen svg { width: 12px; height: 12px; }
+
+/* "Fulano está digitando…" */
+.chat-typing { display: flex; align-items: center; gap: 8px; padding: 4px 18px 8px; font-size: .8rem; color: var(--text-2, var(--muted)); }
+.chat-typing[hidden] { display: none; }
+.chat-typing-dots { display: inline-flex; gap: 3px; padding: 7px 9px; border-radius: 12px; background: var(--surface, var(--bg-card)); }
+.chat-typing-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-2, var(--muted)); animation: typing-dot 1.2s ease-in-out infinite; }
+.chat-typing-dots i:nth-child(2) { animation-delay: .15s; }
+.chat-typing-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes typing-dot { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .chat-typing-dots i { animation: none; } }

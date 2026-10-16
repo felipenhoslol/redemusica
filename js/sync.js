@@ -143,6 +143,7 @@ function fromRow(row) {
       id: c.id, userId: c.user_id,
       userName: c.author?.name || 'Alguém', userAvatar: c.author?.avatar_url || initialOf(c.author?.name),
       text: c.body?.text || '', song: c.body?.song || null, imageUrl: c.body?.imageUrl || '', gifUrl: c.body?.gifUrl || '',
+      parentId: c.body?.parentId || null,
       likes: (c.comment_likes || []).map(l => l.user_id),
       ...(c.body?.imageInline ? { imageLazy: true } : {}),
       createdAt: relativeTime(c.created_at), createdAtIso: c.created_at
@@ -180,7 +181,8 @@ function fromMessageRow(r) {
     id: r.id, fromUserId: r.from_id, toUserId: r.to_id,
     text: b.text || '', song: b.song || null, imageUrl: b.imageUrl || '', gifUrl: b.gifUrl || '',
     link: b.link || null, replyTo: b.replyTo || null,
-    edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at, synced: true
+    edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at, synced: true,
+    readAt: r.read_at || null
   };
 }
 
@@ -218,7 +220,8 @@ function flushMessageOutbox(db, serverIds) {
   })().finally(() => { messageOutboxRunning = false; setTimeout(pullMessages, 1000); });
 }
 
-const MESSAGE_FIELDS = 'id, from_id, to_id, body, edited, created_at';
+let readReceiptsOn = true; // false until supabase/011_chat_read.sql has been run
+const messageFields = () => `id, from_id, to_id, body, edited, created_at${readReceiptsOn ? ', read_at' : ''}`;
 const FULL_MESSAGES_EVERY = 15; // polls (~2 min): a full re-read catches edits and deletions
 let messagePolls = 0;
 let newestMessageAt = null;
@@ -230,10 +233,11 @@ export function pullMessages() {
     const db = getSupabase();
     const full = !newestMessageAt || messagePolls % FULL_MESSAGES_EVERY === 0;
     messagePolls++;
-    let q = db.from('messages').select(MESSAGE_FIELDS).or(`from_id.eq.${me},to_id.eq.${me}`);
+    let q = db.from('messages').select(messageFields()).or(`from_id.eq.${me},to_id.eq.${me}`);
     // In between, only what arrived after the newest message we have
     q = full ? q.order('created_at', { ascending: false }).limit(500) : q.gt('created_at', newestMessageAt).order('created_at', { ascending: false }).limit(200);
     const { data, error } = await q;
+    if (error && readReceiptsOn && isMissingColumn(error)) { readReceiptsOn = false; return; } // retried next poll without read_at
     if (error) {
       if (isMissingTable(error)) {
         messagesOn = false;
@@ -243,7 +247,14 @@ export function pullMessages() {
     }
     data.forEach(r => pendingMessages.delete(r.id));
     if (full) flushMessageOutbox(db, new Set(data.map(r => r.id))); // background
-    if (!full && !data.length) return; // nothing new: no rewrite, no re-render
+    // "Visto": read marks on your latest sent messages (an incremental read only brings new rows)
+    let readChanged = false;
+    if (!full && readReceiptsOn) {
+      const { data: reads } = await db.from('messages').select('id, read_at').eq('from_id', me)
+        .not('read_at', 'is', null).order('created_at', { ascending: false }).limit(30);
+      readChanged = Storage.applyMessageReads(Object.fromEntries((reads || []).map(r => [r.id, r.read_at])));
+    }
+    if (!full && !data.length) { if (readChanged) handlers.onMessages?.(); return; } // nothing new: no rewrite
 
     const incoming = data.reverse().map(fromMessageRow);
     if (data.length) {
@@ -254,7 +265,7 @@ export function pullMessages() {
     Storage.seedChatRead(me, all); // first sync on this browser: history counts as read
     Storage.mergeRemoteNotifications(me, buildMessageNotifications(all), 'messages');
 
-    const signature = all.map(m => `${m.id}:${m.edited ? 1 : 0}:${m.text.length}`).join(',');
+    const signature = all.map(m => `${m.id}:${m.edited ? 1 : 0}:${m.text.length}:${m.readAt ? 1 : 0}`).join(',');
     if (signature !== lastMessagesSignature) {
       lastMessagesSignature = signature;
       handlers.onMessages?.();
@@ -276,6 +287,54 @@ function buildMessageNotifications(messages) {
     text: 'te enviou uma mensagem',
     preview: snippet(m.text) || (m.song ? `🎵 ${m.song.title}` : m.imageUrl ? 'Imagem' : m.gifUrl ? 'GIF' : '')
   }));
+}
+
+// ─── live channel for the open conversation: typing, read and "new message" pings ───
+// Supabase Realtime broadcast (nothing stored): the channel name is the pair of ids, so both
+// sides of a conversation meet there. Without Realtime the chat still works by polling.
+let liveChannel = null;
+let liveContact = null;
+let lastTypingSent = 0;
+const pairName = (a, b) => `dm:${[a, b].sort().join(':')}`;
+
+export function openChatChannel(contactId) {
+  if (!me || disabled || !isAccountId(contactId) || liveContact === contactId) return;
+  closeChatChannel();
+  liveContact = contactId;
+  try {
+    liveChannel = getSupabase().channel(pairName(me, contactId), { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => { if (payload?.from === contactId) handlers.onTyping?.(contactId); })
+      .on('broadcast', { event: 'read' }, ({ payload }) => { if (payload?.from === contactId) { Storage.markSentRead(contactId); handlers.onMessages?.(); } })
+      .on('broadcast', { event: 'message' }, ({ payload }) => { if (payload?.from === contactId) pullMessages(); })
+      .subscribe();
+  } catch { liveChannel = null; }
+}
+
+export function closeChatChannel() {
+  if (liveChannel) { try { getSupabase().removeChannel(liveChannel); } catch { /* already gone */ } }
+  liveChannel = null;
+  liveContact = null;
+}
+
+const ping = (event) => { try { liveChannel?.send({ type: 'broadcast', event, payload: { from: me } }); } catch { /* best effort */ } };
+
+/** You are typing in the open conversation (sent at most every 2.5 s). */
+export function sendTyping() {
+  if (!liveChannel || Date.now() - lastTypingSent < 2500) return;
+  lastTypingSent = Date.now();
+  ping('typing');
+}
+
+/** Mark what this person sent you as read (server + a live ping so they see "Visto" right away). */
+export async function markConversationRead(contactId) {
+  if (!me || disabled || !readReceiptsOn || !isAccountId(contactId)) return;
+  if (!Storage.hasUnreadFrom(me, contactId)) return;
+  Storage.markReceivedRead(contactId);
+  try {
+    const { error } = await getSupabase().rpc('mark_messages_read', { p_from: contactId });
+    if (error && (error.code === 'PGRST202' || error.code === '42883')) { readReceiptsOn = false; return; }
+    if (liveContact === contactId) ping('read');
+  } catch { /* next time */ }
 }
 
 const pollMessages = () => { if (document.visibilityState === 'visible') pullMessages(); };
@@ -303,13 +362,17 @@ function buildNotifications(rows, follows) {
     if (row.author_id !== me && Array.isArray(row.body?.mentions) && row.body.mentions.includes(me)) {
       add('mention', row.author_id, row.created_at, 'te marcou em um post', { key: row.id, postId: row.id, preview });
     }
+    const commentAuthor = new Map((row.post_comments || []).map(c => [c.id, c.user_id]));
+    const repliesToMe = (c) => !!c.body?.parentId && commentAuthor.get(c.body.parentId) === me;
     if (row.author_id === me) {
       (row.post_likes || []).forEach(l => add('like', l.user_id, l.created_at, 'curtiu seu post', { key: row.id, postId: row.id, preview }));
       (row.post_reposts || []).forEach(r => add('repost', r.user_id, r.created_at, 'repostou seu post', { key: row.id, postId: row.id, preview }));
-      (row.post_comments || []).forEach(c => add('comment', c.user_id, c.created_at, 'comentou no seu post',
+      (row.post_comments || []).forEach(c => repliesToMe(c) || add('comment', c.user_id, c.created_at, 'comentou no seu post',
         { key: c.id, postId: row.id, commentId: c.id, preview: snippet(c.body?.text) || preview }));
     }
     (row.post_comments || []).forEach(c => {
+      if (repliesToMe(c)) add('reply', c.user_id, c.created_at, 'respondeu seu comentário',
+        { key: c.id, postId: row.id, commentId: c.id, preview: snippet(c.body?.text) || preview });
       if (c.user_id !== me) return;
       (c.comment_likes || []).forEach(l => add('comment_like', l.user_id, l.created_at, 'curtiu seu comentário',
         { key: c.id, postId: row.id, commentId: c.id, preview: snippet(c.body?.text) }));
@@ -328,6 +391,11 @@ async function must(query) {
 
 function isMissingTable(err) {
   return err?.code === 'PGRST205' || err?.code === 'PGRST200' || err?.code === '42P01';
+}
+
+/** What a comment saves in post_comments.body (parentId: the comment it answers, if any). */
+function commentBody(c, imageUrl) {
+  return { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '', ...(c.parentId ? { parentId: c.parentId } : {}) };
 }
 
 // Posts written in this browser before the shared feed existed go up once
@@ -380,7 +448,7 @@ function flushPostOutbox(db, rows) {
     for (const { postId, comment: c } of outComments) {
       try {
         const imageUrl = await hostImage(c.imageUrl || '', 'comment');
-        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body: { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' } }));
+        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body: commentBody(c, imageUrl) }));
       } catch (err) {
         pendingComments.delete(c.id);
         if (!alreadyThere(err)) console.warn('Comentário não reenviado:', c.id, err?.code, err?.message);
@@ -457,6 +525,20 @@ async function migrateLegacyImages(db) {
   }
 }
 
+// Profile ids of the admins (gear badge). Without supabase/010 the function doesn't exist: keep what we had
+let adminIdsOn = true;
+async function refreshAdminIds(db) {
+  if (!adminIdsOn) return;
+  try {
+    const { data, error } = await db.rpc('admin_profile_ids');
+    if (error) { if (error.code === 'PGRST202' || error.code === '42883') adminIdsOn = false; return; }
+    const ids = (data || []).map(r => (typeof r === 'string' ? r : r?.admin_profile_ids || Object.values(r || {})[0])).filter(isAccountId);
+    const before = JSON.stringify([...ids].sort());
+    if (before !== adminIdsSignature) { adminIdsSignature = before; Storage.setAdminIds(ids); handlers.onUpdate?.(); }
+  } catch { /* offline: next full pull */ }
+}
+let adminIdsSignature = '';
+
 export function pullNow() {
   if (!me || disabled) return Promise.resolve();
   if (pulling) return pulling;
@@ -466,6 +548,7 @@ export function pullNow() {
     const fullProfiles = !profilesSince || profilePulls % FULL_PROFILES_EVERY === 0;
     profilePulls++;
     // Each part stands on its own: if the posts fail, followers, profiles and who's online still update
+    if (fullProfiles) refreshAdminIds(db); // background: rarely changes
     const [postsRes, followsRes, profilesRes, presenceRes] = await Promise.allSettled([
       fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
@@ -555,7 +638,7 @@ const POST_FIELDS = `id, author_id, edited, created_at,
   images:body->images, mentions:body->mentions,
   plId:body->playlist->>id, plTitle:body->playlist->>title, plDescription:body->playlist->>description,
   plAuthorId:body->playlist->>authorId, plSongs:body->playlist->songs`;
-const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl`;
+const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl, parentId:body->>parentId`;
 const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll', 'images', 'mentions'];
 
 async function fetchPostRows(db, refine) {
@@ -646,7 +729,7 @@ async function fetchPosts(db, refine) {
     }
     const comments = (r.post_comments || []).map(c => ({
       ...c,
-      body: { text: c.text || '', song: c.song || null, gifUrl: c.gifUrl || '', imageUrl: commentPics.urls.get(c.id) || '', ...(commentPics.inline.has(c.id) ? { imageInline: true } : {}) }
+      body: { text: c.text || '', song: c.song || null, gifUrl: c.gifUrl || '', parentId: c.parentId || null, imageUrl: commentPics.urls.get(c.id) || '', ...(commentPics.inline.has(c.id) ? { imageInline: true } : {}) }
     }));
     return { id: r.id, author_id: r.author_id, edited: r.edited, created_at: r.created_at, body,
       post_likes: r.post_likes, post_reposts: r.post_reposts, post_comments: comments, post_votes: r.post_votes };
@@ -921,8 +1004,7 @@ const hooks = {
     write(async db => {
       try {
         const imageUrl = await hostImage(c.imageUrl || '', 'comment');
-        const body = { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' };
-        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body }));
+        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body: commentBody(c, imageUrl) }));
       } catch (err) { if (!alreadyThere(err)) { pendingComments.delete(c.id); throw err; } }
       // stays pending until a pull sees it (the outbox resends it if it never arrives)
     }, 'Não foi possível enviar o comentário.');
@@ -941,6 +1023,7 @@ const hooks = {
         const imageUrl = await hostImage(m.imageUrl, 'chat');
         if (imageUrl !== m.imageUrl) Storage.patchMessageCache(m.id, { imageUrl });
         await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody({ ...m, imageUrl }) }));
+        if (liveContact === m.toUserId) ping('message'); // the other side fetches it right away
       } catch (err) { pendingMessages.delete(m.id); throw err; }
       // stays pending until pullMessages sees it on the server
     }, 'Não foi possível enviar a mensagem. Verifique sua conexão.');
@@ -990,7 +1073,10 @@ export function startSync(userId, opts = {}) {
   profileVersions.clear();
   legacyProfileChecked = false;
   legacyImagesStarted = false;
+  adminIdsOn = true;
+  adminIdsSignature = '';
   newestMessageAt = null;
+  readReceiptsOn = true;
   messagePolls = 1; // the first pull is full anyway (nothing cached yet)
   pullFailures = 0;
   warnedPullFailure = false;
@@ -1015,6 +1101,7 @@ export function stopSync() {
   presenceTimer = null;
   clearInterval(messagesTimer);
   messagesTimer = null;
+  closeChatChannel();
   clearTimeout(pullSoonTimer);
   pendingFollows.clear();
   pendingComments.clear();

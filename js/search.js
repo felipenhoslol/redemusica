@@ -7,6 +7,7 @@ import { searchTracks, searchArtists, searchAlbums, lookupArtist, lookupAlbum } 
 import { fetchLastFmTrendingTracks, getArtistImage } from './lastfm.js';
 import { searchPeople, searchPosts } from './sync.js';
 import { renderPostCard } from './feed.js';
+import { adminBadge } from './badges.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 
 const TABS = [
@@ -107,7 +108,7 @@ function personRow(u) {
     <div class="search-row" role="button" tabindex="0" data-profile="${esc(u.id)}">
       <div class="post-author-avatar search-avatar">${avatarInner(u.avatar, u.name)}</div>
       <div class="search-row-text">
-        <div class="search-row-title">${hl(u.name)}</div>
+        <div class="search-row-title">${hl(u.name)}${adminBadge(u.id)}</div>
         <div class="search-row-sub">${hl(u.handle || '')}${u.bio ? ` <span class="search-row-bio">${esc(u.bio)}</span>` : ''}</div>
       </div>
       ${u.id === Storage.getActiveUser()?.id ? '<span class="search-row-sub">Você</span>' : `<button type="button" class="search-follow-btn${following ? ' following' : ''}" data-follow-id="${esc(u.id)}">${following ? 'Seguindo' : 'Seguir'}</button>`}

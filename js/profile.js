@@ -8,6 +8,7 @@ import { getArtistImage, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.
 import { presenceOf, relativeTime } from './sync.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { BIO_FONTS, bioFont, bioFontStyle } from './bioFonts.js';
+import { adminBadge } from './badges.js';
 
 // ──────────────────────────────────────────
 // PROFILE RENDER
@@ -147,7 +148,7 @@ export function renderProfileView(container, targetUserId) {
         </div>
         <div class="profile-details">
           <div class="profile-identity">
-            <div class="profile-name">${esc(user.name)}</div>
+            <div class="profile-name">${esc(user.name)}${adminBadge(user.id)}</div>
             <div class="profile-handle">${esc(user.handle || '@' + user.name.toLowerCase())}
               ${presence.known ? `<span class="profile-presence${presence.online ? ' online' : ''}"><i aria-hidden="true"></i>${esc(presence.online ? 'Online' : presence.label.replace(/^visto/, 'Visto'))}</span>` : ''}
             </div>
@@ -258,6 +259,7 @@ async function loadListening(section, username) {
         <div class="profile-listening-text">
           <strong>${esc(t.title)}</strong>
           <span>${esc(t.artist)}</span>
+          ${now ? `<span class="np-wave" aria-hidden="true">${'<i></i>'.repeat(28)}</span>` : ''}
         </div>
         <span class="profile-listening-when">${now ? '<span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span> agora' : esc(t.playedAt ? relativeTime(t.playedAt) : '')}</span>
       </div>`;
@@ -893,7 +895,7 @@ export function renderPeopleListModal(title, ids, emptyText = 'Ninguém aqui ain
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:var(--border);cursor:pointer;" onclick="closeModal('follow-list-modal');window._goToProfile('${u.id}')">
       <div class="post-author-avatar" style="overflow:hidden;">${avatarInner(u.avatar, u.name)}</div>
       <div>
-        <div style="font-size:0.88rem;font-weight:700;color:var(--white)">${esc(u.name)}</div>
+        <div style="font-size:0.88rem;font-weight:700;color:var(--white)">${esc(u.name)}${adminBadge(u.id)}</div>
         <div style="font-size:0.72rem;color:var(--muted)">${esc(u.handle || '')}</div>
       </div>
       ${u.id !== Storage.getActiveUserId() ? `

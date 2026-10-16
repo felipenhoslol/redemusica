@@ -290,6 +290,15 @@ export function mergeRemoteProfiles(profiles, opts = {}) {
   lsSet(STORAGE_KEYS.USERS, JSON.stringify(users));
 }
 
+// Who is an admin (profile ids, from supabase/010_admin_badge.sql): shown as a gear by the name
+const ADMIN_IDS_KEY = 'rmsn_admin_ids_v1';
+export function setAdminIds(ids) {
+  lsSet(ADMIN_IDS_KEY, JSON.stringify([...new Set(ids)].slice(0, 200)));
+}
+export function isAdminUser(userId) {
+  return Boolean(userId) && (cachedJson(ADMIN_IDS_KEY, null) || []).includes(userId);
+}
+
 /** Store when people were last seen online ({ userId: isoDate }). */
 export function setPresence(map) {
   const users = getAllUsers();
@@ -754,6 +763,7 @@ export function addCommentToPost(postId, commentData) {
     imageUrl = commentData.imageUrl || '';
     gifUrl = commentData.gifUrl || '';
   }
+  const parentId = (commentData && typeof commentData === 'object' && commentData.parentId) || null;
 
   if (!text && !song && !imageUrl && !gifUrl) return null;
 
@@ -771,6 +781,7 @@ export function addCommentToPost(postId, commentData) {
       song: song,
       imageUrl: imageUrl,
       gifUrl: gifUrl,
+      ...(parentId && post.comments.some(c => c.id === parentId) ? { parentId } : {}),
       createdAt: 'agora'
     };
     post.comments.push(newComment);
@@ -1107,6 +1118,39 @@ export function addMessagesToCache(userId, messages) {
   });
   lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(current));
   return current.filter(m => m.fromUserId === userId || m.toUserId === userId);
+}
+
+/** Apply read marks ({ messageId: iso }) to your sent messages; true if anything changed. */
+export function applyMessageReads(map) {
+  const all = readJson(STORAGE_KEYS.MESSAGES, []);
+  let changed = false;
+  all.forEach(m => { if (map[m.id] && !m.readAt) { m.readAt = map[m.id]; changed = true; } });
+  if (changed) lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+  return changed;
+}
+
+/** The other side opened the conversation: everything you sent them counts as seen. */
+export function markSentRead(contactId) {
+  const me = getActiveUserId();
+  const all = readJson(STORAGE_KEYS.MESSAGES, []);
+  const now = new Date().toISOString();
+  let changed = false;
+  all.forEach(m => { if (m.fromUserId === me && m.toUserId === contactId && !m.readAt) { m.readAt = now; changed = true; } });
+  if (changed) lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+}
+
+/** You opened the conversation: what they sent you is read (locally; the server is told by sync.js). */
+export function markReceivedRead(contactId) {
+  const me = getActiveUserId();
+  const all = readJson(STORAGE_KEYS.MESSAGES, []);
+  const now = new Date().toISOString();
+  let changed = false;
+  all.forEach(m => { if (m.toUserId === me && m.fromUserId === contactId && !m.readAt) { m.readAt = now; changed = true; } });
+  if (changed) lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+}
+
+export function hasUnreadFrom(userId, contactId) {
+  return readJson(STORAGE_KEYS.MESSAGES, []).some(m => m.toUserId === userId && m.fromUserId === contactId && m.synced && !m.readAt);
 }
 
 /** Messages this account wrote while the chat was still local-only. */

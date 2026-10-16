@@ -910,3 +910,23 @@ body[data-tab="feed"] .right-sidebar { flex: none; }
 .poll-voter-text strong { font-size: .88rem; }
 .poll-voter-text span { font-size: .76rem; color: var(--text-2); }
 .poll-votes-none { margin: 2px 4px 4px; font-size: .82rem; color: var(--text-2); }
+
+/* Engrenagem de admin ao lado do nome */
+.admin-badge { display: inline-flex; align-items: center; justify-content: center; margin-left: 5px; color: var(--accent); vertical-align: -2px; flex: none; }
+.admin-badge svg { width: 14px; height: 14px; }
+.profile-name .admin-badge svg { width: 19px; height: 19px; }
+
+/* Respostas a comentários */
+.comment-actions { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
+.comment-actions .comment-like-btn { margin-top: 0; }
+.comment-reply-btn { padding: 2px 4px; background: none; border: 0; border-radius: 6px; color: var(--text-2); font: 700 .75rem var(--f-ui); cursor: pointer; }
+.comment-reply-btn:hover { color: var(--accent); text-decoration: underline; }
+.comment-replies { margin: -2px 0 8px 34px; padding-left: 10px; border-left: 2px solid var(--tint-2, rgba(127,127,127,.25)); }
+.comment-replies .comment-row { margin-bottom: 6px !important; }
+.comment-replies .comment-avatar { width: 22px; height: 22px; min-width: 22px; }
+.comment-reply-banner { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text-2); font-size: .76rem; }
+.comment-reply-banner[hidden] { display: none; }
+.comment-reply-banner strong { color: var(--text); }
+.comment-reply-cancel { background: none; border: 0; color: var(--text-2); cursor: pointer; font-size: .8rem; padding: 2px 6px; border-radius: 6px; }
+.comment-reply-cancel:hover { color: var(--text); background: var(--tint-1, rgba(127,127,127,.15)); }
+.notif-kind-reply { color: var(--accent); }
