@@ -8,6 +8,7 @@ import { fetchLastFmTrendingTracks, fetchLastFmRecentTracks, lastFmUserOf } from
 import { compressImage, presenceOf, loadInlinePicture, fetchPostById } from './sync.js';
 import { pollHtml } from './poll.js';
 import { auth } from './auth.js';
+import { adminBadge } from './badges.js';
 import { linkMentions, attachMentionAutocomplete } from './mentions.js';
 import { openLyricPicker, EXCERPT_MAX_LINES, EXCERPT_MAX_CHARS } from './lyricPicker.js';
 
@@ -197,7 +198,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
       <div class="comment-avatar" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;" title="Ver perfil de ${esc(c.userName)}">${cAvatar}</div>
       <div class="comment-content" style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-          <div class="comment-name" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;">${esc(c.userName)}</div>
+          <div class="comment-name" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;">${esc(c.userName)}${adminBadge(c.userId)}</div>
           <div style="display:flex;align-items:center;gap:6px;">
             <span style="font-size:0.68rem;color:var(--muted);">${esc(c.createdAt || '')}</span>
             ${deleteBtnHtml}
@@ -319,7 +320,7 @@ export function renderPostCard(post, options = {}) {
         <div class="post-author" onclick="window._goToProfile('${post.authorId}')">
           <div class="post-author-avatar">${authorAvatarHtml}</div>
           <div>
-            <div class="post-author-name">${esc(author.name)}</div>
+            <div class="post-author-name">${esc(author.name)}${adminBadge(post.authorId)}</div>
             <div class="post-author-handle">${esc(author.handle || '')}</div>
           </div>
         </div>
@@ -1249,7 +1250,7 @@ export function renderFriendsWidget(container) {
         <div class="friend-online-dot${p.online ? ' online' : ''}" title="${p.online ? 'Online' : esc(p.label || 'Offline')}" aria-label="${p.online ? 'Online' : 'Offline'}"></div>
         ${avatarHtml}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.name)}</div>
+          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.name)}${adminBadge(u.id)}</div>
           <div class="friend-sub" ${lfm ? `data-np-user="${esc(lfm)}"` : ''} style="font-size:0.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(sub)}</div>
         </div>
       </div>`;

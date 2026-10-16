@@ -290,6 +290,15 @@ export function mergeRemoteProfiles(profiles, opts = {}) {
   lsSet(STORAGE_KEYS.USERS, JSON.stringify(users));
 }
 
+// Who is an admin (profile ids, from supabase/010_admin_badge.sql): shown as a gear by the name
+const ADMIN_IDS_KEY = 'rmsn_admin_ids_v1';
+export function setAdminIds(ids) {
+  lsSet(ADMIN_IDS_KEY, JSON.stringify([...new Set(ids)].slice(0, 200)));
+}
+export function isAdminUser(userId) {
+  return Boolean(userId) && (cachedJson(ADMIN_IDS_KEY, null) || []).includes(userId);
+}
+
 /** Store when people were last seen online ({ userId: isoDate }). */
 export function setPresence(map) {
   const users = getAllUsers();

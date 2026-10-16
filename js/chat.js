@@ -5,6 +5,7 @@ import { ICONS } from './icons.js';
 import { globalAudio } from './audio.js';
 import { fetchLinkMetadata, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { compressImage } from './sync.js';
+import { adminBadge } from './badges.js';
 
 let activeContactId = null;
 let attachedSong = null;
@@ -273,7 +274,7 @@ function renderChatTabContacts() {
         <div class="chat-contact-card-avatar">${uAvatarHtml}</div>
         <div class="chat-contact-card-info">
           <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div class="chat-contact-card-name">${esc(u.name)}</div>
+            <div class="chat-contact-card-name">${esc(u.name)}${adminBadge(u.id)}</div>
             ${last ? `<span style="font-size:0.68rem;color:var(--muted);">${esc(last.createdAt || '')}</span>` : ''}
             ${unread && activeContactId !== u.id ? `<span class="chat-unread-badge" aria-label="${unread} não lidas">${unread > 9 ? '9+' : unread}</span>` : ''}
           </div>
@@ -322,7 +323,7 @@ function renderChatTabMain(contactId) {
           ${cAvatarHtml}
         </div>
         <div>
-          <div style="font-size:1rem;font-weight:800;color:var(--white);">${esc(contact.name)}</div>
+          <div style="font-size:1rem;font-weight:800;color:var(--white);">${esc(contact.name)}${adminBadge(contact.id)}</div>
           <div style="font-size:0.8rem;color:var(--text-2);">${esc(contact.handle || '')}</div>
         </div>
       </div>

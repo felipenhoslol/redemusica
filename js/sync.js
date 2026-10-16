@@ -457,6 +457,20 @@ async function migrateLegacyImages(db) {
   }
 }
 
+// Profile ids of the admins (gear badge). Without supabase/010 the function doesn't exist: keep what we had
+let adminIdsOn = true;
+async function refreshAdminIds(db) {
+  if (!adminIdsOn) return;
+  try {
+    const { data, error } = await db.rpc('admin_profile_ids');
+    if (error) { if (error.code === 'PGRST202' || error.code === '42883') adminIdsOn = false; return; }
+    const ids = (data || []).map(r => (typeof r === 'string' ? r : r?.admin_profile_ids || Object.values(r || {})[0])).filter(isAccountId);
+    const before = JSON.stringify([...ids].sort());
+    if (before !== adminIdsSignature) { adminIdsSignature = before; Storage.setAdminIds(ids); handlers.onUpdate?.(); }
+  } catch { /* offline: next full pull */ }
+}
+let adminIdsSignature = '';
+
 export function pullNow() {
   if (!me || disabled) return Promise.resolve();
   if (pulling) return pulling;
@@ -466,6 +480,7 @@ export function pullNow() {
     const fullProfiles = !profilesSince || profilePulls % FULL_PROFILES_EVERY === 0;
     profilePulls++;
     // Each part stands on its own: if the posts fail, followers, profiles and who's online still update
+    if (fullProfiles) refreshAdminIds(db); // background: rarely changes
     const [postsRes, followsRes, profilesRes, presenceRes] = await Promise.allSettled([
       fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
@@ -990,6 +1005,8 @@ export function startSync(userId, opts = {}) {
   profileVersions.clear();
   legacyProfileChecked = false;
   legacyImagesStarted = false;
+  adminIdsOn = true;
+  adminIdsSignature = '';
   newestMessageAt = null;
   messagePolls = 1; // the first pull is full anyway (nothing cached yet)
   pullFailures = 0;

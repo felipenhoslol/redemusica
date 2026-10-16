@@ -910,3 +910,8 @@ body[data-tab="feed"] .right-sidebar { flex: none; }
 .poll-voter-text strong { font-size: .88rem; }
 .poll-voter-text span { font-size: .76rem; color: var(--text-2); }
 .poll-votes-none { margin: 2px 4px 4px; font-size: .82rem; color: var(--text-2); }
+
+/* Engrenagem de admin ao lado do nome */
+.admin-badge { display: inline-flex; align-items: center; justify-content: center; margin-left: 5px; color: var(--accent); vertical-align: -2px; flex: none; }
+.admin-badge svg { width: 14px; height: 14px; }
+.profile-name .admin-badge svg { width: 19px; height: 19px; }
