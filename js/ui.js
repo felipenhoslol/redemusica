@@ -414,12 +414,26 @@ export function renderMusicAskGrid(container, challengeId, userId) {
             <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._playTrack(${jsArg(ans)})" title="Ouvir música">
               ${ICONS.play}
             </button>
+            ${isMe ? `<button class="doodle-btn doodle-btn-ghost doodle-btn-sm q-card-remove" onclick="event.stopPropagation();window._removeAnswer('${cid}', ${jsArg(q.id)})" title="Tirar esta música" aria-label="Tirar a música da questão ${q.id}">
+              ${ICONS.trash}
+            </button>` : ''}
           </div>` : ''}
       </div>`;
   }).join('');
 
   container.innerHTML = `<div class="questions-grid">${cards}</div>`;
 }
+
+window._removeAnswer = (challengeId, questionId) => {
+  const ans = storage.getChallengeAnswers(challengeId)[questionId];
+  if (!ans) return;
+  storage.removeChallengeAnswer(challengeId, questionId);
+  showToast(`"${ans.title}" saiu do desafio.`);
+  const grid = document.getElementById('questions-grid');
+  if (grid) renderMusicAskGrid(grid, challengeId);
+  window._refreshCompareView?.();
+  window._refreshChallenges?.();
+};
 
 window._openQuestion = (challengeId, questionId) => {
   openSearchModalForQuestion(challengeId, questionId);
@@ -450,7 +464,12 @@ export function renderCompareView(container) {
   const allChallenges = storage.getAllChallenges();
 
   let selectedChallengeId = storage.getActiveChallengeId() || allChallenges[0]?.id || 'classic_30';
-  let compareUserId = users.find(u => u.id !== activeUser.id)?.id || users[0]?.id;
+  // Default: someone you follow who already answered this challenge, then anyone who answered
+  const following = new Set(storage.getFollowing(activeUser.id));
+  const others = users.filter(u => u.id !== activeUser.id && u.id !== 'user_me');
+  const answered = (u) => Object.keys(storage.getChallengeAnswers(selectedChallengeId, u.id)).length > 0;
+  let compareUserId = (others.find(u => following.has(u.id) && answered(u)) || others.find(answered)
+    || others.find(u => following.has(u.id)) || others[0] || users[0])?.id;
   let activeFilter = 'all'; // 'all' | 'both' | 'my' | 'theirs' | 'reviewed'
 
   function getAvatarMarkup(user, size = 44) {
@@ -1006,7 +1025,24 @@ window._submitNewChallenge = () => {
 // NOTIFICATIONS PANEL
 // ──────────────────────────────────────────
 
-const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', message: 'send' };
+// Where a notification leads: the post it is about, the conversation, or the person's profile
+function notifTargetAttrs(n, profileId, name) {
+  if (n.postId) return `role="button" tabindex="0" data-notif-post="${esc(n.postId)}"${n.commentId ? ` data-notif-comment="${esc(n.commentId)}"` : ''} title="Ver o post"`;
+  if (!profileId) return '';
+  if (n.type === 'message') return `role="button" tabindex="0" data-notif-chat="${esc(profileId)}" title="Abrir conversa com ${esc(name)}"`;
+  return `role="button" tabindex="0" data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"`;
+}
+
+function openNotificationTarget(el) {
+  if (el.dataset.notifPost) window._openPostView?.(el.dataset.notifPost, { commentId: el.dataset.notifComment });
+  else if (el.dataset.notifChat) {
+    // Opens even if you don't follow them back: it's a conversation they started
+    window.switchTab?.('chat');
+    setTimeout(() => window._selectChatContact?.(el.dataset.notifChat), 60);
+  } else if (el.dataset.notifProfile) window._goToProfile?.(el.dataset.notifProfile);
+}
+
+const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', message: 'send', mention: 'edit' };
 
 function emailReminderHtml() {
   if (!needsEmailConfirmation()) return '';
@@ -1031,16 +1067,10 @@ export function renderNotificationsPanel(container) {
   container.onclick = (e) => {
     const verify = e.target.closest('[data-send-verify]');
     if (verify) { sendVerify(verify); return; }
-    const item = e.target.closest('[data-notif-profile], [data-notif-chat]');
+    const item = e.target.closest('[data-notif-profile], [data-notif-chat], [data-notif-post]');
     if (!item) return;
     if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
-    if (item.dataset.notifChat) {
-      // Opens even if you don't follow them back: it's a conversation they started
-      window.switchTab?.('chat');
-      setTimeout(() => window._selectChatContact?.(item.dataset.notifChat), 60);
-    } else {
-      window._goToProfile?.(item.dataset.notifProfile);
-    }
+    openNotificationTarget(item);
   };
 
   if (!notifs.length) {
@@ -1057,7 +1087,7 @@ export function renderNotificationsPanel(container) {
     const icon = ICONS[NOTIF_ICONS[n.type]] || '';
     const profileId = fromUser ? n.fromUserId : '';
     return `
-      <div class="notif-item${!n.read ? ' unread' : ''}${profileId ? '' : ' no-link'}" ${profileId ? `role="button" tabindex="0" ${n.type === 'message' ? `data-notif-chat="${esc(profileId)}" title="Abrir conversa com ${esc(name)}"` : `data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"`}` : ''}>
+      <div class="notif-item${!n.read ? ' unread' : ''}${profileId || n.postId ? '' : ' no-link'}" ${notifTargetAttrs(n, profileId, name)}>
         <div class="notif-avatar" style="overflow:hidden;">${avatarHtml}</div>
         <div class="notif-body">
           <div class="notif-text">
@@ -1071,8 +1101,84 @@ export function renderNotificationsPanel(container) {
   }).join('');
 
   container.onkeydown = (e) => {
-    if (e.key === 'Enter' && e.target.matches('[data-notif-profile], [data-notif-chat]')) e.target.click();
+    if (e.key === 'Enter' && e.target.matches('[data-notif-profile], [data-notif-chat], [data-notif-post]')) e.target.click();
   };
+}
+
+// ─── Pop-ups for new notifications (corner of the screen, with ✕) ───
+const POPPED_KEY = () => `rmsn_notif_popped_${storage.getActiveUserId()}`;
+const POP_MAX_AGE_MS = 15 * 60 * 1000;
+const POP_HIDE_MS = 7000;
+
+function readPopped() {
+  try { return new Set(JSON.parse(localStorage.getItem(POPPED_KEY())) || []); } catch { return new Set(); }
+}
+function savePopped(set) {
+  try { localStorage.setItem(POPPED_KEY(), JSON.stringify([...set].slice(-300))); } catch { /* optional */ }
+}
+
+/** Show a pop-up for each notification that arrived since the last look (at most 3 at once). */
+export function showNotificationPopups() {
+  if (document.getElementById('notif-overlay')?.classList.contains('active')) return; // the panel is open
+  const popped = readPopped();
+  const openChat = window._visibleChatContactId?.();
+  const fresh = storage.getMyNotifications().filter(n => !n.read && !popped.has(n.id));
+  if (!fresh.length) return;
+  fresh.forEach(n => popped.add(n.id));
+  savePopped(popped);
+  const recent = fresh.filter(n => Date.now() - new Date(n.createdAt).getTime() < POP_MAX_AGE_MS
+    && !(n.type === 'message' && n.fromUserId === openChat)).slice(0, 3);
+  if (!recent.length) return;
+
+  let stack = document.getElementById('notif-popups');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'notif-popups';
+    stack.className = 'notif-popups';
+    stack.setAttribute('aria-live', 'polite');
+    document.body.appendChild(stack);
+    stack.addEventListener('click', onPopupClick);
+  }
+  recent.reverse().forEach(n => {
+    const fromUser = storage.getUserById(n.fromUserId);
+    const name = fromUser?.name || n.fromName || 'Alguém';
+    const icon = ICONS[NOTIF_ICONS[n.type]] || ICONS.bell;
+    const card = document.createElement('div');
+    card.className = 'notif-popup';
+    card.dataset.notifId = n.id;
+    if (n.postId) { card.dataset.notifPost = n.postId; if (n.commentId) card.dataset.notifComment = n.commentId; }
+    else if (fromUser) card.dataset[n.type === 'message' ? 'notifChat' : 'notifProfile'] = n.fromUserId;
+    card.innerHTML = `
+      <div class="notif-avatar" style="overflow:hidden;">${isImageAvatar(fromUser?.avatar)
+        ? `<img src="${safeUrl(fromUser.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+        : esc(fromUser?.avatar || name[0] || '?')}</div>
+      <div class="notif-body">
+        <div class="notif-text"><span class="notif-kind notif-kind-${esc(n.type)}" aria-hidden="true">${icon}</span><strong>${esc(name)}</strong> ${esc(n.text)}</div>
+        ${n.preview ? `<div class="notif-preview">“${esc(n.preview)}”</div>` : ''}
+      </div>
+      <button type="button" class="notif-popup-close" data-dismiss aria-label="Fechar notificação">${ICONS.close}</button>`;
+    stack.prepend(card);
+    let timer = setTimeout(() => dismissPopup(card), POP_HIDE_MS);
+    card.addEventListener('mouseenter', () => clearTimeout(timer));
+    card.addEventListener('mouseleave', () => { timer = setTimeout(() => dismissPopup(card), 2500); });
+  });
+  window._renderNotifBadge?.();
+}
+
+function dismissPopup(card) {
+  if (!card.isConnected) return;
+  card.classList.add('leaving');
+  setTimeout(() => card.remove(), 220);
+}
+
+function onPopupClick(e) {
+  const card = e.target.closest('.notif-popup');
+  if (!card) return;
+  if (e.target.closest('[data-dismiss]')) { dismissPopup(card); return; }
+  storage.markNotificationRead(card.dataset.notifId);
+  window._renderNotifBadge?.();
+  dismissPopup(card);
+  openNotificationTarget(card);
 }
 
 async function sendVerify(btn) {

@@ -407,12 +407,12 @@ function renderMessagesListHtml(msgs, activeUserId) {
 
     const imageHtml = m.imageUrl ? `
       <div class="chat-msg-media" style="margin-top:6px;border-radius:10px;overflow:hidden;max-width:320px;border:1.5px solid color-mix(in srgb, var(--accent) 40%, transparent);background:#000;">
-        <img src="${safeUrl(m.imageUrl)}" alt="Imagem anexada" style="width:100%;max-height:260px;object-fit:cover;display:block;cursor:pointer;" onclick="window.open(${jsArg(m.imageUrl)}, '_blank', 'noopener')">
+        <img src="${safeUrl(m.imageUrl)}" alt="Imagem anexada" data-zoom style="width:100%;max-height:260px;object-fit:cover;display:block;">
       </div>` : '';
 
     const gifHtml = m.gifUrl ? `
       <div class="chat-msg-media" style="margin-top:6px;border-radius:10px;overflow:hidden;max-width:320px;border:1.5px solid color-mix(in srgb, var(--star) 50%, transparent);background:#000;">
-        <img src="${safeUrl(m.gifUrl)}" alt="GIF animado" style="width:100%;max-height:260px;object-fit:cover;display:block;">
+        <img src="${safeUrl(m.gifUrl)}" alt="GIF animado" data-zoom style="width:100%;max-height:260px;object-fit:cover;display:block;">
       </div>` : '';
 
     const detectedUrl = extractFirstUrl(m.text);
@@ -817,6 +817,11 @@ window._setChatGif = (url) => {
 // ──────────────────────────────────────────
 
 export function initChatBindings() {
+  // Which conversation is on screen (pop-ups skip messages from it)
+  window._visibleChatContactId = () => (
+    (document.getElementById('chat-tab-main')?.isConnected && document.getElementById('chat-tab-messages')) ||
+    document.getElementById('dm-window')?.classList.contains('open')
+  ) ? activeContactId : null;
   window._closeDM = () => closeDMWindow();
   window._dmSelectContact = (id) => renderMessages(id);
   window._dmSend = () => sendDMMessage(false);
