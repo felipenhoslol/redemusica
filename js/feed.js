@@ -321,7 +321,7 @@ export function renderPostCard(post, options = {}) {
         ${!isOwner ? `<button class="post-options-item danger" onclick="window._reportUser('${post.authorId}')">Reportar</button>` : ''}
       </div>
 
-      ${post.text ? `<div class="post-text">${esc(post.text)}${post.tag ? `<span class="post-tag">${esc(post.tag)}</span>` : ''}</div>` : ''}
+      ${post.text ? `<div class="post-text">${esc(post.text)}</div>` : ''}
       ${ratingHtml}
       ${renderLyricsCard(post)}
       ${imageHtml}
@@ -364,7 +364,6 @@ export let creatorState = {
   lyricsSong: '',
   lyricsArt: '',
   rating: 0,
-  tag: '#música',
   showLyrics: false
 };
 
@@ -418,15 +417,6 @@ export function renderPostCreator(containerEl) {
           </button>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <select id="creator-tag" class="doodle-input" style="width:auto;padding:6px 10px;font-size:0.82rem;">
-            <option value="#música">#música</option>
-            <option value="#letra">#letra</option>
-            <option value="#desabafo">#desabafo</option>
-            <option value="#descoberta">#descoberta</option>
-            <option value="#recomendo">#recomendo</option>
-            <option value="#ao-vivo">#ao-vivo</option>
-            <option value="#clássico">#clássico</option>
-          </select>
           <button class="doodle-btn doodle-btn-primary" style="padding:8px 22px;" onclick="window._submitPost()">Postar</button>
         </div>
       </div>
@@ -546,11 +536,6 @@ export function renderPostCreator(containerEl) {
     }
   };
 
-  window._creatorSetTag = (tag) => {
-    creatorState.tag = tag;
-    const sel = document.getElementById('creator-tag');
-    if (sel) sel.value = tag;
-  };
 
   window._creatorOpenImagePicker = () => {
     const modal = document.getElementById('post-image-modal');

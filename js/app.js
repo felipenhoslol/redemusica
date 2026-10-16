@@ -6,7 +6,7 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
          createPost, setFeaturedSong, addToShowcase, removeFromShowcase,
          getUnreadNotificationCount, getFeedPosts, getChallengeAnswers,
          getActiveChallengeId, getChallengeAnswers as getAnswers,
-         updateUserMusicStats, getAllPlaylists, getPlaylistById } from './storage.js';
+         updateUserMusicStats, updateUser, getAllPlaylists, getPlaylistById } from './storage.js';
 
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
@@ -18,6 +18,8 @@ import { openDisplaySettings, initDisplay } from './display.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { startSync, stopSync, pullNow } from './sync.js';
 import { renderSearchPage, openSearch } from './search.js';
+import { openPhotoEditor } from './photoEditor.js';
+import { initDragScroll } from './dragScroll.js';
 import { renderAdminTab } from './admin.js';
 import { renderDailyLyric } from './dailyLyric.js';
 import { searchTracks } from './api.js';
@@ -69,6 +71,7 @@ function startApp() {
   appStarted = true;
   renderSidebar();
   renderMobileNav();
+  initDragScroll();
   renderPlayerBar();
   initSearchModal();
   initChatBindings();
@@ -192,10 +195,27 @@ function refreshSidebarUser() {
 // PHONE NAVIGATION: bottom tab bar + "você" sheet (the sidebar is hidden below 700px)
 // ──────────────────────────────────────────
 
-const MOBILE_TABS = ['feed', 'search', 'notif', 'chat'];
-
 function renderMobileNav() {
   const user = getActiveUser();
+  const unread = getUnreadNotificationCount();
+  const badge = unread ? `<span class="mobile-badge">${unread > 9 ? '9+' : unread}</span>` : '';
+
+  // Top bar: the cat (reacts like the sidebar one) and notifications
+  let header = document.getElementById('mobile-header');
+  if (!header) {
+    header = document.createElement('header');
+    header.id = 'mobile-header';
+    header.className = 'mobile-header';
+    document.querySelector('.app-main')?.prepend(header);
+  }
+  header.innerHTML = `
+    <button type="button" class="mobile-brand" data-tab="feed" aria-label="rede de música, ir para o início">
+      <span class="mobile-brand-cat">${catLogoHtml({ live: true })}</span>
+      <span class="mobile-brand-name">rede de música</span>
+    </button>
+    <button type="button" class="mobile-tab mobile-header-btn" data-tab="notif" aria-label="Notificações">${ICONS.bell}${badge}</button>`;
+
+  // Bottom bar: five slots with "Postar" in the middle
   let bar = document.getElementById('mobile-tabbar');
   if (!bar) {
     bar = document.createElement('nav');
@@ -204,20 +224,19 @@ function renderMobileNav() {
     bar.setAttribute('aria-label', 'Navegação');
     document.body.appendChild(bar);
   }
-  const unread = getUnreadNotificationCount();
   bar.innerHTML = `
     <button type="button" class="mobile-tab" data-tab="feed" aria-label="Início">${ICONS.feed}</button>
     <button type="button" class="mobile-tab" data-tab="search" aria-label="Pesquisar">${ICONS.search}</button>
     <button type="button" class="mobile-tab mobile-tab-post" data-action="post" aria-label="Postar">${ICONS.plus}</button>
-    <button type="button" class="mobile-tab" data-tab="notif" aria-label="Notificações">${ICONS.bell}${unread ? `<span class="mobile-badge">${unread > 9 ? '9+' : unread}</span>` : ''}</button>
     <button type="button" class="mobile-tab" data-tab="chat" aria-label="Chat">${ICONS.chat}</button>
     <button type="button" class="mobile-tab mobile-tab-me" data-action="me" aria-label="Você: perfil e mais opções" aria-haspopup="dialog">
       <span class="post-author-avatar">${avatarInner(user.avatar, user.name)}</span>
     </button>`;
-  bar.onclick = (e) => {
-    const b = e.target.closest('.mobile-tab');
+
+  const onNav = (e) => {
+    const b = e.target.closest('[data-tab], [data-action]');
     if (!b) return;
-    // Notifications open as a page on phones: any other tab closes it
+    // Notifications open as a page on phones: any other destination closes it
     const notifOpen = document.getElementById('notif-overlay')?.classList.contains('active');
     if (notifOpen && b.dataset.tab !== 'notif') toggleNotifPanel();
     if (b.dataset.action === 'post') window._composeNew();
@@ -225,6 +244,8 @@ function renderMobileNav() {
     else if (b.dataset.tab === 'notif') toggleNotifPanel();
     else switchTab(b.dataset.tab);
   };
+  bar.onclick = onNav;
+  header.onclick = onNav;
   syncMobileNav();
 }
 
@@ -232,7 +253,7 @@ function syncMobileNav() {
   // The avatar stands for your own profile and everything in the "você" sheet
   const meActive = (activeTab === 'profile' && currentProfileUserId === getActiveUser().id)
     || ['playlists', 'desafios', 'comparar', 'admin'].includes(activeTab);
-  document.querySelectorAll('#mobile-tabbar .mobile-tab').forEach(b => {
+  document.querySelectorAll('#mobile-tabbar .mobile-tab, #mobile-header .mobile-tab').forEach(b => {
     const on = b.dataset.tab ? b.dataset.tab === activeTab : (b.dataset.action === 'me' && meActive);
     b.classList.toggle('active', on);
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -526,7 +547,7 @@ function toggleNotifPanel() {
   // Phone tab bar: the bell is the current "page" while the panel is open
   syncMobileNav();
   if (!isActive) {
-    document.querySelectorAll('#mobile-tabbar .mobile-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'notif'));
+    document.querySelectorAll('#mobile-tabbar .mobile-tab, #mobile-header .mobile-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'notif'));
   }
 }
 
@@ -548,7 +569,7 @@ function renderNotifBadge() {
   } else if (badge) {
     badge.remove();
   }
-  const mobileBell = document.querySelector('#mobile-tabbar [data-tab="notif"]');
+  const mobileBell = document.querySelector('#mobile-header [data-tab="notif"]');
   if (mobileBell) {
     mobileBell.querySelector('.mobile-badge')?.remove();
     if (count > 0) mobileBell.insertAdjacentHTML('beforeend', `<span class="mobile-badge">${count > 9 ? '9+' : count}</span>`);
@@ -696,16 +717,6 @@ function bindGlobalHandlers() {
             <label class="form-label">Texto da publicação</label>
             <textarea id="edit-post-text-input" class="doodle-input" rows="4" placeholder="Escreva seu post...">${esc(post.text || '')}</textarea>
           </div>
-          <div>
-            <label class="form-label">Tag</label>
-            <select id="edit-post-tag-select" class="doodle-input" style="width:auto;padding:4px 8px;font-size:0.8rem;">
-              <option value="#música"${post.tag==='#música'?' selected':''}>#música</option>
-              <option value="#letra"${post.tag==='#letra'?' selected':''}>#letra</option>
-              <option value="#desabafo"${post.tag==='#desabafo'?' selected':''}>#desabafo</option>
-              <option value="#descoberta"${post.tag==='#descoberta'?' selected':''}>#descoberta</option>
-              <option value="#recomendo"${post.tag==='#recomendo'?' selected':''}>#recomendo</option>
-            </select>
-          </div>
           <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
             <button type="button" class="doodle-btn doodle-btn-ghost" onclick="window._closeEditPost()">Cancelar</button>
             <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._saveEditedPost('${post.id}')">Salvar Alterações</button>
@@ -718,8 +729,7 @@ function bindGlobalHandlers() {
 
   window._saveEditedPost = (postId) => {
     const text = document.getElementById('edit-post-text-input')?.value || '';
-    const tag = document.getElementById('edit-post-tag-select')?.value || '#música';
-    updatePost(postId, { text, tag });
+    updatePost(postId, { text });
     window._closeEditPost();
     showToast('Post atualizado!');
     refreshPostsView();
@@ -833,7 +843,6 @@ function bindGlobalHandlers() {
   window._submitPost = () => {
     const textEl = document.getElementById('creator-text');
     const text = textEl?.value?.trim() || '';
-    const tag  = document.getElementById('creator-tag')?.value || '#música';
 
     // Only include lyrics if the lyrics attachment container is active and visible
     const lyricsBox = document.getElementById('creator-lyrics-attach');
@@ -870,7 +879,6 @@ function bindGlobalHandlers() {
         lyrics,
         lyricsSong,
         lyricsArt,
-        tag,
         rating: finalRating,
         imageUrl: window._pendingCreatorImage || '',
         song: window._pendingCreatorSong || null,
@@ -997,10 +1005,6 @@ function bindGlobalHandlers() {
         <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="color:var(--danger);" onclick="window._removeCreatorPlaylist()">Remover</button>
       </div>`;
 
-    const sel = document.getElementById('creator-tag');
-    if (sel && sel.value === '#música') {
-      sel.value = '#recomendo';
-    }
     showToast(`Playlist "${pl.title}" anexada!`);
   };
 
@@ -1037,224 +1041,33 @@ function bindGlobalHandlers() {
     showToast('Música em destaque removida.');
     window._refreshProfile();
   };
+  // Profile photo and banner: both open the photo editor (position + zoom); the result syncs to the server
+  const savePhoto = (field, value, message) => {
+    const user = getActiveUser();
+    const fallback = field === 'avatar' ? (user.name || '?').trim()[0]?.toUpperCase() || '?' : '';
+    updateUser(user.id, { [field]: value || fallback });
+    showToast(message);
+    refreshSidebarUser();
+    window._refreshProfile?.();
+  };
+
   window._editAvatar = () => {
     const user = getActiveUser();
-    let modal = document.getElementById('avatar-modal');
-    if (!modal) return;
-
-    const body = document.getElementById('avatar-modal-body');
-    if (body) {
-      const isImg = isImageAvatar(user.avatar);
-      const initialAvatarHtml = isImg
-        ? `<img id="avatar-modal-preview-img" src="${safeUrl(user.avatar)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
-        : `<span id="avatar-modal-preview-text" style="font-size:36px;font-weight:800;color:var(--purple-light);">${esc(user.avatar || user.name[0])}</span>`;
-
-      body.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:16px;">
-          <!-- Live Avatar Preview -->
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
-            <div id="avatar-modal-preview-box" style="width:90px;height:90px;border-radius:50%;background:var(--purple-dark);border:3px solid var(--purple-accent);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.5);">
-              ${initialAvatarHtml}
-            </div>
-            <span style="font-size:0.75rem;color:var(--muted);">Prévia da Foto</span>
-          </div>
-
-          <!-- Upload from Device -->
-          <div>
-            <label class="form-label" style="font-weight:700;margin-bottom:6px;display:block;">Enviar do Dispositivo:</label>
-            <label class="doodle-btn doodle-btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;cursor:pointer;font-weight:700;">
-              ${ICONS.image || ''}
-              <span>Escolher foto do computador / celular</span>
-              <input type="file" id="avatar-modal-file" accept="image/*" style="display:none;" onchange="window._handleDirectAvatarUpload(event)">
-            </label>
-          </div>
-
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="flex:1;height:1px;background:var(--tint-2);"></div>
-            <span style="font-size:0.75rem;color:var(--muted);font-weight:700;">OU LINK DA WEB / EMOJI</span>
-            <div style="flex:1;height:1px;background:var(--tint-2);"></div>
-          </div>
-
-          <!-- URL or Emoji Input -->
-          <div>
-            <label class="form-label">URL da Foto ou Letra/Emoji</label>
-            <div style="display:flex;gap:8px;">
-              <input id="avatar-modal-input" class="doodle-input" value="${esc(user.avatar || '')}" placeholder="https://exemplo.com/foto.jpg ou emoji" oninput="window._previewAvatarModal(this.value)">
-              <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('avatar-modal-input').value='';window._previewAvatarModal('');">Limpar</button>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
-            <button type="button" class="doodle-btn doodle-btn-ghost" onclick="window.closeModal('avatar-modal')">Cancelar</button>
-            <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._saveAvatarModal()">Salvar Foto</button>
-          </div>
-        </div>`;
-    }
-
-    window.openModal('avatar-modal');
-  };
-
-  window._handleDirectAvatarUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      const input = document.getElementById('avatar-modal-input');
-      if (input) input.value = dataUrl;
-      window._previewAvatarModal(dataUrl);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  window._previewAvatarModal = (val) => {
-    const box = document.getElementById('avatar-modal-preview-box');
-    if (!box) return;
-    const clean = (val || '').trim();
-    const isImg = isImageAvatar(clean);
-    if (isImg) {
-      box.innerHTML = `<img src="${safeUrl(clean)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-    } else {
-      const fallback = clean || getActiveUser().name?.[0] || 'V';
-      box.innerHTML = `<span style="font-size:36px;font-weight:800;color:var(--purple-light);">${esc(fallback)}</span>`;
-    }
-  };
-
-  window._saveAvatarModal = () => {
-    const input = document.getElementById('avatar-modal-input');
-    const val = (input?.value || '').trim() || getActiveUser().name?.[0] || 'V';
-    import('./storage.js').then(m => {
-      m.updateUser(m.getActiveUserId(), { avatar: val });
-      window.closeModal('avatar-modal');
-      showToast('Foto de perfil atualizada!');
-      refreshSidebarUser();
-      window._refreshProfile?.();
-    });
-  };
-
-  window._openBannerModal = () => {
-    const user = getActiveUser();
-    let modal = document.getElementById('banner-modal');
-    if (!modal) return;
-
-    const body = document.getElementById('banner-modal-body');
-    if (body) {
-      body.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:14px;">
-          <!-- Mini Preview -->
-          <div>
-            <label class="form-label" style="margin-bottom:6px;">Pré-visualização do Banner</label>
-            <div id="banner-modal-preview" style="height:120px;border-radius:12px;overflow:hidden;border:var(--border);background-size:cover;background-position:center;${user.bannerUrl && safeUrl(user.bannerUrl) ? `background-image:url(&quot;${safeUrl(user.bannerUrl)}&quot;);` : `background:linear-gradient(135deg, var(--accent-soft), var(--surface));`}"></div>
-          </div>
-
-          <!-- Upload from Device -->
-          <div>
-            <label class="form-label" style="font-weight:700;margin-bottom:6px;display:block;">Enviar do Dispositivo:</label>
-            <label class="doodle-btn doodle-btn-secondary" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;cursor:pointer;font-weight:700;">
-              ${ICONS.image || ''}
-              <span>Escolher banner do computador / celular</span>
-              <input type="file" id="banner-modal-file" accept="image/*" style="display:none;" onchange="window._handleDirectBannerUpload(event)">
-            </label>
-          </div>
-
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="flex:1;height:1px;background:var(--tint-2);"></div>
-            <span style="font-size:0.75rem;color:var(--muted);font-weight:700;">OU LINK DA WEB</span>
-            <div style="flex:1;height:1px;background:var(--tint-2);"></div>
-          </div>
-
-          <!-- URL Input -->
-          <div>
-            <label class="form-label">URL da Imagem da Web</label>
-            <div style="display:flex;gap:8px;">
-              <input id="banner-modal-input" class="doodle-input" value="${user.bannerUrl || ''}" placeholder="Cole o link da imagem (ex: https://...)" oninput="window._previewBannerModal(this.value)">
-              <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('banner-modal-input').value='';window._previewBannerModal('');">Limpar</button>
-            </div>
-          </div>
-
-          <!-- Presets -->
-          <div>
-            <label class="form-label" style="margin-bottom:6px;">Ou escolha um tema estético:</label>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, var(--hover), var(--hover));cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80')">
-                ${ICONS.sparkles} Synthwave Neon
-              </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, var(--surface), var(--surface));cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1200&auto=format&fit=crop&q=80')">
-                ${ICONS.headphones} Studio Vinyl
-              </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, var(--surface), var(--hover));cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1200&auto=format&fit=crop&q=80')">
-                ${ICONS.disc} Deep Nebula
-              </div>
-              <div class="preset-pill" style="justify-content:center;padding:8px 10px;background:linear-gradient(135deg, var(--surface), var(--surface));cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="window._setBannerPreset('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80')">
-                ${ICONS.moon} Dark Minimal
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
-            <button type="button" class="doodle-btn doodle-btn-ghost" onclick="window.closeModal('banner-modal')">Cancelar</button>
-            <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._saveBannerModal()">Salvar Banner</button>
-          </div>
-        </div>`;
-    }
-
-    window.openModal('banner-modal');
-  };
-
-  window._handleDirectBannerUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      const input = document.getElementById('banner-modal-input');
-      if (input) input.value = dataUrl;
-      window._previewBannerModal(dataUrl);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  window._previewBannerModal = (val) => {
-    const prev = document.getElementById('banner-modal-preview');
-    if (!prev) return;
-    const url = val?.trim();
-    if (url) {
-      prev.style.background = '';
-      prev.style.backgroundImage = `url(${JSON.stringify(url)})`;
-      prev.style.backgroundSize = 'cover';
-      prev.style.backgroundPosition = 'center';
-    } else {
-      const user = getActiveUser();
-      prev.style.backgroundImage = '';
-      prev.style.background = 'linear-gradient(135deg, var(--accent-soft), var(--surface))';
-    }
-  };
-
-  window._setBannerPreset = (url) => {
-    const input = document.getElementById('banner-modal-input');
-    if (input) {
-      input.value = url;
-      window._previewBannerModal(url);
-    }
-  };
-
-  window._saveBannerModal = () => {
-    const input = document.getElementById('banner-modal-input');
-    const url = input ? input.value.trim() : '';
-    const user = getActiveUser();
-    import('./storage.js').then(m => {
-      m.updateUser(user.id, { bannerUrl: url });
-      window.closeModal('banner-modal');
-      showToast(url ? 'Banner atualizado com sucesso!' : 'Banner padrão restaurado.');
-      window._refreshProfile();
+    openPhotoEditor({
+      kind: 'avatar',
+      src: isImageAvatar(user.avatar) ? user.avatar : '',
+      onSave: (url) => savePhoto('avatar', url, url ? 'Foto de perfil atualizada.' : 'Foto de perfil removida.')
     });
   };
 
   window._editBanner = () => {
-    window._openBannerModal();
+    openPhotoEditor({
+      kind: 'banner',
+      src: getActiveUser().bannerUrl || '',
+      onSave: (url) => savePhoto('bannerUrl', url, url ? 'Banner atualizado.' : 'Banner removido.')
+    });
   };
+  window._openBannerModal = window._editBanner;
 
   // ──────────────────────────────────────────
   // SPOTIFY / LAST.FM / CUSTOM TOP ARTISTS HANDLERS

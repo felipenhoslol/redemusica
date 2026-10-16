@@ -4,7 +4,7 @@
    701–1100 tablet: barra lateral só com ícones (já em social.css) e ajustes finos
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.mobile-tabbar, .me-sheet, .chat-back-btn { display: none; }
+.mobile-tabbar, .mobile-header, .me-sheet, .chat-back-btn { display: none; }
 
 /* Elementos de toque nunca menores que 40px em telas de toque */
 @media (pointer: coarse) {
@@ -15,6 +15,9 @@
 /* ─── Tablet ─────────────────────────────────────────────────────────────── */
 @media (min-width: 701px) and (max-width: 1100px) {
   .app-content { max-width: 680px; margin: 0 auto; }
+  /* O gatinho é a marca: maior no topo da barra de ícones */
+  .sidebar-logo { padding: 16px 0 12px; }
+  .sidebar-logo-icon { width: 52px; height: 52px; min-width: 52px; }
   .chat-tab-sidebar { width: 260px; min-width: 220px; }
   .search-album-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
@@ -24,7 +27,24 @@
   :root { --tabbar-h: 56px; --safe-b: env(safe-area-inset-bottom, 0px); }
 
   .app-sidebar { display: none; }
-  .app-main { margin-left: 0; }
+  .app-main { margin-left: 0; flex-direction: column; align-items: stretch; }
+
+  /* Topo: gatinho + nome à esquerda, notificações à direita */
+  .mobile-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    height: 56px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--line); background: var(--bg);
+  }
+  .mobile-brand {
+    display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 6px 4px 0;
+    border: 0; background: none; color: var(--text); cursor: pointer;
+  }
+  .mobile-brand-cat { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; }
+  .mobile-brand-cat .cat, .mobile-brand-cat svg { width: 100%; height: 100%; }
+  .mobile-brand-name { font: 800 1.08rem var(--f-ui); letter-spacing: -.01em; white-space: nowrap; }
+  /* Mais específico que .mobile-tab (flex: 1), que esticaria o sino até o meio */
+  .mobile-header .mobile-header-btn { flex: 0 0 44px; width: 44px; height: 44px; margin-left: auto; border-radius: 50%; }
+  /* O título "Página inicial" repetiria o topo */
+  .timeline-title { display: none; }
   body { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); }
   body:has(.player-bar.has-track) { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 68px); }
   .tab-view-content:not(#tab-feed) { padding: 12px 12px 24px; }
@@ -46,7 +66,7 @@
   .mobile-tab.active svg { stroke-width: 2.7; }
   .mobile-tab:active { background: var(--hover); }
   .mobile-tab-post svg {
-    width: 42px; height: 42px; padding: 10px; border-radius: 50%;
+    width: 46px; height: 46px; padding: 11px; border-radius: 50%;
     background: var(--accent); color: var(--on-accent); stroke-width: 2.6;
   }
   .mobile-tab-post:active { background: none; }
@@ -170,3 +190,14 @@
 @media (max-width: 700px) and (prefers-reduced-motion: reduce) {
   .me-sheet-panel, .me-sheet-scrim { transition: none; }
 }
+
+/* Editar perfil: botões das fotos lado a lado */
+.profile-edit-photos { display: flex; gap: 8px; flex-wrap: wrap; }
+.profile-edit-photos .doodle-btn { flex: 1 1 160px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.profile-edit-photos svg { width: 16px; height: 16px; }
+
+/* Linhas que rolam de lado: com mouse dá para arrastar (js/dragScroll.js) */
+@media (hover: hover) and (pointer: fine) {
+  .search-tabs, .search-artist-row, .profile-subtabs, .playlists-filter-pills, #challenge-pills { cursor: grab; }
+}
+.is-drag-scrolling, .is-drag-scrolling * { cursor: grabbing !important; user-select: none; }

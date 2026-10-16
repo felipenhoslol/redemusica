@@ -339,9 +339,9 @@ function buildTopArtistsMonthHtml(user, isMe) {
 
       ${top1 ? `
         <div class="top-artist-spotlight" onclick="window._searchArtistInCatalog(${jsArg(top1.name)})" title="Ver músicas de ${esc(top1.name)}">
-          <div class="spotlight-rank-crown" style="display:inline-flex;align-items:center;gap:4px;">${ICONS.trophy} #1 mais ouvido</div>
           ${artistPhotoHtml(top1, 'spotlight-avatar')}
           <div class="spotlight-info">
+            <div class="spotlight-rank-crown">${ICONS.trophy} #1 mais ouvido</div>
             <div class="spotlight-title">${esc(top1.name)}</div>
             <div class="spotlight-scrobbles"><span>${esc(sub(top1))}</span></div>
           </div>
@@ -739,37 +739,9 @@ export function renderProfileEditModal() {
         </div>
       </div>
 
-      <div>
-        <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
-          <span>Foto de Perfil</span>
-          <span style="font-size:0.72rem;color:var(--muted);font-weight:normal;">URL, Arquivo ou Emoji</span>
-        </label>
-        <div style="display:flex;gap:8px;">
-          <input id="edit-avatar" class="doodle-input" value="${esc(user.avatar || '')}" placeholder="https://... ou emoji">
-          <label class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;" title="Escolher imagem do dispositivo">
-            ${ICONS.image || ''}
-            <span>Dispositivo</span>
-            <input type="file" id="edit-avatar-file" accept="image/*" style="display:none;" onchange="window._handleAvatarUpload(event)">
-          </label>
-        </div>
-      </div>
-
-      <div>
-        <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
-          <span>Banner do Perfil</span>
-          <span style="font-size:0.72rem;color:var(--muted);font-weight:normal;">URL ou Arquivo</span>
-        </label>
-        <div style="display:flex;gap:8px;">
-          <input id="edit-banner" class="doodle-input" value="${esc(user.bannerUrl || '')}" placeholder="https://...">
-          <label class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;" title="Escolher imagem do dispositivo">
-            ${ICONS.image || ''}
-            <span>Dispositivo</span>
-            <input type="file" id="edit-banner-file" accept="image/*" style="display:none;" onchange="window._handleBannerUpload(event)">
-          </label>
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="document.getElementById('edit-banner').value='';">
-            Limpar
-          </button>
-        </div>
+      <div class="profile-edit-photos">
+        <button type="button" class="doodle-btn doodle-btn-secondary" onclick="window._editAvatar()">${ICONS.image} Foto de perfil</button>
+        <button type="button" class="doodle-btn doodle-btn-secondary" onclick="window._editBanner()">${ICONS.image} Banner</button>
       </div>
 
       <div>
@@ -791,28 +763,6 @@ export function renderProfileEditModal() {
       </div>
     </div>`;
 
-  window._handleAvatarUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const input = document.getElementById('edit-avatar');
-      if (input) input.value = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  window._handleBannerUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const input = document.getElementById('edit-banner');
-      if (input) input.value = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
   openModal('profile-edit-modal');
 
   window._saveProfileEdit = () => {
@@ -823,9 +773,7 @@ export function renderProfileEditModal() {
     const updates = {
       name:                 document.getElementById('edit-name')?.value?.trim() || user.name,
       handle:               document.getElementById('edit-handle')?.value?.trim() || user.handle,
-      avatar:               document.getElementById('edit-avatar')?.value?.trim() || user.avatar,
       bio:                  document.getElementById('edit-bio')?.value?.trim() || '',
-      bannerUrl:            document.getElementById('edit-banner')?.value?.trim() || '',
       instagram:            instaVal,
       twitter:              twitVal,
       lastfm:               lastfmVal,

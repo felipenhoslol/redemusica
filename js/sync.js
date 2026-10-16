@@ -5,6 +5,7 @@ import * as Storage from './storage.js';
 
 const POLL_MS = 45000;
 const PROFILE_FIELDS = 'id, name, handle, avatar_url';
+const FULL_PROFILE_FIELDS = `${PROFILE_FIELDS}, banner_url, bio, status, extras`;
 
 const pending = new Set();  // post ids created here that the server hasn't confirmed yet
 let me = null;
@@ -13,6 +14,10 @@ let lastSignature = '';
 let timer = null;
 let pulling = null;
 let disabled = false;
+let profileColumns = true;  // false until supabase/003_profiles_media.sql has been run
+let profileDirty = false;   // your own profile has local changes not on the server yet
+let profileTimer = null;
+let warnedProfileSql = false;
 
 /** "agora", "há 5 min", "há 3 h", "há 2 d", or a date for older posts. */
 export function relativeTime(iso) {
@@ -85,7 +90,7 @@ function fromRow(row) {
   return {
     id: row.id, authorId: row.author_id,
     text: b.text || '', lyrics: b.lyrics || '', lyricsSong: b.lyricsSong || '', lyricsArt: b.lyricsArt || '',
-    tag: b.tag || '#música', rating: Number(b.rating) || 0, song: b.song || null, imageUrl: b.imageUrl || '',
+    tag: '', rating: Number(b.rating) || 0, song: b.song || null, imageUrl: b.imageUrl || '',
     playlistId: b.playlistId || null, playlist: b.playlist || null,
     likes: (row.post_likes || []).map(l => l.user_id),
     reposts: (row.post_reposts || []).map(r => r.user_id),
@@ -129,22 +134,27 @@ export function pullNow() {
     const postSelect = `id, author_id, body, edited, created_at,
       post_likes(user_id), post_reposts(user_id),
       post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS}))`;
+    await uploadLegacyProfile(db);
     const [rows, follows, profiles] = await Promise.all([
       must(db.from('posts').select(postSelect).order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id').limit(5000)),
-      must(db.from('profiles').select(PROFILE_FIELDS).eq('banned', false).limit(1000))
+      fetchProfiles(db, q => q.eq('banned', false).limit(1000))
     ]);
 
     await uploadLegacyPosts(db, new Set(rows.map(r => r.id)));
 
-    Storage.mergeRemoteProfiles(profiles);
+    Storage.mergeRemoteProfiles(profiles, { skipId: profileDirty ? me : null });
     const graph = {};
     follows.forEach(f => { (graph[f.follower_id] ||= []).push(f.following_id); });
     Storage.replaceFollows(graph);
     const posts = rows.map(fromRow);
     Storage.replacePostsCache(posts, [...pending]);
 
-    const signature = JSON.stringify([posts.map(p => [p.id, p.likes.length, p.reposts.length, p.comments.length, p.updatedAt || '']), follows.length, profiles.length]);
+    const signature = JSON.stringify([
+      posts.map(p => [p.id, p.likes.length, p.reposts.length, p.comments.length, p.updatedAt || '']),
+      follows.length,
+      profiles.map(p => [p.id, p.name, p.avatar_url, p.banner_url, p.bio, p.status, JSON.stringify(p.extras || {}).length])
+    ]);
     if (signature !== lastSignature) {
       lastSignature = signature;
       handlers.onUpdate?.();
@@ -159,6 +169,118 @@ export function pullNow() {
   return pulling;
 }
 
+// ─── profile ────────────────────────────────────────────────────────────────
+
+const isMissingColumn = (err) => err?.code === '42703' || err?.code === 'PGRST204';
+
+/** Profiles with every shared field; falls back to the basic columns until 003 is run. */
+async function fetchProfiles(db, refine) {
+  if (profileColumns) {
+    try { return await must(refine(db.from('profiles').select(FULL_PROFILE_FIELDS))); }
+    catch (err) {
+      if (!isMissingColumn(err)) throw err;
+      profileColumns = false;
+      if (!warnedProfileSql) {
+        warnedProfileSql = true;
+        handlers.onError?.('Fotos e dados do perfil ainda não são compartilhados: rode supabase/003_profiles_media.sql no SQL Editor do Supabase.');
+      }
+    }
+  }
+  return must(refine(db.from('profiles').select(PROFILE_FIELDS)));
+}
+
+const isOurUpload = (url) => typeof url === 'string' && url.includes(`/storage/v1/object/public/media/${me}/`);
+
+/** Send a picked photo (data: URL) to the media bucket and return its public URL. */
+async function uploadPhoto(dataUrl, kind) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const ext = { 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' }[blob.type] || 'jpg';
+  const path = `${me}/${kind}-${Date.now()}.${ext}`;
+  const bucket = getSupabase().storage.from('media');
+  const { error } = await bucket.upload(path, blob, { contentType: blob.type || 'image/jpeg', cacheControl: '31536000', upsert: false });
+  if (error) throw error;
+  return bucket.getPublicUrl(path).data.publicUrl;
+}
+
+async function removeOldUpload(url) {
+  if (!isOurUpload(url)) return;
+  const path = url.split('/storage/v1/object/public/media/')[1];
+  try { await getSupabase().storage.from('media').remove([decodeURIComponent(path)]); } catch { /* leftovers are harmless */ }
+}
+
+let serverPhotos = { avatar: null, banner: null }; // what the server had, to clean up replaced files
+
+async function pushProfile() {
+  profileTimer = null;
+  if (!me || disabled || !profileColumns) { profileDirty = false; return; }
+  const user = Storage.getUserById(me);
+  if (!user) { profileDirty = false; return; }
+  try {
+    let avatar = user.avatar || '';
+    let banner = user.bannerUrl || '';
+    if (/^data:image\//.test(avatar)) avatar = await uploadPhoto(avatar, 'avatar');
+    if (/^data:image\//.test(banner)) banner = await uploadPhoto(banner, 'banner');
+    // Keep the light URL locally instead of the heavy data: URL
+    if (avatar !== (user.avatar || '') || banner !== (user.bannerUrl || '')) {
+      Storage.updateUser(me, { avatar, bannerUrl: banner }, { silent: true });
+    }
+
+    const extras = {};
+    Storage.PROFILE_EXTRA_KEYS.forEach(k => { if (user[k] !== undefined && user[k] !== null) extras[k] = user[k]; });
+    const https = (u) => (/^https:\/\//.test(u) ? u.slice(0, 1000) : null);
+    const row = {
+      name: (user.name || '').trim().slice(0, 60) || 'Sem nome',
+      avatar_url: https(avatar),
+      banner_url: https(banner),
+      bio: (user.bio || '').slice(0, 500) || null,
+      status: (user.status || '').slice(0, 80) || null,
+      extras
+    };
+    if (/^@[a-z0-9_.]{2,24}$/.test(user.handle || '')) row.handle = user.handle;
+    await must(getSupabase().from('profiles').update(row).eq('id', me));
+
+    if (serverPhotos.avatar && serverPhotos.avatar !== row.avatar_url) removeOldUpload(serverPhotos.avatar);
+    if (serverPhotos.banner && serverPhotos.banner !== row.banner_url) removeOldUpload(serverPhotos.banner);
+    serverPhotos = { avatar: row.avatar_url, banner: row.banner_url };
+    handlers.onProfileSaved?.();
+  } catch (err) {
+    handlers.onError?.(err?.code === '23505'
+      ? 'Esse @ já está em uso. Escolha outro no editar perfil.'
+      : 'Não foi possível salvar seu perfil no servidor. Tente de novo.');
+  } finally {
+    profileDirty = Boolean(profileTimer); // another change may have arrived meanwhile
+  }
+}
+
+function scheduleProfilePush() {
+  if (!me || disabled) return;
+  profileDirty = true;
+  clearTimeout(profileTimer);
+  profileTimer = setTimeout(pushProfile, 700);
+}
+
+// First sync on this account: send what this browser already had (photo, bio, Last.fm...)
+// only when the server profile is still empty, so a new device never wipes real data
+async function uploadLegacyProfile(db) {
+  if (!profileColumns) return;
+  const key = `rmsn_profile_uploaded_${me}`;
+  let mine;
+  try { [mine] = await fetchProfiles(db, q => q.eq('id', me).limit(1)); }
+  catch { return; }
+  if (!mine || !profileColumns) return;
+  serverPhotos = { avatar: mine.avatar_url || null, banner: mine.banner_url || null };
+  if (localStorage.getItem(key)) return;
+  const serverEmpty = !mine.avatar_url && !mine.banner_url && !mine.bio && !mine.status && !Object.keys(mine.extras || {}).length;
+  const local = Storage.getUserById(me) || {};
+  const localHasData = /^(data:image|https:)/.test(local.avatar || '') || local.bannerUrl || local.bio || local.status
+    || (local.topArtistsMonth || []).length || local.featuredSong || (local.songShowcase || []).length || local.lastfm;
+  if (serverEmpty && localHasData) {
+    profileDirty = true;
+    await pushProfile();
+  }
+  localStorage.setItem(key, '1');
+}
+
 // ─── search ─────────────────────────────────────────────────────────────────
 
 // PostgREST filter strings treat , ( ) as syntax and * % as wildcards: keep only what the person meant to search
@@ -170,11 +292,10 @@ export const isSyncing = () => Boolean(me) && !disabled;
 export async function searchPeople(q, limit = 30) {
   const term = cleanTerm(q.replace(/^@/, ''));
   if (!isSyncing() || term.length < 1) return null;
-  const rows = await must(getSupabase().from('profiles').select(PROFILE_FIELDS)
-    .eq('banned', false)
+  const rows = await fetchProfiles(getSupabase(), q => q.eq('banned', false)
     .or(`name.ilike.*${term}*,handle.ilike.*${term}*`)
     .limit(limit));
-  Storage.mergeRemoteProfiles(rows);
+  Storage.mergeRemoteProfiles(rows, { skipId: profileDirty ? me : null });
   return rows.map(r => r.id);
 }
 
@@ -208,6 +329,9 @@ function write(task, failMessage) {
 const isAccountId = (id) => /^[0-9a-f-]{36}$/i.test(id || '');
 
 const hooks = {
+  profileChanged() {
+    scheduleProfilePush();
+  },
   createPost(post) {
     pending.add(post.id);
     write(async db => {
@@ -258,6 +382,8 @@ export function startSync(userId, opts = {}) {
   me = userId;
   handlers = opts;
   disabled = false;
+  profileColumns = true;
+  warnedProfileSql = false;
   lastSignature = '';
   Storage.setRemoteHooks(hooks);
   timer = setInterval(pullNow, POLL_MS);
@@ -267,6 +393,9 @@ export function startSync(userId, opts = {}) {
 
 export function stopSync() {
   Storage.setRemoteHooks(null);
+  clearTimeout(profileTimer);
+  profileTimer = null;
+  profileDirty = false;
   clearInterval(timer);
   timer = null;
   document.removeEventListener('visibilitychange', onVisible);

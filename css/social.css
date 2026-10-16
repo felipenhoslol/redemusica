@@ -610,3 +610,13 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .featured-song-box.empty span { color: var(--accent) !important; font-weight: 600 !important; }
 .playlists-empty-state { border: 1px solid var(--line) !important; background: none !important; }
 .auth-notice, .playlist-empty-tracks { border-style: solid; }
+
+/* Perfil: destaque do artista nº 1 — selo acima do nome, botão alinhado à direita, sem sobreposição */
+.top-artist-spotlight { box-shadow: none; background: var(--surface); border-color: var(--line); }
+.top-artist-spotlight:hover { transform: none; box-shadow: none; background: var(--hover); border-color: var(--line); }
+.spotlight-rank-crown {
+  position: static; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px;
+  backdrop-filter: none; padding: 2px 8px; font-size: .72rem; white-space: nowrap;
+}
+.spotlight-rank-crown svg { width: 13px; height: 13px; }
+.top-artist-spotlight > .doodle-btn { flex-shrink: 0; align-self: center; }

@@ -99,15 +99,6 @@ function findPlaylists(q) {
   );
 }
 
-function popularTags() {
-  const counts = new Map();
-  Storage.getFeedPosts().forEach(p => {
-    const tag = (p.tag || '').trim();
-    if (tag) counts.set(tag, (counts.get(tag) || 0) + 1);
-  });
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
-}
-
 // ─── row templates ──────────────────────────────────────────────────────────
 
 function personRow(u) {
@@ -213,7 +204,6 @@ async function renderExplore(mySeq) {
   const recents = getRecents();
   const me = Storage.getActiveUser()?.id;
   const suggestions = Storage.getAllUsers().filter(u => u.id !== me && !Storage.isFollowing(u.id)).slice(0, 5);
-  const tags = popularTags();
 
   paint(`
     ${recents.length ? `
@@ -225,11 +215,6 @@ async function renderExplore(mySeq) {
             <button type="button" class="search-chip-x" data-remove-recent="${esc(r)}" aria-label="Remover ${esc(r)}">${ICONS.close}</button>
           </span>`).join('')}
         </div>
-      </section>` : ''}
-    ${tags.length ? `
-      <section class="search-section">
-        ${sectionHead('Tags nos posts')}
-        <div class="search-chips">${tags.map(([tag, n]) => `<button type="button" class="search-chip search-chip-plain" data-query="${esc(tag)}" data-go-tab="posts">${esc(tag)} <span>${n}</span></button>`).join('')}</div>
       </section>` : ''}
     ${suggestions.length ? `
       <section class="search-section">

@@ -159,16 +159,36 @@ export function upsertPostsCache(posts) {
 }
 
 /** Add or refresh other people's public profiles in the local user list. */
-export function mergeRemoteProfiles(profiles) {
+// Profile data kept in profiles.extras on the server (everything that isn't its own column)
+export const PROFILE_EXTRA_KEYS = [
+  'instagram', 'twitter', 'lastfm', 'socials', 'featuredSong', 'songShowcase', 'pinnedPostId',
+  'topArtist', 'topArtistsMonth', 'topTracksMonth', 'musicService', 'spotifyUsername', 'spotifyConnected',
+  'musicPeriod', 'musicPeriodLabel', 'musicProfileUrl', 'musicSyncedAt'
+];
+
+/**
+ * Add or refresh public profiles in the local user list.
+ * @param {Array} profiles rows from public.profiles (extra columns are optional)
+ * @param {{ skipId?: string }} [opts] skipId: a profile with local changes still on their way up
+ */
+export function mergeRemoteProfiles(profiles, opts = {}) {
   const users = getAllUsers();
   profiles.forEach(p => {
+    if (p.id === opts.skipId) return;
     const existing = users.find(u => u.id === p.id);
     const initial = (p.name || '?').trim()[0]?.toUpperCase() || '?';
-    // Keep a photo chosen locally while the server has none
-    const localPhoto = existing && /^(data:image|https?:)/.test(existing.avatar || '') ? existing.avatar : null;
-    const avatar = p.avatar_url || localPhoto || initial;
-    if (existing) Object.assign(existing, { name: p.name, handle: p.handle, avatar });
-    else users.push({ id: p.id, name: p.name, handle: p.handle, avatar, bio: '', status: '', pinnedPostId: null, songShowcase: [], topArtistsMonth: [], featuredSong: null });
+    const full = 'extras' in p; // the 003 columns exist on the server
+    // Without the 003 columns the server knows nothing about photos: keep the local one
+    const localPhoto = !full && existing && /^(data:image|https?:)/.test(existing.avatar || '') ? existing.avatar : null;
+    const fields = { name: p.name, handle: p.handle, avatar: p.avatar_url || localPhoto || initial };
+    if (full) {
+      Object.assign(fields, { bannerUrl: p.banner_url || '', bio: p.bio || '', status: p.status || '' });
+      const extras = p.extras || {};
+      PROFILE_EXTRA_KEYS.forEach(k => { fields[k] = extras[k] ?? (Array.isArray(existing?.[k]) ? [] : null); });
+      ['songShowcase', 'topArtistsMonth', 'topTracksMonth'].forEach(k => { if (!Array.isArray(fields[k])) fields[k] = []; });
+    }
+    if (existing) Object.assign(existing, fields);
+    else users.push({ id: p.id, bio: '', status: '', pinnedPostId: null, songShowcase: [], topArtistsMonth: [], featuredSong: null, ...fields });
   });
   localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
 }
@@ -205,12 +225,16 @@ export function setActiveUser(userId) {
   localStorage.setItem(STORAGE_KEYS.ACTIVE_USER, userId);
 }
 
-export function updateUser(userId, updates) {
+/**
+ * @param {{ silent?: boolean }} [opts] silent: local-only change (e.g. sync swapping a photo for its uploaded URL)
+ */
+export function updateUser(userId, updates, opts = {}) {
   const users = getAllUsers();
   const index = users.findIndex(u => u.id === userId);
   if (index !== -1) {
     users[index] = { ...users[index], ...updates };
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    if (!opts.silent && userId === getActiveUserId()) toRemote('profileChanged');
   }
 }
 
@@ -489,7 +513,7 @@ export function createPost(postData) {
     lyrics: postData.lyrics || '',
     lyricsSong: postData.lyricsSong || '',
     lyricsArt: postData.lyricsArt || '',
-    tag: postData.tag || '#música',
+    tag: '',
     rating: typeof postData.rating === 'number' ? postData.rating : 0,
     song: postData.song || null,
     // Only the id is stored: the card reads the live playlist, so posts never carry a stale or heavy copy
