@@ -5,7 +5,7 @@ import { globalAudio } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.js';
-import { compressImage, presenceOf } from './sync.js';
+import { compressImage, presenceOf, loadInlinePicture } from './sync.js';
 import { pollHtml } from './poll.js';
 import { auth } from './auth.js';
 import { openLyricPicker, EXCERPT_MAX_LINES, EXCERPT_MAX_CHARS } from './lyricPicker.js';
@@ -165,7 +165,10 @@ export function renderCommentRow(c, postId, isMaximized = false) {
       </button>
     </div>` : '';
 
-  const imageAttachmentHtml = c.imageUrl ? `
+  const imageAttachmentHtml = !c.imageUrl && c.imageLazy ? `
+    <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
+      <img class="lazy-picture" data-lazy-img="post_comments:${esc(c.id)}" alt="Anexo" style="width:100%;max-height:220px;object-fit:cover;display:block;" decoding="async">
+    </div>` : c.imageUrl ? `
     <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
       <img src="${safeUrl(c.imageUrl)}" alt="Anexo" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy" decoding="async">
     </div>` : '';
@@ -283,7 +286,9 @@ export function renderPostCard(post, options = {}) {
     </div>` : '';
 
   const playlistHtml = renderPostPlaylistCard(post);
-  const imageHtml = post.imageUrl ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="post image" loading="lazy" decoding="async">` : '';
+  const imageHtml = post.imageUrl
+    ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="post image" loading="lazy" decoding="async">`
+    : post.imageLazy ? `<img class="post-attached-image lazy-picture" data-lazy-img="posts:${esc(post.id)}" alt="post image" decoding="async">` : '';
   const detectedPostUrl = extractFirstUrl(post.text);
   const linkHtml = post.link ? renderRichLinkCard(post.link) : (detectedPostUrl ? renderRichLinkCard(detectedPostUrl) : '');
 
@@ -1242,3 +1247,26 @@ export function renderFriendsWidget(container) {
     } catch { /* no Last.fm, private profile...: keep the presence line */ }
   });
 }
+
+// ─── Pictures still stored inline (base64) in old posts/comments ───
+// The feed doesn't download them; each one is fetched alone when its card comes near the screen.
+const lazyPictureObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const img = entry.target;
+    lazyPictureObserver.unobserve(img);
+    const [table, id] = (img.dataset.lazyImg || '').split(':');
+    loadInlinePicture(table, id).then(url => {
+      if (url && /^(data:image\/|https:\/\/)/.test(url)) { img.src = url; img.classList.remove('lazy-picture'); }
+      else (img.closest('.comment-attached-media') || img).remove();
+    });
+  });
+}, { rootMargin: '600px 0px' });
+
+function watchLazyPictures(node) {
+  if (node.nodeType !== 1) return;
+  if (node.matches?.('[data-lazy-img]')) lazyPictureObserver.observe(node);
+  node.querySelectorAll?.('[data-lazy-img]').forEach(img => lazyPictureObserver.observe(img));
+}
+new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(watchLazyPictures)))
+  .observe(document.documentElement, { childList: true, subtree: true });

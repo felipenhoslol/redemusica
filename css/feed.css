@@ -659,3 +659,8 @@
   background: var(--purple-light); 
   flex-shrink: 0; 
 }
+
+/* Foto antiga carregando sob demanda */
+.lazy-picture { min-height: 180px; width: 100%; background: var(--tint-2, rgba(127,127,127,.15)); border-radius: 12px; animation: lazy-pulse 1.2s ease-in-out infinite; }
+@keyframes lazy-pulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .lazy-picture { animation: none; } }

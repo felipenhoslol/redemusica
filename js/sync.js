@@ -142,12 +142,14 @@ function fromRow(row) {
       userName: c.author?.name || 'Alguém', userAvatar: c.author?.avatar_url || initialOf(c.author?.name),
       text: c.body?.text || '', song: c.body?.song || null, imageUrl: c.body?.imageUrl || '', gifUrl: c.body?.gifUrl || '',
       likes: (c.comment_likes || []).map(l => l.user_id),
+      ...(c.body?.imageInline ? { imageLazy: true } : {}),
       createdAt: relativeTime(c.created_at), createdAtIso: c.created_at
     }));
   return {
     id: row.id, authorId: row.author_id,
     text: b.text || '', lyrics: b.lyrics || '', lyricsSong: b.lyricsSong || '', lyricsArt: b.lyricsArt || '',
     tag: '', rating: Number(b.rating) || 0, song: b.song || null, imageUrl: b.imageUrl || '',
+    ...(b.imageInline ? { imageLazy: true } : {}),
     playlistId: b.playlistId || null, playlist: b.playlist || null,
     poll: Array.isArray(b.poll?.options) && b.poll.options.length >= 2 ? { options: b.poll.options.slice(0, 4) } : null,
     votes: Object.fromEntries((row.post_votes || []).map(v => [v.user_id, v.option])),
@@ -366,14 +368,18 @@ let legacyImagesStarted = false;
 const LEGACY_IMAGES_PER_SESSION = 25;
 const isInlineImage = (u) => typeof u === 'string' && u.startsWith('data:image/');
 
-async function migrateLegacyImages(db, rows) {
+async function migrateLegacyImages(db) {
   if (legacyImagesStarted) return;
   legacyImagesStarted = true;
-  const jobs = [];
-  rows.forEach(r => {
-    if (r.author_id === me && isInlineImage(r.body?.imageUrl)) jobs.push({ kind: 'post', row: r });
-    (r.post_comments || []).forEach(c => { if (c.user_id === me && isInlineImage(c.body?.imageUrl)) jobs.push({ kind: 'comment', row: c }); });
-  });
+  // Only this person's own heavy rows, a few at a time (the feed itself never downloads them)
+  const [posts, comments] = await Promise.all([
+    db.from('posts').select('id, body').eq('author_id', me).like('body->>imageUrl', 'data:image/%').limit(LEGACY_IMAGES_PER_SESSION),
+    db.from('post_comments').select('id, body').eq('user_id', me).like('body->>imageUrl', 'data:image/%').limit(LEGACY_IMAGES_PER_SESSION)
+  ]);
+  const jobs = [
+    ...(posts.data || []).map(row => ({ kind: 'post', row })),
+    ...(comments.data || []).map(row => ({ kind: 'comment', row }))
+  ];
   Storage.getLocalMessagesFrom(me).forEach(m => { if (isInlineImage(m.imageUrl) && !pendingMessages.has(m.id)) jobs.push({ kind: 'message', row: m }); });
 
   for (const job of jobs.slice(0, LEGACY_IMAGES_PER_SESSION)) {
@@ -388,7 +394,7 @@ async function migrateLegacyImages(db, rows) {
         const imageUrl = await uploadPhoto(row.body.imageUrl, job.kind);
         const table = job.kind === 'post' ? 'posts' : 'post_comments';
         await must(db.from(table).update({ body: { ...row.body, imageUrl } }).eq('id', row.id));
-        if (job.kind === 'post') Storage.patchPostCache(row.id, { imageUrl });
+        if (job.kind === 'post') Storage.patchPostCache(row.id, { imageUrl, imageLazy: false });
       }
     } catch (err) {
       // No permission yet (comments need supabase/009_performance.sql) or offline: try next session
@@ -414,7 +420,7 @@ export function pullNow() {
 
     await uploadLegacyPosts(db, new Set(rows.map(r => r.id)));
     rows.forEach(r => pending.delete(r.id));
-    migrateLegacyImages(db, rows).catch(() => {}); // background
+    migrateLegacyImages(db).catch(() => {}); // background
     const profilesChanged = trackProfiles(profiles);
 
     const posts = rows.map(fromRow);
@@ -428,7 +434,7 @@ export function pullNow() {
     // Same data as last time (the usual case): nothing to write, nothing to redraw
     const signature = JSON.stringify([
       posts.map(p => [p.id, p.likes, p.reposts, p.updatedAt || '', p.votes,
-        p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length]),
+        p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length, Boolean(p.imageLazy)]),
       follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(','),
       others.map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
       profilesVersion, [...pending]
@@ -457,7 +463,7 @@ export function pullNow() {
     }
     // Network blips: the next poll tries again. Anything that keeps failing gets reported (once)
     // instead of silently freezing the feed and the notifications.
-    console.warn('Feed sync failed:', err);
+    console.warn('Feed sync failed:', err?.code, err?.message || err, err?.details || '', err?.hint || '');
     pullFailures++;
     if (pullFailures === 3 && !warnedPullFailure) {
       warnedPullFailure = true;
@@ -469,12 +475,23 @@ export function pullNow() {
   return pulling;
 }
 
-// Posts with likes, reposts, comments and, once 004/005 are run, poll votes and comment likes
-async function fetchPosts(db, refine) {
+// The feed query never carries pictures: old posts keep base64 images inside body (hundreds of KB
+// each), and 150 of them made the query time out, freezing the feed. It asks for each body field
+// by name, leaving out imageUrl and the playlist cover; https pictures come in a second, tiny query,
+// and posts still holding a base64 image are marked so the card loads it alone when it scrolls in.
+const POST_FIELDS = `id, author_id, edited, created_at,
+  text:body->>text, lyrics:body->>lyrics, lyricsSong:body->>lyricsSong, lyricsArt:body->>lyricsArt,
+  tag:body->>tag, rating:body->rating, song:body->song, playlistId:body->>playlistId, poll:body->poll,
+  plId:body->playlist->>id, plTitle:body->playlist->>title, plDescription:body->playlist->>description,
+  plAuthorId:body->playlist->>authorId, plSongs:body->playlist->songs`;
+const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl`;
+const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll'];
+
+async function fetchPostRows(db, refine) {
   for (;;) {
-    const select = `id, author_id, body, edited, created_at,
+    const select = `${POST_FIELDS},
       post_likes(user_id, created_at), post_reposts(user_id, created_at),
-      post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS})${commentLikesTable ? ', comment_likes(user_id, created_at)' : ''})
+      post_comments(${COMMENT_FIELDS}, author:profiles(${PROFILE_FIELDS})${commentLikesTable ? ', comment_likes(user_id, created_at)' : ''})
       ${votesTable ? ', post_votes(user_id, option)' : ''}`;
     try { return await must(refine(db.from('posts').select(select))); }
     catch (err) {
@@ -489,6 +506,61 @@ async function fetchPosts(db, refine) {
       } else throw err;
     }
   }
+}
+
+// Picture links (https only) and which rows still hold a base64 picture, for a set of ids
+async function fetchPictures(db, table, ids) {
+  if (!ids.length) return { urls: new Map(), covers: new Map(), inline: new Set() };
+  const idList = ids.slice(0, 200);
+  const [urls, inline, covers] = await Promise.all([
+    must(db.from(table).select('id, url:body->>imageUrl').in('id', idList).like('body->>imageUrl', 'https://%')),
+    must(db.from(table).select('id').in('id', idList).like('body->>imageUrl', 'data:image/%')),
+    table === 'posts'
+      ? must(db.from(table).select('id, url:body->playlist->>coverUrl').in('id', idList).like('body->playlist->>coverUrl', 'https://%'))
+      : Promise.resolve([])
+  ]);
+  return {
+    urls: new Map(urls.map(r => [r.id, r.url])),
+    covers: new Map(covers.map(r => [r.id, r.url])),
+    inline: new Set(inline.map(r => r.id))
+  };
+}
+
+/** Posts with likes, reposts, comments (and poll votes / comment likes once 004/005 are run), in the row shape fromRow reads. */
+async function fetchPosts(db, refine) {
+  const rows = await fetchPostRows(db, refine);
+  const commentIds = rows.flatMap(r => (r.post_comments || []).map(c => c.id));
+  const [postPics, commentPics] = await Promise.all([
+    fetchPictures(db, 'posts', rows.map(r => r.id)),
+    fetchPictures(db, 'post_comments', commentIds)
+  ]);
+  return rows.map(r => {
+    const body = {};
+    LIGHT_KEYS.forEach(k => { if (r[k] !== null && r[k] !== undefined) body[k] = r[k]; });
+    body.imageUrl = postPics.urls.get(r.id) || '';
+    if (postPics.inline.has(r.id)) body.imageInline = true;
+    if (r.plId || r.plTitle) {
+      body.playlist = { id: r.plId, title: r.plTitle || '', description: r.plDescription || '', authorId: r.plAuthorId, songs: r.plSongs || [], coverUrl: postPics.covers.get(r.id) || '' };
+    }
+    const comments = (r.post_comments || []).map(c => ({
+      ...c,
+      body: { text: c.text || '', song: c.song || null, gifUrl: c.gifUrl || '', imageUrl: commentPics.urls.get(c.id) || '', ...(commentPics.inline.has(c.id) ? { imageInline: true } : {}) }
+    }));
+    return { id: r.id, author_id: r.author_id, edited: r.edited, created_at: r.created_at, body,
+      post_likes: r.post_likes, post_reposts: r.post_reposts, post_comments: comments, post_votes: r.post_votes };
+  });
+}
+
+// One base64 picture at a time, only for cards that actually scroll into view (kept in memory)
+const inlinePictures = new Map(); // "table:id" → Promise<string>
+export function loadInlinePicture(table, id) {
+  if (!['posts', 'post_comments'].includes(table) || !me) return Promise.resolve('');
+  const key = `${table}:${id}`;
+  if (!inlinePictures.has(key)) {
+    inlinePictures.set(key, getSupabase().from(table).select('url:body->>imageUrl').eq('id', id).maybeSingle()
+      .then(({ data }) => data?.url || '').catch(() => { inlinePictures.delete(key); return ''; }));
+  }
+  return inlinePictures.get(key);
 }
 
 // ─── profile ────────────────────────────────────────────────────────────────
@@ -695,7 +767,9 @@ const hooks = {
   },
   updatePost(post) {
     write(async db => {
-      const imageUrl = await hostImage(post.imageUrl, 'post');
+      // The feed never downloaded this post's base64 picture: fetch it so the edit doesn't drop it
+      const original = !post.imageUrl && post.imageLazy ? await loadInlinePicture('posts', post.id) : post.imageUrl;
+      const imageUrl = await hostImage(original, 'post');
       if (imageUrl !== post.imageUrl) Storage.patchPostCache(post.id, { imageUrl });
       await must(db.from('posts').update({ body: toBody({ ...post, imageUrl }), edited: true }).eq('id', post.id));
     }, 'Não foi possível salvar a edição.');
