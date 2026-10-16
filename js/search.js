@@ -462,6 +462,9 @@ export function renderSearchPage(container) {
     </div>`;
 
   mountTabIndicator(container.querySelector('.search-tabs'), { key: 'search' });
+  // Listeners go on the page itself: the tab container survives re-renders, so binding there
+  // stacked one more handler per visit (a single "Seguir" click fired several follows and toasts)
+  const page = container.querySelector('.search-page');
   const input = container.querySelector('#global-search-input');
   let timer = null;
 
@@ -480,9 +483,9 @@ export function renderSearchPage(container) {
     if (e.key === 'Escape' && input.value) { input.value = ''; input.dispatchEvent(new Event('input')); }
   });
 
-  container.addEventListener('click', (e) => {
+  page.addEventListener('click', (e) => {
     const t = e.target.closest('button, [role="button"]');
-    if (!t || !container.contains(t)) return;
+    if (!t || !page.contains(t)) return;
 
     if (t.classList.contains('search-clear')) { input.value = ''; state.q = ''; state.view = null; run(); input.focus(); return; }
     if (t.classList.contains('search-back')) { state.view = state.view?.back || null; run({ animate: -1 }); return; }
@@ -524,7 +527,7 @@ export function renderSearchPage(container) {
   });
 
   // Rows are focusable: Enter acts like a click
-  container.addEventListener('keydown', (e) => {
+  page.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.matches('[role="button"]')) { e.preventDefault(); e.target.click(); }
   });
 

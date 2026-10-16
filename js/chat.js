@@ -154,8 +154,10 @@ function renderAttachmentItemsHtml(context) {
 
 function getSortedContacts() {
   const activeUser = Storage.getActiveUser();
-  const allUsers = Storage.getAllUsers().filter(u => u.id !== activeUser.id);
   const following = Storage.getFollowing(activeUser.id);
+  // Só dá para conversar com quem você segue (conversas antigas continuam na lista)
+  const allUsers = Storage.getAllUsers().filter(u => u.id !== activeUser.id
+    && (following.includes(u.id) || Storage.getChatMessages(activeUser.id, u.id).length > 0));
 
   return allUsers.sort((a, b) => {
     const msgsA = Storage.getChatMessages(activeUser.id, a.id);
@@ -240,7 +242,8 @@ function renderChatTabContacts() {
   }
 
   if (!contacts.length) {
-    container.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:0.84rem;">Nenhum usuário encontrado.</div>`;
+    const msg = contactsSearchTerm ? 'Nenhum usuário encontrado.' : 'Siga alguém para poder mandar mensagem.';
+    container.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:0.84rem;">${msg}</div>`;
     return;
   }
 
@@ -577,8 +580,6 @@ export function sendDMMessage(isLargeView = false) {
   renderChatTabMain(activeContactId);
   renderContacts();
   renderChatTabContacts();
-
-  import('./ui.js').then(u => u.showToast('Mensagem enviada!'));
 }
 
 function renderReplyBanners() {

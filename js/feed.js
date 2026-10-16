@@ -7,6 +7,7 @@ import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks } from './lastfm.js';
 import { compressImage } from './sync.js';
 import { pollHtml } from './poll.js';
+import { auth } from './auth.js';
 import { openLyricPicker, EXCERPT_MAX_LINES, EXCERPT_MAX_CHARS } from './lyricPicker.js';
 
 // ──────────────────────────────────────────
@@ -144,7 +145,7 @@ export const MUSIC_GIFS = [
 export function renderCommentRow(c, postId, isMaximized = false) {
   const activeUser = Storage.getActiveUser();
   const post = postId ? Storage.getPostById(postId) : null;
-  const canDelete = c.userId === activeUser.id || (post && post.authorId === activeUser.id);
+  const canDelete = c.userId === activeUser.id || (post && post.authorId === activeUser.id) || auth.isAdmin;
 
   const cAvatar = isImageAvatar(c.userAvatar)
     ? `<img src="${safeUrl(c.userAvatar)}" alt="${esc(c.userName)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
@@ -179,6 +180,14 @@ export function renderCommentRow(c, postId, isMaximized = false) {
       ${ICONS.trash || '✕'}
     </button>` : '';
 
+  const commentLikes = Array.isArray(c.likes) ? c.likes : [];
+  const commentLiked = commentLikes.includes(activeUser.id);
+  const likeBtnHtml = c.id && postId ? `
+    <button type="button" class="comment-like-btn${commentLiked ? ' liked' : ''}" onclick="event.stopPropagation();window._likeComment('${postId}', '${c.id}', this)"
+      aria-pressed="${commentLiked}" aria-label="${commentLiked ? 'Descurtir comentário' : 'Curtir comentário'}">
+      ${commentLiked ? ICONS.heartFilled : ICONS.heartEmpty}<span class="comment-like-count">${commentLikes.length || ''}</span>
+    </button>` : '';
+
   return `
     <div class="comment-row" id="comment-${c.id || ''}" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">
       <div class="comment-avatar" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;" title="Ver perfil de ${esc(c.userName)}">${cAvatar}</div>
@@ -198,6 +207,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
           const detectedCommentUrl = extractFirstUrl(c.text);
           return c.link ? renderRichLinkCard(c.link) : (detectedCommentUrl ? renderRichLinkCard(detectedCommentUrl) : '');
         })()}
+        ${likeBtnHtml}
       </div>
     </div>`;
 }
@@ -320,6 +330,7 @@ export function renderPostCard(post, options = {}) {
           ${bookmarked ? 'Remover dos salvos' : 'Salvar post'}
         </button>
         ${!isOwner ? `<button class="post-options-item danger" onclick="window._reportUser('${post.authorId}')">Reportar</button>` : ''}
+        ${!isOwner && auth.isAdmin ? `<button class="post-options-item danger" onclick="window._deletePost('${post.id}')">Excluir post (admin)</button>` : ''}
       </div>
 
       ${post.text ? `<div class="post-text">${esc(post.text)}</div>` : ''}
@@ -983,6 +994,16 @@ window._handleCommentImageUpload = (event, postId) => {
     .catch(err => window.showDoodleToast?.(err.message));
 };
 
+window._likeComment = (postId, commentId, btn) => {
+  const comment = Storage.toggleLikeComment(postId, commentId);
+  if (!comment || !btn) return;
+  const liked = comment.likes.includes(Storage.getActiveUserId());
+  btn.classList.toggle('liked', liked);
+  btn.setAttribute('aria-pressed', String(liked));
+  btn.setAttribute('aria-label', liked ? 'Descurtir comentário' : 'Curtir comentário');
+  btn.innerHTML = `${liked ? ICONS.heartFilled : ICONS.heartEmpty}<span class="comment-like-count">${comment.likes.length || ''}</span>`;
+};
+
 let pendingDeleteCommentTarget = null;
 
 window._deleteComment = (postId, commentId) => {
@@ -992,7 +1013,7 @@ window._deleteComment = (postId, commentId) => {
     btn.onclick = () => {
       if (pendingDeleteCommentTarget) {
         const { postId: pId, commentId: cId } = pendingDeleteCommentTarget;
-        const ok = Storage.deleteComment(pId, cId);
+        const ok = Storage.deleteComment(pId, cId, { force: auth.isAdmin });
         if (ok) {
           refreshCommentsDisplay(pId);
           import('./ui.js').then(u => u.showToast('Comentário excluído com sucesso!'));

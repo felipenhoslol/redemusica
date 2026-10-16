@@ -437,7 +437,15 @@ export function getAllNotifications() {
 
 export function getMyNotifications() {
   const activeId = getActiveUserId();
+  const seen = new Set();
   return getAllNotifications().filter(n => n.targetUserId === activeId)
+    // A like made in this same browser also comes back from the server: show it once
+    .filter(n => {
+      const key = n.remote || !['like', 'repost', 'follow'].includes(n.type) ? n.id : `${n.type}:${n.type === 'follow' ? activeId : n.postId}:${n.fromUserId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 30);
 }
@@ -451,6 +459,24 @@ export function markNotificationsRead() {
   const activeId = getActiveUserId();
   all.forEach(n => { if (n.targetUserId === activeId) n.read = true; });
   localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all));
+}
+
+/**
+ * Replace your server-made notifications (likes, reposts, comments, follows) with a fresh list,
+ * keeping what you already read. The first sync on a browser starts with everything read.
+ */
+export function mergeRemoteNotifications(userId, list) {
+  const all = getAllNotifications();
+  const seededKey = `rmsn_notifs_seeded_${userId}`;
+  const seeded = Boolean(localStorage.getItem(seededKey));
+  const readIds = new Set(all.filter(n => n.remote && n.read).map(n => n.id));
+  const kept = all.filter(n => !(n.remote && n.targetUserId === userId));
+  const fresh = list
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 60)
+    .map(n => ({ ...n, remote: true, targetUserId: userId, read: !seeded || readIds.has(n.id) }));
+  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([...fresh, ...kept].slice(0, 160)));
+  if (!seeded) localStorage.setItem(seededKey, '1');
 }
 
 export function addNotification(targetUserId, data) {
@@ -645,7 +671,22 @@ export function addCommentToPost(postId, commentData) {
   return null;
 }
 
-export function deleteComment(postId, commentId) {
+/** Like or unlike a comment. Returns the updated comment (null if it no longer exists). */
+export function toggleLikeComment(postId, commentId) {
+  const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
+  const comment = posts.find(p => p.id === postId)?.comments?.find(c => c.id === commentId);
+  if (!comment) return null;
+  const me = getActiveUserId();
+  if (!Array.isArray(comment.likes)) comment.likes = [];
+  const idx = comment.likes.indexOf(me);
+  if (idx === -1) comment.likes.push(me); else comment.likes.splice(idx, 1);
+  localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+  toRemote('likeComment', commentId, idx === -1);
+  return comment;
+}
+
+/** Delete a comment: allowed for its author, the post's author, or anyone with opts.force (admins). */
+export function deleteComment(postId, commentId, opts = {}) {
   const posts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS)) || [];
   const activeUser = getActiveUser();
   const post = posts.find(p => p.id === postId);
@@ -653,7 +694,7 @@ export function deleteComment(postId, commentId) {
     const idx = post.comments.findIndex(c => c.id === commentId);
     if (idx !== -1) {
       const comment = post.comments[idx];
-      if (comment.userId === activeUser.id || post.authorId === activeUser.id) {
+      if (opts.force || comment.userId === activeUser.id || post.authorId === activeUser.id) {
         post.comments.splice(idx, 1);
         localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
         toRemote('deleteComment', commentId);

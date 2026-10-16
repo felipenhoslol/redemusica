@@ -19,6 +19,7 @@ let profileDirty = false;   // your own profile has local changes not on the ser
 let profileTimer = null;
 let warnedProfileSql = false;
 let votesTable = true;      // false until supabase/004_polls.sql has been run
+let commentLikesTable = true; // false until supabase/005_comment_likes.sql has been run
 
 /** "agora", "há 5 min", "há 3 h", "há 2 d", or a date for older posts. */
 export function relativeTime(iso) {
@@ -87,6 +88,7 @@ function fromRow(row) {
       id: c.id, userId: c.user_id,
       userName: c.author?.name || 'Alguém', userAvatar: c.author?.avatar_url || initialOf(c.author?.name),
       text: c.body?.text || '', song: c.body?.song || null, imageUrl: c.body?.imageUrl || '', gifUrl: c.body?.gifUrl || '',
+      likes: (c.comment_likes || []).map(l => l.user_id),
       createdAt: relativeTime(c.created_at), createdAtIso: c.created_at
     }));
   return {
@@ -102,6 +104,41 @@ function fromRow(row) {
     createdAt: relativeTime(row.created_at), createdAtIso: row.created_at,
     ...(row.edited ? { updatedAt: 'editado' } : {})
   };
+}
+
+// ─── notifications ──────────────────────────────────────────────────────────
+
+const snippet = (text, max = 60) => {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  return t.length > max ? t.slice(0, max - 1) + '…' : t;
+};
+const postLabel = (b = {}) => snippet(b.text || b.lyrics || (b.song ? `${b.song.title} — ${b.song.artist}` : '') || b.playlist?.title || '');
+
+/** What other people did to you (likes, reposts, comments, follows), straight from the server rows. */
+function buildNotifications(rows, follows) {
+  const list = [];
+  const add = (type, fromUserId, createdAt, text, extra = {}) => {
+    if (!fromUserId || fromUserId === me || !createdAt) return;
+    list.push({ id: `${type}:${extra.key}:${fromUserId}`, type, fromUserId, text, createdAt, ...extra });
+  };
+  follows.forEach(f => {
+    if (f.following_id === me) add('follow', f.follower_id, f.created_at, 'começou a te seguir', { key: me });
+  });
+  rows.forEach(row => {
+    const preview = postLabel(row.body);
+    if (row.author_id === me) {
+      (row.post_likes || []).forEach(l => add('like', l.user_id, l.created_at, 'curtiu seu post', { key: row.id, postId: row.id, preview }));
+      (row.post_reposts || []).forEach(r => add('repost', r.user_id, r.created_at, 'repostou seu post', { key: row.id, postId: row.id, preview }));
+      (row.post_comments || []).forEach(c => add('comment', c.user_id, c.created_at, 'comentou no seu post',
+        { key: c.id, postId: row.id, preview: snippet(c.body?.text) || preview }));
+    }
+    (row.post_comments || []).forEach(c => {
+      if (c.user_id !== me) return;
+      (c.comment_likes || []).forEach(l => add('comment_like', l.user_id, l.created_at, 'curtiu seu comentário',
+        { key: c.id, postId: row.id, preview: snippet(c.body?.text) }));
+    });
+  });
+  return list;
 }
 
 // ─── pull ───────────────────────────────────────────────────────────────────
@@ -138,7 +175,7 @@ export function pullNow() {
     await uploadLegacyProfile(db);
     const [rows, follows, profiles] = await Promise.all([
       fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
-      must(db.from('follows').select('follower_id, following_id').limit(5000)),
+      must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
       fetchProfiles(db, q => q.eq('banned', false).limit(1000))
     ]);
 
@@ -150,9 +187,11 @@ export function pullNow() {
     Storage.replaceFollows(graph);
     const posts = rows.map(fromRow);
     Storage.replacePostsCache(posts, [...pending]);
+    Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows));
 
     const signature = JSON.stringify([
-      posts.map(p => [p.id, p.likes.length, p.reposts.length, p.comments.length, p.updatedAt || '', JSON.stringify(p.votes)]),
+      posts.map(p => [p.id, p.likes.length, p.reposts.length, p.updatedAt || '', JSON.stringify(p.votes),
+        p.comments.map(c => `${c.id}:${c.likes.length}`).join(',')]),
       follows.length,
       profiles.map(p => [p.id, p.name, p.avatar_url, p.banner_url, p.bio, p.status, JSON.stringify(p.extras || {}).length])
     ]);
@@ -170,20 +209,26 @@ export function pullNow() {
   return pulling;
 }
 
-// Posts with likes, reposts, comments and (once 004 is run) poll votes
+// Posts with likes, reposts, comments and, once 004/005 are run, poll votes and comment likes
 async function fetchPosts(db, refine) {
-  const base = `id, author_id, body, edited, created_at,
-      post_likes(user_id), post_reposts(user_id),
-      post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS}))`;
-  if (votesTable) {
-    try { return await must(refine(db.from('posts').select(`${base}, post_votes(user_id, option)`))); }
+  for (;;) {
+    const select = `id, author_id, body, edited, created_at,
+      post_likes(user_id, created_at), post_reposts(user_id, created_at),
+      post_comments(id, user_id, body, created_at, author:profiles(${PROFILE_FIELDS})${commentLikesTable ? ', comment_likes(user_id, created_at)' : ''})
+      ${votesTable ? ', post_votes(user_id, option)' : ''}`;
+    try { return await must(refine(db.from('posts').select(select))); }
     catch (err) {
-      if (!(err?.code === 'PGRST200' && /post_votes/.test(err?.message || err?.details || ''))) throw err;
-      votesTable = false;
-      handlers.onError?.('A votação de músicas ainda não está no banco: rode supabase/004_polls.sql no SQL Editor do Supabase.');
+      const text = `${err?.message || ''} ${err?.details || ''} ${err?.hint || ''}`;
+      if (err?.code !== 'PGRST200') throw err;
+      if (votesTable && /post_votes/.test(text)) {
+        votesTable = false;
+        handlers.onError?.('A votação de músicas ainda não está no banco: rode supabase/004_polls.sql no SQL Editor do Supabase.');
+      } else if (commentLikesTable && /comment_likes/.test(text)) {
+        commentLikesTable = false;
+        handlers.onError?.('Curtir comentários ainda não está no banco: rode supabase/005_comment_likes.sql no SQL Editor do Supabase.');
+      } else throw err;
     }
   }
-  return must(refine(db.from('posts').select(base)));
 }
 
 // ─── profile ────────────────────────────────────────────────────────────────
@@ -380,6 +425,12 @@ const hooks = {
     const body = { text: c.text || '', song: c.song || null, imageUrl: c.imageUrl || '', gifUrl: c.gifUrl || '' };
     write(db => must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body })), 'Não foi possível enviar o comentário.');
   },
+  likeComment(commentId, on) {
+    if (!commentLikesTable) return;
+    write(db => must(on
+      ? db.from('comment_likes').upsert({ comment_id: commentId, user_id: me }, { onConflict: 'comment_id,user_id', ignoreDuplicates: true })
+      : db.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', me)), 'Não foi possível salvar a curtida.');
+  },
   deleteComment(commentId) {
     write(db => must(db.from('post_comments').delete().eq('id', commentId)), 'Não foi possível apagar o comentário.');
   },
@@ -406,6 +457,7 @@ export function startSync(userId, opts = {}) {
   profileColumns = true;
   warnedProfileSql = false;
   votesTable = true;
+  commentLikesTable = true;
   lastSignature = '';
   Storage.setRemoteHooks(hooks);
   timer = setInterval(pullNow, POLL_MS);

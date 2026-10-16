@@ -100,6 +100,8 @@ function startApp() {
 // New data from the server: redraw what's on screen, unless the person is typing in it
 function refreshFromServer() {
   renderNotifBadge();
+  const friendsEl = document.getElementById('friends-widget');
+  if (friendsEl) renderFriendsWidget(friendsEl);
   const active = document.activeElement;
   if (activeTab === 'feed') {
     const feedPosts = document.getElementById('feed-posts');
@@ -628,6 +630,8 @@ function bindGlobalHandlers() {
       btn.textContent = nowFollowing ? 'Seguindo' : 'Seguir';
       btn.classList.toggle('following', nowFollowing);
     });
+    // Mensagens só com quem você segue
+    document.querySelectorAll(`[data-dm-id="${userId}"]`).forEach(btn => { btn.hidden = !nowFollowing; });
 
     // Update friend list
     const friendsEl = document.getElementById('friends-widget');
@@ -1353,6 +1357,7 @@ function bindGlobalHandlers() {
 
   // DM & Chat
   window._openDMWith = (userId) => {
+    if (!isFollowing(userId)) { showToast('Siga essa pessoa para mandar mensagem.'); return; }
     switchTab('chat');
     import('./chat.js').then(c => {
       window._selectChatContact?.(userId);
@@ -1367,6 +1372,14 @@ function bindGlobalHandlers() {
     if (!e.target.closest('.post-options-btn') && !e.target.closest('.post-options-dropdown')) {
       document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
     }
+  });
+
+  // Ctrl+Enter (Cmd+Enter no Mac) publica o post que está sendo escrito
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.isComposing) return;
+    if (!e.target.closest?.('.create-post-card')) return;
+    e.preventDefault();
+    window._submitPost?.();
   });
 
   // Close overlays on outside click

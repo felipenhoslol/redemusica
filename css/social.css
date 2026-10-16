@@ -732,3 +732,22 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 /* Coluna da direita fixa: cabe acima do player (72px) e rola por dentro se for maior que a tela */
 .right-sidebar { max-height: calc(100dvh - 12px - 84px); overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain; }
 .right-sidebar::-webkit-scrollbar { display: none; }
+/* Os cards não encolhem para caber na altura (overflow: hidden os deixava cortados): a coluna rola */
+.right-sidebar > * { flex-shrink: 0; }
+
+/* Curtir comentário */
+.comment-like-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 2px 6px 2px 0; background: none; border: 0; border-radius: 999px; color: var(--text-2); font: 600 .75rem var(--f-ui); cursor: pointer; }
+.comment-like-btn svg { width: 14px; height: 14px; }
+.comment-like-btn:hover { color: var(--danger, #f4212e); }
+.comment-like-btn.liked { color: var(--danger, #f4212e); }
+
+/* Notificações: quem fez o quê */
+.notif-body { flex: 1; min-width: 0; }
+.notif-item.no-link { cursor: default; }
+.notif-text strong { color: var(--text); font-weight: 700; }
+.notif-handle { color: var(--text-2); font-size: .76rem; }
+.notif-kind { display: inline-flex; vertical-align: -3px; margin-right: 4px; color: var(--accent); }
+.notif-kind svg { width: 14px; height: 14px; }
+.notif-kind-like, .notif-kind-comment_like { color: var(--danger); }
+.notif-kind-repost { color: var(--success); }
+.notif-preview { margin-top: 2px; font-size: .78rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
