@@ -751,3 +751,45 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .notif-kind-like, .notif-kind-comment_like { color: var(--danger); }
 .notif-kind-repost { color: var(--success); }
 .notif-preview { margin-top: 2px; font-size: .78rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Contadores de curtida/repost abrem a lista de quem fez */
+.btn-post-action .like-count, .btn-post-action .repost-count { padding: 2px 4px; margin: -2px -4px; border-radius: 6px; cursor: pointer; }
+.btn-post-action .like-count:hover, .btn-post-action .repost-count:hover { text-decoration: underline; }
+
+/* Busca de música no modal: artistas, álbuns e navegação */
+.msearch-section { margin: 12px 4px 6px; font: 800 .8rem var(--f-ui); color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.msearch-section:first-child { margin-top: 2px; }
+.msearch-text { flex: 1; min-width: 0; }
+.msearch-text .search-result-title, .msearch-text .search-result-artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msearch-no { width: 20px; flex: none; text-align: right; font-size: .78rem; color: var(--text-2); }
+.msearch-link { padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.msearch-link:hover { color: var(--text); text-decoration: underline; }
+.msearch-play { flex: none; width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 0; border-radius: 50%; color: var(--accent); cursor: pointer; }
+.msearch-play:hover { background: var(--tint-2); }
+.msearch-artists { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+.msearch-artist { flex: none; width: 84px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 2px; background: none; border: 0; border-radius: 10px; color: var(--text); cursor: pointer; }
+.msearch-artist:hover { background: var(--tint-1); }
+.msearch-artist-photo { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 800; font-size: 1.2rem; }
+.msearch-artist-photo img { width: 100%; height: 100%; object-fit: cover; }
+.msearch-artist-name { width: 100%; font-size: .76rem; font-weight: 600; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msearch-head { position: sticky; top: -1px; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 4px 0 8px; background: var(--bg); }
+.msearch-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msearch-back { flex: none; width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 0; border-radius: 50%; color: var(--text); cursor: pointer; }
+.msearch-back:hover { background: var(--tint-2); }
+.msearch-albums { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.msearch-album { display: flex; flex-direction: column; gap: 4px; padding: 6px; background: none; border: 0; border-radius: 10px; color: var(--text); text-align: left; cursor: pointer; min-width: 0; }
+.msearch-album:hover { background: var(--tint-1); }
+.msearch-album img, .msearch-album > span:first-child { width: 100%; aspect-ratio: 1; border-radius: 8px; object-fit: cover; background: var(--tint-2); }
+.msearch-album-title { font-size: .78rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msearch-album-sub { font-size: .72rem; color: var(--text-2); }
+.msearch-album-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.msearch-album-head img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; }
+.msearch-album-head div { display: flex; flex-direction: column; min-width: 0; }
+.msearch-album-head span { font-size: .8rem; color: var(--text-2); }
+.msearch-more { display: block; margin: 10px auto 0; }
+
+/* Seguindo: online / offline e o que está ouvindo */
+.friend-online-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--tint-3, rgba(127,127,127,.45)) !important; box-shadow: none !important; }
+.friend-online-dot.online { background: var(--success) !important; }
+.friend-sub.now-playing { color: var(--accent) !important; display: block; }
+.friend-sub.now-playing svg { width: 11px; height: 11px; vertical-align: -1px; }

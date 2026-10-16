@@ -193,6 +193,16 @@ export function mergeRemoteProfiles(profiles, opts = {}) {
   localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
 }
 
+/** Store when people were last seen online ({ userId: isoDate }). */
+export function setPresence(map) {
+  const users = getAllUsers();
+  let changed = false;
+  users.forEach(u => {
+    if (map[u.id] && map[u.id] !== u.lastSeenAt) { u.lastSeenAt = map[u.id]; changed = true; }
+  });
+  if (changed) localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+}
+
 /** Replace the follow graph with the server's copy ({ followerId: [followingId] }). */
 export function replaceFollows(map) {
   localStorage.setItem(STORAGE_KEYS.FOLLOWS, JSON.stringify(map));

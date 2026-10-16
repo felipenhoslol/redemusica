@@ -20,6 +20,10 @@ let profileTimer = null;
 let warnedProfileSql = false;
 let votesTable = true;      // false until supabase/004_polls.sql has been run
 let commentLikesTable = true; // false until supabase/005_comment_likes.sql has been run
+let presenceOn = true;      // false until supabase/006_presence.sql has been run
+let presenceTimer = null;
+const PRESENCE_MS = 60000;
+const ONLINE_WINDOW_MS = 2.5 * 60000; // a missed heartbeat or two still counts as online
 
 /** "agora", "há 5 min", "há 3 h", "há 2 d", or a date for older posts. */
 export function relativeTime(iso) {
@@ -30,6 +34,39 @@ export function relativeTime(iso) {
   if (diff < 86400) return `há ${Math.floor(diff / 3600)} h`;
   if (diff < 7 * 86400) return `há ${Math.floor(diff / 86400)} d`;
   return new Date(iso).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+}
+
+/**
+ * Online status from the last heartbeat.
+ * @returns {{ online: boolean, known: boolean, label: string }}
+ */
+export function presenceOf(user) {
+  if (!user?.lastSeenAt) return { online: false, known: false, label: '' };
+  const online = Date.now() - new Date(user.lastSeenAt).getTime() < ONLINE_WINDOW_MS;
+  if (online) return { online: true, known: true, label: 'online' };
+  const rel = relativeTime(user.lastSeenAt);
+  return { online: false, known: true, label: rel === 'agora' ? 'visto agora' : `visto ${/^há/.test(rel) ? rel : 'em ' + rel}` };
+}
+
+async function heartbeat() {
+  if (!me || disabled || !presenceOn || document.visibilityState !== 'visible') return;
+  Storage.setPresence({ [me]: new Date().toISOString() });
+  try {
+    const { error } = await getSupabase().rpc('touch_presence');
+    if (error && (error.code === 'PGRST202' || error.code === '42883')) presenceOn = false;
+  } catch { /* offline for a moment: the next beat tries again */ }
+}
+
+// Who was around in the last 30 days (older "visto" dates aren't worth showing)
+async function fetchPresence(db) {
+  if (!presenceOn) return [];
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const { data, error } = await db.from('profiles').select('id, last_seen_at').gte('last_seen_at', since).limit(1000);
+  if (error) {
+    if (error.code === '42703' || error.code === 'PGRST204') presenceOn = false;
+    return [];
+  }
+  return data || [];
 }
 
 /** Shrink a picked image so posts stay light: max 1280px, JPEG. Small GIFs keep their animation. */
@@ -173,15 +210,17 @@ export function pullNow() {
   pulling = (async () => {
     const db = getSupabase();
     await uploadLegacyProfile(db);
-    const [rows, follows, profiles] = await Promise.all([
+    const [rows, follows, profiles, presence] = await Promise.all([
       fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
-      fetchProfiles(db, q => q.eq('banned', false).limit(1000))
+      fetchProfiles(db, q => q.eq('banned', false).limit(1000)),
+      fetchPresence(db).catch(() => [])
     ]);
 
     await uploadLegacyPosts(db, new Set(rows.map(r => r.id)));
 
     Storage.mergeRemoteProfiles(profiles, { skipId: profileDirty ? me : null });
+    Storage.setPresence(Object.fromEntries(presence.filter(p => p.id !== me).map(p => [p.id, p.last_seen_at])));
     const graph = {};
     follows.forEach(f => { (graph[f.follower_id] ||= []).push(f.following_id); });
     Storage.replaceFollows(graph);
@@ -193,6 +232,7 @@ export function pullNow() {
       posts.map(p => [p.id, p.likes.length, p.reposts.length, p.updatedAt || '', JSON.stringify(p.votes),
         p.comments.map(c => `${c.id}:${c.likes.length}`).join(',')]),
       follows.length,
+      presence.filter(p => p.id !== me).map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
       profiles.map(p => [p.id, p.name, p.avatar_url, p.banner_url, p.bio, p.status, JSON.stringify(p.extras || {}).length])
     ]);
     if (signature !== lastSignature) {
@@ -442,7 +482,7 @@ const hooks = {
   }
 };
 
-const onVisible = () => { if (document.visibilityState === 'visible') pullNow(); };
+const onVisible = () => { if (document.visibilityState === 'visible') { heartbeat(); pullNow(); } };
 
 /**
  * Start mirroring the feed for a signed-in account.
@@ -458,9 +498,12 @@ export function startSync(userId, opts = {}) {
   warnedProfileSql = false;
   votesTable = true;
   commentLikesTable = true;
+  presenceOn = true;
   lastSignature = '';
   Storage.setRemoteHooks(hooks);
   timer = setInterval(pullNow, POLL_MS);
+  presenceTimer = setInterval(heartbeat, PRESENCE_MS);
+  heartbeat();
   document.addEventListener('visibilitychange', onVisible);
   return pullNow();
 }
@@ -472,6 +515,8 @@ export function stopSync() {
   profileDirty = false;
   clearInterval(timer);
   timer = null;
+  clearInterval(presenceTimer);
+  presenceTimer = null;
   document.removeEventListener('visibilitychange', onVisible);
   me = null;
 }

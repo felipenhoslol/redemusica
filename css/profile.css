@@ -1038,3 +1038,31 @@
 
 /* Botão de mensagem: só aparece para quem você segue */
 .profile-action-row [data-dm-id][hidden] { display: none; }
+
+/* Online / visto há X */
+.profile-presence { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; font-size: .78rem; color: var(--text-2, var(--muted)); }
+.profile-presence i { width: 8px; height: 8px; border-radius: 50%; background: rgba(127, 127, 127, .5); }
+.profile-presence.online { color: var(--success); }
+.profile-presence.online i { background: var(--success); }
+
+/* Ouvindo no Last.fm */
+.profile-listening { margin: 14px 0 4px; padding: 12px 14px; border-radius: 14px; background: var(--surface, var(--bg-card)); }
+.profile-listening-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font: 800 .85rem var(--f-ui, inherit); color: var(--text, var(--white)); }
+.profile-listening-head svg { color: var(--accent); }
+.profile-listening-row { display: flex; align-items: center; gap: 10px; padding: 6px; margin: 0 -6px; border-radius: 10px; cursor: pointer; }
+.profile-listening-row:hover { background: var(--tint-1); }
+.profile-listening-row img, .profile-listening-cover { width: 38px; height: 38px; flex: none; border-radius: 6px; object-fit: cover; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.profile-listening-row.now img, .profile-listening-row.now .profile-listening-cover { width: 48px; height: 48px; }
+.profile-listening-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.profile-listening-text strong, .profile-listening-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-listening-text strong { font-size: .86rem; color: var(--text, var(--white)); }
+.profile-listening-text span { font-size: .76rem; color: var(--text-2, var(--muted)); }
+.profile-listening-when { flex: none; font-size: .72rem; color: var(--text-2, var(--muted)); display: inline-flex; align-items: center; gap: 5px; }
+.profile-listening-row.now .profile-listening-when { color: var(--accent); font-weight: 700; }
+.profile-listening-empty { font-size: .82rem; color: var(--text-2, var(--muted)); padding: 4px 0; }
+.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+.eq i { width: 3px; background: currentColor; border-radius: 1px; animation: eq-bounce .9s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: -.3s; }
+.eq i:nth-child(3) { animation-delay: -.6s; }
+@keyframes eq-bounce { 0%, 100% { height: 3px; } 50% { height: 11px; } }
+@media (prefers-reduced-motion: reduce) { .eq i { animation: none; height: 8px; } }

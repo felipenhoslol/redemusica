@@ -649,7 +649,7 @@ function bindGlobalHandlers() {
     if (liked) setCatMood('love', 1400);
     if (btn) {
       btn.classList.toggle('liked', liked);
-      btn.innerHTML = (liked ? ICONS.heartFilled : ICONS.heartEmpty) + `<span class="like-count">${post.likes.length}</span>`;
+      btn.innerHTML = (liked ? ICONS.heartFilled : ICONS.heartEmpty) + `<span class="like-count" role="button" tabindex="0" title="Ver quem curtiu" onclick="event.stopPropagation();window._showPostPeople('${postId}', 'likes')">${post.likes.length}</span>`;
     }
   };
 
@@ -1088,7 +1088,8 @@ function bindGlobalHandlers() {
   window._removeFeaturedSong = () => {
     setFeaturedSong(null);
     showToast('Música em destaque removida.');
-    window._refreshProfile();
+    window._refreshProfile?.();
+    import('./profile.js').then(m => m.refreshFeaturedEditRow());
   };
   // Profile photo and banner: both open the photo editor (position + zoom); the result syncs to the server
   const savePhoto = (field, value, message) => {

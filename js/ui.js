@@ -3,7 +3,8 @@ import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as storage from './storage.js';
 import { relativeTime } from './sync.js';
 import { globalAudio } from './audio.js';
-import { searchTracks } from './api.js';
+import { searchTracks, searchArtists, lookupArtist, lookupAlbum } from './api.js';
+import { getArtistImage } from './lastfm.js';
 import { renderProfileView, renderFollowListModal, openModal, closeModal, showToast } from './profile.js';
 import { ICONS, renderRatingStars, getStarSVG } from './icons.js';
 
@@ -131,8 +132,45 @@ export function openSearchModalForComment(postId) {
 function resetSearchModal() {
   const input = document.getElementById('search-input');
   const results = document.getElementById('search-results');
+  modalView = null;
+  modalLastQuery = '';
   if (input) { input.value = ''; input.focus(); }
   if (results) results.innerHTML = '';
+}
+
+// ─── Modal music search: songs + artists, and drill into an artist or album ───
+
+let modalView = null;          // null (results) | { type: 'artist'|'album', id, name, back }
+let modalLastQuery = '';
+const modalTracks = new Map(); // row key → track (rows carry only the key)
+
+function modalTrackRow(t, { number } = {}) {
+  const key = `t${modalTracks.size}`;
+  modalTracks.set(key, t);
+  return `
+    <div class="search-result-item" role="button" tabindex="0" data-pick="${key}">
+      ${number != null ? `<span class="msearch-no">${number}</span>` : ''}
+      ${t.artwork ? `<img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="search-result-cover"></span>'}
+      <div class="msearch-text">
+        <div class="search-result-title">${esc(t.title)}</div>
+        <div class="search-result-artist">
+          ${t.artistId ? `<button type="button" class="msearch-link" data-m-artist="${esc(t.artistId)}" data-m-artist-name="${esc(t.artist)}">${esc(t.artist)}</button>` : esc(t.artist)}
+          ${t.album ? ` · ${t.albumId ? `<button type="button" class="msearch-link" data-m-album="${esc(t.albumId)}">${esc(t.album)}</button>` : esc(t.album)}` : ''}
+          ${t.duration && t.duration !== '--:--' ? ` · ${esc(t.duration)}` : ''}
+        </div>
+      </div>
+      ${t.previewUrl ? `<button type="button" class="msearch-play" data-preview="${key}" title="Ouvir prévia" aria-label="Ouvir prévia de ${esc(t.title)}">${ICONS.play}</button>` : ''}
+    </div>`;
+}
+
+const modalMsg = (text, color = 'var(--muted)') => `<div style="padding:20px;text-align:center;color:${color}">${text}</div>`;
+
+function modalBackBar(title) {
+  return `
+    <div class="msearch-head">
+      <button type="button" class="msearch-back" data-m-back aria-label="Voltar">${ICONS.chevronLeft}</button>
+      <strong>${esc(title)}</strong>
+    </div>`;
 }
 
 export function initSearchModal() {
@@ -143,49 +181,131 @@ export function initSearchModal() {
     clearTimeout(searchDebounceTimer);
     const q = input.value.trim();
     if (q.length < 2) {
+      modalView = null;
       document.getElementById('search-results').innerHTML = '';
       return;
     }
-    searchDebounceTimer = setTimeout(() => performSearch(q), 380);
+    searchDebounceTimer = setTimeout(() => { modalView = null; performSearch(q); }, 380);
   });
 
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { clearTimeout(searchDebounceTimer); performSearch(input.value.trim()); }
+    if (e.key === 'Enter') { clearTimeout(searchDebounceTimer); modalView = null; performSearch(input.value.trim()); }
     if (e.key === 'Escape') closeDoodleModal('search-modal');
+  });
+
+  const results = document.getElementById('search-results');
+  results?.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-preview], [data-m-artist], [data-m-album], [data-m-back], [data-m-more], [data-pick]');
+    if (!t) return;
+    if (t.dataset.preview) { window._previewTrack(modalTracks.get(t.dataset.preview)); return; }
+    if (t.dataset.mArtist) { openModalView({ type: 'artist', id: t.dataset.mArtist, name: t.dataset.mArtistName, back: modalView }); return; }
+    if (t.dataset.mAlbum) { openModalView({ type: 'album', id: t.dataset.mAlbum, back: modalView }); return; }
+    if (t.hasAttribute('data-m-back')) {
+      modalView = modalView?.back || null;
+      if (modalView) openModalView(modalView); else performSearch(modalLastQuery);
+      return;
+    }
+    if (t.hasAttribute('data-m-more')) { performSearch(modalLastQuery, 50); return; }
+    const track = modalTracks.get(t.dataset.pick);
+    if (track) window._selectTrackFromModal(track);
+  });
+  results?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.matches('[data-pick]')) { e.preventDefault(); e.target.click(); }
   });
 }
 
 let searchModalSeq = 0; // only the latest modal search may write results
 
-async function performSearch(query) {
+async function performSearch(query, limit = 20) {
   const container = document.getElementById('search-results');
   if (!container || !query) return;
   const mySeq = ++searchModalSeq;
+  modalLastQuery = query;
+  modalView = null;
 
-  container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">Buscando...</div>`;
+  container.innerHTML = modalMsg('Buscando...');
 
   try {
-    const tracks = await searchTracks(query);
+    const [tracks, artists] = await Promise.all([
+      searchTracks(query, limit),
+      searchArtists(query, 6).catch(() => [])
+    ]);
     if (mySeq !== searchModalSeq) return;
-    if (!tracks || !tracks.length) {
-      container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">Nenhuma música encontrada.</div>`;
+    if (!tracks?.length && !artists.length) {
+      container.innerHTML = modalMsg('Nenhuma música encontrada.');
       return;
     }
-
-    container.innerHTML = tracks.map(t => `
-      <div class="search-result-item" onclick="window._selectTrackFromModal(${jsArg(t)})">
-        <img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="${esc(t.title)}" onerror="this.style.display='none'">
-        <div>
-          <div class="search-result-title">${esc(t.title)}</div>
-          <div class="search-result-artist">${esc(t.artist)} &bull; ${esc(t.duration)}</div>
-        </div>
-        ${t.previewUrl ? `<button style="background:transparent;border:none;color:var(--purple-light);cursor:pointer;padding:4px;" onclick="event.stopPropagation();window._previewTrack(${jsArg(t)})">
-          ${ICONS.play}
-        </button>` : ''}
-      </div>`).join('');
+    modalTracks.clear();
+    container.innerHTML = `
+      ${artists.length ? `
+        <div class="msearch-section">Artistas</div>
+        <div class="msearch-artists">
+          ${artists.map(a => `
+            <button type="button" class="msearch-artist" data-m-artist="${esc(a.id)}" data-m-artist-name="${esc(a.name)}">
+              <span class="msearch-artist-photo" data-m-photo="${esc(a.name)}">${esc((a.name || '?')[0])}</span>
+              <span class="msearch-artist-name">${esc(a.name)}</span>
+            </button>`).join('')}
+        </div>` : ''}
+      ${tracks.length ? `<div class="msearch-section">Músicas</div>${tracks.map(t => modalTrackRow(t)).join('')}` : ''}
+      ${tracks.length >= limit && limit < 50 ? `<button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm msearch-more" data-m-more>Ver mais músicas</button>` : ''}`;
+    hydrateModalArtistPhotos(container);
   } catch (e) {
     if (mySeq !== searchModalSeq) return;
-    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--pink)">Erro ao buscar. Tente novamente.</div>`;
+    container.innerHTML = modalMsg('Erro ao buscar. Tente novamente.', 'var(--pink)');
+  }
+}
+
+function hydrateModalArtistPhotos(scope) {
+  scope.querySelectorAll('[data-m-photo]').forEach(async el => {
+    try {
+      const url = await getArtistImage(el.dataset.mPhoto);
+      if (url && el.isConnected) el.innerHTML = `<img src="${safeUrl(url)}" alt="" loading="lazy">`;
+    } catch { /* keep the initial */ }
+  });
+}
+
+async function openModalView(view) {
+  const container = document.getElementById('search-results');
+  if (!container) return;
+  const mySeq = ++searchModalSeq;
+  modalView = view;
+  container.innerHTML = modalBackBar(view.name || (view.type === 'album' ? 'Álbum' : 'Artista')) + modalMsg('Carregando...');
+  container.closest('.modal-body')?.scrollTo?.(0, 0);
+  try {
+    if (view.type === 'artist') {
+      const { songs, albums } = await lookupArtist(view.id);
+      if (mySeq !== searchModalSeq) return;
+      modalTracks.clear();
+      container.innerHTML = `
+        ${modalBackBar(view.name || songs[0]?.artist || 'Artista')}
+        ${songs.length ? `<div class="msearch-section">Mais tocadas</div>${songs.map(t => modalTrackRow(t)).join('')}` : modalMsg('Nenhuma música encontrada.')}
+        ${albums.length ? `
+          <div class="msearch-section">Álbuns</div>
+          <div class="msearch-albums">
+            ${albums.map(al => `
+              <button type="button" class="msearch-album" data-m-album="${esc(al.id)}">
+                ${al.artwork ? `<img src="${safeUrl(al.artwork)}" alt="" loading="lazy">` : '<span></span>'}
+                <span class="msearch-album-title">${esc(al.title)}</span>
+                <span class="msearch-album-sub">${esc(al.year || '')}</span>
+              </button>`).join('')}
+          </div>` : ''}`;
+    } else {
+      const { album, tracks } = await lookupAlbum(view.id);
+      if (mySeq !== searchModalSeq) return;
+      modalTracks.clear();
+      view.name = album?.title || 'Álbum';
+      container.innerHTML = `
+        ${modalBackBar(view.name)}
+        ${album ? `
+          <div class="msearch-album-head">
+            ${album.artwork ? `<img src="${safeUrl(album.artwork)}" alt="">` : ''}
+            <div><strong>${esc(album.title)}</strong><span>${esc(album.artist)}${album.year ? ` · ${esc(album.year)}` : ''}</span></div>
+          </div>` : ''}
+        ${tracks.length ? tracks.map((t, i) => modalTrackRow(t, { number: t.trackNumber || i + 1 })).join('') : modalMsg('Nenhuma faixa encontrada.')}`;
+    }
+  } catch {
+    if (mySeq !== searchModalSeq) return;
+    container.innerHTML = modalBackBar(view.name || '') + modalMsg('Erro ao carregar. Tente novamente.', 'var(--pink)');
   }
 }
 
@@ -221,6 +341,7 @@ window._selectTrackFromModal = (track) => {
     storage.setFeaturedSong(track);
     showToast(`Destaque: ${track.title}`);
     window._refreshProfile?.();
+    import('./profile.js').then(m => m.refreshFeaturedEditRow());
 
   } else if (target.type === 'chat') {
     import('./chat.js').then(m => {

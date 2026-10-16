@@ -1205,3 +1205,6 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   color: var(--purple-light);
   margin-top: 4px;
 }
+
+/* A busca de música abre por cima de outros modais (ex.: editar perfil → música em destaque) */
+#search-modal, #follow-list-modal { z-index: 1100; }
