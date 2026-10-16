@@ -879,3 +879,12 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 
 /* Tocar para ampliar */
 [data-zoom-src], img[data-zoom], .comment-attached-media img:not(.lazy-picture), .lyric-quote figcaption img { cursor: zoom-in; }
+
+/* Post aberto a partir de uma notificação */
+.post-view .post-view-panel { width: min(640px, 100%); padding-bottom: 8px; }
+.post-view-body .post-card { border-bottom: 0; }
+.post-view-body .post-card:hover { background: none; }
+.post-view-empty { padding: 28px 18px; text-align: center; color: var(--text-2); }
+.comment-highlight .comment-content { box-shadow: 0 0 0 2px var(--accent); animation: comment-flash 1.6s ease-out 1; }
+@keyframes comment-flash { 0% { background: color-mix(in srgb, var(--accent) 30%, var(--surface)); } }
+@media (prefers-reduced-motion: reduce) { .comment-highlight .comment-content { animation: none; } }

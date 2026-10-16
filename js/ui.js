@@ -1025,6 +1025,23 @@ window._submitNewChallenge = () => {
 // NOTIFICATIONS PANEL
 // ──────────────────────────────────────────
 
+// Where a notification leads: the post it is about, the conversation, or the person's profile
+function notifTargetAttrs(n, profileId, name) {
+  if (n.postId) return `role="button" tabindex="0" data-notif-post="${esc(n.postId)}"${n.commentId ? ` data-notif-comment="${esc(n.commentId)}"` : ''} title="Ver o post"`;
+  if (!profileId) return '';
+  if (n.type === 'message') return `role="button" tabindex="0" data-notif-chat="${esc(profileId)}" title="Abrir conversa com ${esc(name)}"`;
+  return `role="button" tabindex="0" data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"`;
+}
+
+function openNotificationTarget(el) {
+  if (el.dataset.notifPost) window._openPostView?.(el.dataset.notifPost, { commentId: el.dataset.notifComment });
+  else if (el.dataset.notifChat) {
+    // Opens even if you don't follow them back: it's a conversation they started
+    window.switchTab?.('chat');
+    setTimeout(() => window._selectChatContact?.(el.dataset.notifChat), 60);
+  } else if (el.dataset.notifProfile) window._goToProfile?.(el.dataset.notifProfile);
+}
+
 const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', message: 'send', mention: 'edit' };
 
 function emailReminderHtml() {
@@ -1050,16 +1067,10 @@ export function renderNotificationsPanel(container) {
   container.onclick = (e) => {
     const verify = e.target.closest('[data-send-verify]');
     if (verify) { sendVerify(verify); return; }
-    const item = e.target.closest('[data-notif-profile], [data-notif-chat]');
+    const item = e.target.closest('[data-notif-profile], [data-notif-chat], [data-notif-post]');
     if (!item) return;
     if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
-    if (item.dataset.notifChat) {
-      // Opens even if you don't follow them back: it's a conversation they started
-      window.switchTab?.('chat');
-      setTimeout(() => window._selectChatContact?.(item.dataset.notifChat), 60);
-    } else {
-      window._goToProfile?.(item.dataset.notifProfile);
-    }
+    openNotificationTarget(item);
   };
 
   if (!notifs.length) {
@@ -1076,7 +1087,7 @@ export function renderNotificationsPanel(container) {
     const icon = ICONS[NOTIF_ICONS[n.type]] || '';
     const profileId = fromUser ? n.fromUserId : '';
     return `
-      <div class="notif-item${!n.read ? ' unread' : ''}${profileId ? '' : ' no-link'}" ${profileId ? `role="button" tabindex="0" ${n.type === 'message' ? `data-notif-chat="${esc(profileId)}" title="Abrir conversa com ${esc(name)}"` : `data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"`}` : ''}>
+      <div class="notif-item${!n.read ? ' unread' : ''}${profileId || n.postId ? '' : ' no-link'}" ${notifTargetAttrs(n, profileId, name)}>
         <div class="notif-avatar" style="overflow:hidden;">${avatarHtml}</div>
         <div class="notif-body">
           <div class="notif-text">
@@ -1090,7 +1101,7 @@ export function renderNotificationsPanel(container) {
   }).join('');
 
   container.onkeydown = (e) => {
-    if (e.key === 'Enter' && e.target.matches('[data-notif-profile], [data-notif-chat]')) e.target.click();
+    if (e.key === 'Enter' && e.target.matches('[data-notif-profile], [data-notif-chat], [data-notif-post]')) e.target.click();
   };
 }
 
@@ -1135,7 +1146,8 @@ export function showNotificationPopups() {
     const card = document.createElement('div');
     card.className = 'notif-popup';
     card.dataset.notifId = n.id;
-    if (fromUser) card.dataset[n.type === 'message' ? 'notifChat' : 'notifProfile'] = n.fromUserId;
+    if (n.postId) { card.dataset.notifPost = n.postId; if (n.commentId) card.dataset.notifComment = n.commentId; }
+    else if (fromUser) card.dataset[n.type === 'message' ? 'notifChat' : 'notifProfile'] = n.fromUserId;
     card.innerHTML = `
       <div class="notif-avatar" style="overflow:hidden;">${isImageAvatar(fromUser?.avatar)
         ? `<img src="${safeUrl(fromUser.avatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
@@ -1166,12 +1178,7 @@ function onPopupClick(e) {
   storage.markNotificationRead(card.dataset.notifId);
   window._renderNotifBadge?.();
   dismissPopup(card);
-  if (card.dataset.notifChat) {
-    window.switchTab?.('chat');
-    setTimeout(() => window._selectChatContact?.(card.dataset.notifChat), 60);
-  } else if (card.dataset.notifProfile) {
-    window._goToProfile?.(card.dataset.notifProfile);
-  }
+  openNotificationTarget(card);
 }
 
 async function sendVerify(btn) {

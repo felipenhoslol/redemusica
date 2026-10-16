@@ -5,7 +5,7 @@ import { globalAudio } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.js';
-import { compressImage, presenceOf, loadInlinePicture } from './sync.js';
+import { compressImage, presenceOf, loadInlinePicture, fetchPostById } from './sync.js';
 import { pollHtml } from './poll.js';
 import { auth } from './auth.js';
 import { linkMentions, attachMentionAutocomplete } from './mentions.js';
@@ -1356,4 +1356,45 @@ window._openPhotoViewer = (urls, start = 0) => {
   document.body.appendChild(root);
   show();
   root.querySelector('[data-close]').focus({ preventScroll: true });
+};
+
+// ─── Single post view: opened from a notification (liked, reposted, commented, mentioned...) ───
+window._openPostView = async (postId, opts = {}) => {
+  document.getElementById('post-view')?.remove();
+  const root = document.createElement('div');
+  root.id = 'post-view';
+  root.className = 'app-dialog post-view';
+  root.innerHTML = `
+    <div class="app-dialog-scrim" data-close></div>
+    <div class="app-dialog-panel post-view-panel" role="dialog" aria-modal="true" aria-label="Post">
+      <div class="app-dialog-head">
+        <button type="button" class="photo-editor-icon" data-close aria-label="Fechar">${ICONS.close}</button>
+        <h2>Post</h2>
+      </div>
+      <div class="post-view-body"><div class="post-view-empty">Carregando…</div></div>
+    </div>`;
+  document.body.appendChild(root);
+  const close = () => { document.removeEventListener('keydown', onKey); root.classList.remove('open'); setTimeout(() => root.remove(), 200); };
+  const onKey = (e) => { if (e.key === 'Escape' && !document.getElementById('photo-viewer')) close(); };
+  document.addEventListener('keydown', onKey);
+  root.addEventListener('click', (e) => {
+    if (e.target.closest('[data-close]')) close();
+    // Going to someone's profile from inside the post leaves the post view
+    else if (e.target.closest('.post-author, .comment-name, .comment-avatar, .mention-link')) setTimeout(close, 0);
+  });
+  requestAnimationFrame(() => root.classList.add('open'));
+
+  const post = Storage.getPostById(postId) || await fetchPostById(postId);
+  const body = root.querySelector('.post-view-body');
+  if (!root.isConnected) return;
+  if (!post) { body.innerHTML = `<div class="post-view-empty">Esse post não existe mais.</div>`; return; }
+  body.innerHTML = `<div class="feed-posts-list">${renderPostCard(post)}</div>`;
+  // Comments open, and the comment the notification is about highlighted
+  const section = body.querySelector('.post-comments-section');
+  if (section) section.style.display = 'flex';
+  attachMentionAutocomplete(body.querySelector('input[id^="comment-input-"]'));
+  if (opts.commentId) {
+    const row = body.querySelector(`#comment-${CSS.escape(opts.commentId)}`);
+    if (row) { row.classList.add('comment-highlight'); setTimeout(() => row.scrollIntoView({ block: 'center', behavior: 'smooth' }), 120); }
+  }
 };

@@ -307,12 +307,12 @@ function buildNotifications(rows, follows) {
       (row.post_likes || []).forEach(l => add('like', l.user_id, l.created_at, 'curtiu seu post', { key: row.id, postId: row.id, preview }));
       (row.post_reposts || []).forEach(r => add('repost', r.user_id, r.created_at, 'repostou seu post', { key: row.id, postId: row.id, preview }));
       (row.post_comments || []).forEach(c => add('comment', c.user_id, c.created_at, 'comentou no seu post',
-        { key: c.id, postId: row.id, preview: snippet(c.body?.text) || preview }));
+        { key: c.id, postId: row.id, commentId: c.id, preview: snippet(c.body?.text) || preview }));
     }
     (row.post_comments || []).forEach(c => {
       if (c.user_id !== me) return;
       (c.comment_likes || []).forEach(l => add('comment_like', l.user_id, l.created_at, 'curtiu seu comentário',
-        { key: c.id, postId: row.id, preview: snippet(c.body?.text) }));
+        { key: c.id, postId: row.id, commentId: c.id, preview: snippet(c.body?.text) }));
     });
   });
   return list;
@@ -663,6 +663,18 @@ export function loadInlinePicture(table, id) {
       .then(({ data }) => data?.url || '').catch(() => { inlinePictures.delete(key); return ''; }));
   }
   return inlinePictures.get(key);
+}
+
+/** One post from the server (e.g. opened from a notification but older than the feed window). */
+export async function fetchPostById(postId) {
+  if (!me || disabled) return null;
+  try {
+    const rows = await fetchPosts(getSupabase(), q => q.eq('id', postId).limit(1));
+    if (!rows.length) return null;
+    const post = fromRow(rows[0]);
+    Storage.upsertPostsCache([post]);
+    return post;
+  } catch { return null; }
 }
 
 // ─── profile ────────────────────────────────────────────────────────────────
