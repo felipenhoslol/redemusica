@@ -888,3 +888,25 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .comment-highlight .comment-content { box-shadow: 0 0 0 2px var(--accent); animation: comment-flash 1.6s ease-out 1; }
 @keyframes comment-flash { 0% { background: color-mix(in srgb, var(--accent) 30%, var(--surface)); } }
 @media (prefers-reduced-motion: reduce) { .comment-highlight .comment-content { animation: none; } }
+
+/* Home: o feed começa logo depois do menu e ocupa a largura até a coluna da direita (sem vão à esquerda) */
+body[data-tab="feed"] .app-main { justify-content: flex-start; padding-left: 0; padding-right: 20px; }
+body[data-tab="feed"] .app-content { max-width: none; }
+body[data-tab="feed"] .feed-layout-cols { width: 100%; }
+body[data-tab="feed"] .feed-main { flex: 1 1 auto; max-width: none; border-left: 0; }
+body[data-tab="feed"] .right-sidebar { flex: none; }
+
+/* Quem votou em cada música da enquete */
+.poll-see-votes { padding: 0; background: none; border: 0; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
+.poll-see-votes:hover { text-decoration: underline; }
+.poll-votes-body { gap: 14px; padding-bottom: 6px; }
+.poll-votes-option { display: flex; flex-direction: column; gap: 2px; }
+.poll-votes-head { display: flex; align-items: center; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.poll-votes-count { margin-left: auto; font: 800 .9rem var(--f-ui); color: var(--accent); }
+.poll-voter { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 4px; background: none; border: 0; border-radius: 10px; color: var(--text); text-align: left; cursor: pointer; }
+.poll-voter:hover { background: var(--tint-1); }
+.poll-voter-avatar { width: 32px !important; height: 32px !important; min-width: 32px; }
+.poll-voter-text { display: flex; flex-direction: column; min-width: 0; }
+.poll-voter-text strong { font-size: .88rem; }
+.poll-voter-text span { font-size: .76rem; color: var(--text-2); }
+.poll-votes-none { margin: 2px 4px 4px; font-size: .82rem; color: var(--text-2); }

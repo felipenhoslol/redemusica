@@ -338,6 +338,7 @@ window._refreshSidebarUser = refreshSidebarUser;
 function switchTab(tabName) {
   if (tabName === 'admin' && !auth.isAdmin) tabName = 'feed';
   activeTab = tabName;
+  document.body.dataset.tab = tabName; // lets the layout differ per tab (the feed uses the full width)
 
   // Update nav items
   document.querySelectorAll('.nav-item, .sidebar-active-user').forEach(el => el.classList.remove('active'));
