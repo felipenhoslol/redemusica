@@ -1292,6 +1292,22 @@ function watchLazyPictures(node) {
 new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(watchLazyPictures)))
   .observe(document.documentElement, { childList: true, subtree: true });
 
+// ─── Tap to enlarge, anywhere: comment and chat pictures, other people's profile photo and banner,
+// or any <img data-zoom> / element with data-zoom-src. Post galleries open their own set (below).
+const ZOOM_TARGETS = '[data-zoom-src], img[data-zoom], .comment-attached-media img:not(.lazy-picture), .lyric-quote figcaption img';
+document.addEventListener('click', (e) => {
+  const el = e.target.closest(ZOOM_TARGETS);
+  if (!el || e.target.closest('button:not([data-zoom-src]), a')) return;
+  const src = el.dataset.zoomSrc || el.currentSrc || el.src;
+  if (!src) return;
+  e.preventDefault();
+  e.stopPropagation();
+  window._openPhotoViewer([src], 0);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches?.('[data-zoom-src]')) e.target.click();
+});
+
 // ─── Photo viewer: tap a post picture to see it big (swipe or arrows between a post's photos) ───
 window._openPhotoViewer = (urls, start = 0) => {
   const list = (urls || []).filter(u => /^(https:\/\/|data:image\/)/.test(u));

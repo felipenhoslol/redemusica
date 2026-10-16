@@ -876,3 +876,6 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
   .btn-attach span { display: none; }
   .btn-attach { padding: 8px; min-width: 40px; justify-content: center; }
 }
+
+/* Tocar para ampliar */
+[data-zoom-src], img[data-zoom], .comment-attached-media img:not(.lazy-picture), .lyric-quote figcaption img { cursor: zoom-in; }

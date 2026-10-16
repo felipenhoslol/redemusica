@@ -109,7 +109,8 @@ export function renderProfileView(container, targetUserId) {
   const avatarMarkup = avatarInner(user.avatar, user.name);
 
   const avatarHtml = `
-    <div class="profile-avatar-wrap" ${isMe ? 'onclick="window._editAvatar()" title="Alterar foto de perfil"' : ''}>
+    <div class="profile-avatar-wrap" ${isMe ? 'onclick="window._editAvatar()" title="Alterar foto de perfil"'
+      : isImageAvatar(user.avatar) ? `data-zoom-src="${esc(safeUrl(user.avatar))}" role="button" tabindex="0" aria-label="Ver foto de perfil maior"` : ''}>
       <div class="profile-main-avatar">
         ${avatarMarkup}
       </div>
@@ -121,7 +122,7 @@ export function renderProfileView(container, targetUserId) {
 
   container.innerHTML = `
     <div class="profile-wrap">
-      <div class="profile-banner" style="${bannerStyle}">
+      <div class="profile-banner" style="${bannerStyle}"${!isMe && user.bannerUrl && safeUrl(user.bannerUrl) ? ` data-zoom-src="${esc(safeUrl(user.bannerUrl))}" role="button" tabindex="0" aria-label="Ver banner maior"` : ''}>
         ${isMe ? `<button class="btn-edit-banner" onclick="window._editBanner()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Alterar banner</button>` : ''}
       </div>
       <div class="profile-info-card">
