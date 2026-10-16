@@ -9,6 +9,7 @@ import {
 import { ICONS } from './icons.js';
 import { openSearchModalForPlaylist, showToast, openDoodleModal, closeDoodleModal } from './ui.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
+import { fetchSimilarTracks } from './lastfm.js';
 
 let currentFilter = 'all'; // 'all' | 'mine' | 'community'
 let searchQuery = '';
@@ -354,8 +355,22 @@ export function renderPlaylistDetails(containerEl, playlistId) {
           </div>
         ` : renderEmptyTracksState(pl.id, isOwner)}
       </div>
+
+      ${songsCount > 0 ? `
+        <section class="playlist-tracks-section playlist-recs" aria-labelledby="pl-recs-title">
+          <div class="playlist-tracks-header">
+            <div>
+              <h2 id="pl-recs-title" style="font-size:1.1rem;font-weight:800;color:var(--white);margin:0;">Recomendadas</h2>
+              <p class="playlist-recs-sub">Com base nas músicas desta playlist</p>
+            </div>
+            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._refreshPlaylistRecs('${pl.id}')">${ICONS.refresh} Outras</button>
+          </div>
+          <div class="playlist-tracks-list" id="playlist-recs-list"></div>
+        </section>` : ''}
     </div>
   `;
+
+  if (songsCount > 0) loadPlaylistRecs(pl, isOwner);
 
   window._refreshPlaylistDetails = (id) => {
     if (activePlaylistId === id) {
@@ -363,6 +378,59 @@ export function renderPlaylistDetails(containerEl, playlistId) {
     }
   };
 }
+
+// ─── Recommendations ────────────────────────────────────────────────────────
+
+const recsCache = new Map(); // playlist id → Promise<track[]>
+const sameSong = (a, b) => a.id === b.id || (a.title?.toLowerCase() === b.title?.toLowerCase() && a.artist?.toLowerCase() === b.artist?.toLowerCase());
+
+async function loadPlaylistRecs(pl, isOwner) {
+  const list = document.getElementById('playlist-recs-list');
+  if (!list) return;
+  list.innerHTML = `<div class="playlist-recs-empty">Procurando músicas parecidas…</div>`;
+  if (!recsCache.has(pl.id)) {
+    const seeds = (pl.songs || []).map(s => ({ title: s.title, artist: s.artist }));
+    recsCache.set(pl.id, fetchSimilarTracks(seeds, 12).catch(() => []));
+  }
+  const tracks = await recsCache.get(pl.id);
+  const el = document.getElementById('playlist-recs-list');
+  if (!el || activePlaylistId !== pl.id) return;
+  const current = getPlaylistById(pl.id)?.songs || [];
+  const fresh = tracks.filter(t => !current.some(s => sameSong(s, t))).slice(0, 10);
+  if (!fresh.length) {
+    el.innerHTML = `<div class="playlist-recs-empty">Não achamos recomendações agora. Tente "Outras" daqui a pouco.</div>`;
+    return;
+  }
+  el.innerHTML = fresh.map(t => `
+    <div class="playlist-track-row playlist-rec-row" onclick="window._playTrack(${jsArg(t)})">
+      <div class="playlist-track-index"><button class="track-play-icon" style="opacity:1" title="Tocar prévia">${ICONS.play}</button></div>
+      <div class="playlist-track-cover">
+        ${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy">` : `<div class="track-cover-fallback">${ICONS.music}</div>`}
+      </div>
+      <div class="playlist-track-info">
+        <div class="playlist-track-title">${esc(t.title)}</div>
+        <div class="playlist-track-artist">${esc(t.artist)}</div>
+      </div>
+      <div class="playlist-track-album" title="${esc(t.album || '')}">${esc(t.album || '—')}</div>
+      <div class="playlist-track-duration">${esc(t.duration || '--:--')}</div>
+      <div class="playlist-track-actions" onclick="event.stopPropagation()">
+        ${isOwner ? `<button class="btn-track-action" title="Adicionar à playlist" aria-label="Adicionar ${esc(t.title)} à playlist"
+          onclick="window._addRecToPlaylist('${pl.id}', ${jsArg(t)})">${ICONS.plus}</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+window._refreshPlaylistRecs = (playlistId) => {
+  recsCache.delete(playlistId);
+  const pl = getPlaylistById(playlistId);
+  if (pl) loadPlaylistRecs(pl, pl.authorId === getActiveUser().id);
+};
+
+window._addRecToPlaylist = (playlistId, track) => {
+  addSongToPlaylist(playlistId, track);
+  showToast(`"${track.title}" adicionada à playlist!`);
+  window._refreshPlaylistDetails?.(playlistId);
+};
 
 /**
  * Render single track row inside playlist

@@ -1,6 +1,6 @@
 # E-mails com a cara do app
 
-O Supabase envia os e-mails de cadastro e de senha a partir de modelos configurados no painel.
+O Supabase envia os e-mails de cadastro, de senha e de troca de e-mail a partir de modelos configurados no painel.
 Estes arquivos são esses modelos, com o gatinho e as cores do app.
 
 ## Onde colar
@@ -11,6 +11,7 @@ No painel do Supabase: **Authentication → Emails → Templates** (em versões 
 |-------------------------|-------------------------------------------|----------------------------------|
 | **Confirm signup**      | `Confirme seu e-mail na rede de música`   | `confirm-signup.html`            |
 | **Reset password**      | `Crie uma nova senha na rede de música`   | `reset-password.html`            |
+| **Change Email Address** | `Confirme seu novo e-mail na rede de música` | `change-email.html`           |
 
 Salve cada um. O próximo cadastro ou pedido de senha já usa o modelo novo.
 
@@ -26,3 +27,9 @@ Salve cada um. O próximo cadastro ou pedido de senha já usa o modelo novo.
 Pelo servidor de e-mail padrão do Supabase, o remetente aparece como `Supabase Auth` e há um limite baixo
 de envios por hora. Para mostrar "rede de música" como remetente e enviar sem esse limite, configure um
 SMTP próprio em *Authentication → Emails → SMTP Settings* (Resend, Brevo e outros têm plano grátis).
+
+## Troca de e-mail
+
+Em *Authentication → Providers → Email*, a opção **Secure email change** (ligada por padrão) faz o Supabase
+mandar a confirmação para o e-mail antigo **e** para o novo: a troca só vale depois que os dois links forem abertos.
+Desligada, basta confirmar no e-mail novo.

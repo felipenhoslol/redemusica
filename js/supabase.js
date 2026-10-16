@@ -32,6 +32,8 @@ function friendly(error) {
   if (error instanceof AppError) return error;
   if (msg.includes('invalid login credentials')) return new AppError('auth', 'E-mail ou senha incorretos.');
   if (msg.includes('email not confirmed')) return new AppError('auth', 'Confirme seu e-mail antes de entrar: procure a mensagem de confirmação na sua caixa de entrada.');
+  if (msg.includes('already been registered') || msg.includes('email_exists')) return new AppError('auth', 'Já existe uma conta com esse e-mail.');
+  if (msg.includes('unable to validate email') || msg.includes('invalid format')) return new AppError('auth', 'Esse e-mail não parece válido. Confira e tente de novo.');
   if (msg.includes('user already registered')) return new AppError('auth', 'Já existe uma conta com esse e-mail. Tente entrar ou recuperar a senha.');
   if (msg.includes('password should be at least')) return new AppError('auth', 'A senha precisa ter pelo menos 8 caracteres.');
   if (msg.includes('should be different from the old')) return new AppError('auth', 'A nova senha precisa ser diferente da atual.');
@@ -95,6 +97,14 @@ export async function sendPasswordReset(email) {
 
 export async function updatePassword(password) {
   return run(getSupabase().auth.updateUser({ password }));
+}
+
+/** Ask to move the account to a new e-mail; Supabase sends the confirmation link(s). */
+export async function updateEmail(email) {
+  return run(getSupabase().auth.updateUser(
+    { email },
+    { emailRedirectTo: window.location.origin + window.location.pathname }
+  ));
 }
 
 export async function signOut() {

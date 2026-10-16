@@ -4,8 +4,8 @@ import * as Storage from './storage.js';
 import { globalAudio } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
-import { fetchLastFmTrendingTracks } from './lastfm.js';
-import { compressImage } from './sync.js';
+import { fetchLastFmTrendingTracks, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.js';
+import { compressImage, presenceOf } from './sync.js';
 import { pollHtml } from './poll.js';
 import { auth } from './auth.js';
 import { openLyricPicker, EXCERPT_MAX_LINES, EXCERPT_MAX_CHARS } from './lyricPicker.js';
@@ -329,6 +329,8 @@ export function renderPostCard(post, options = {}) {
         <button class="post-options-item" onclick="window._bookmarkPost('${post.id}')">
           ${bookmarked ? 'Remover dos salvos' : 'Salvar post'}
         </button>
+        <button class="post-options-item" onclick="window._showPostPeople('${post.id}', 'likes')">Ver quem curtiu</button>
+        <button class="post-options-item" onclick="window._showPostPeople('${post.id}', 'reposts')">Ver quem repostou</button>
         ${!isOwner ? `<button class="post-options-item danger" onclick="window._reportUser('${post.authorId}')">Reportar</button>` : ''}
         ${!isOwner && auth.isAdmin ? `<button class="post-options-item danger" onclick="window._deletePost('${post.id}')">Excluir post (admin)</button>` : ''}
       </div>
@@ -345,7 +347,7 @@ export function renderPostCard(post, options = {}) {
       <div class="post-actions">
         <button class="btn-post-action${liked ? ' liked' : ''}" onclick="window._likePost('${post.id}', this)">
           ${liked ? ICONS.heartFilled : ICONS.heartEmpty}
-          <span class="like-count">${(post.likes || []).length}</span>
+          <span class="like-count" role="button" tabindex="0" title="Ver quem curtiu" onclick="event.stopPropagation();window._showPostPeople('${post.id}', 'likes')">${(post.likes || []).length}</span>
         </button>
         <button class="btn-post-action" onclick="window._toggleComments('${post.id}', this, event)">
           ${ICONS.chat}
@@ -353,7 +355,7 @@ export function renderPostCard(post, options = {}) {
         </button>
         <button class="btn-post-action${reposted ? ' reposted' : ''}" onclick="window._repostPost('${post.id}', this)">
           ${ICONS.repost || ICONS.refresh}
-          <span class="repost-count">${(post.reposts || []).length}</span>
+          <span class="repost-count" role="button" tabindex="0" title="Ver quem repostou" onclick="event.stopPropagation();window._showPostPeople('${post.id}', 'reposts')">${(post.reposts || []).length}</span>
         </button>
         <button class="btn-post-action${bookmarked ? ' bookmarked' : ''}" onclick="window._bookmarkPost('${post.id}')">
           ${ICONS.bookmark || ICONS.attach}
@@ -994,6 +996,16 @@ window._handleCommentImageUpload = (event, postId) => {
     .catch(err => window.showDoodleToast?.(err.message));
 };
 
+window._showPostPeople = (postId, kind) => {
+  document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
+  const post = Storage.getPostById(postId);
+  if (!post) return;
+  const ids = [...(kind === 'reposts' ? post.reposts : post.likes) || []].reverse(); // most recent first
+  import('./profile.js').then(m => m.renderPeopleListModal(
+    kind === 'reposts' ? 'Repostado por' : 'Curtido por', ids,
+    kind === 'reposts' ? 'Ninguém repostou ainda.' : 'Ninguém curtiu ainda.'));
+};
+
 window._likeComment = (postId, commentId, btn) => {
   const comment = Storage.toggleLikeComment(postId, commentId);
   if (!comment || !btn) return;
@@ -1159,27 +1171,45 @@ function drawTrendingHtml(container, tracks) {
 export function renderFriendsWidget(container) {
   const activeUser = Storage.getActiveUser();
   const following = Storage.getFollowing(activeUser.id);
-  const users = Storage.getAllUsers().filter(u => following.includes(u.id));
+  const users = Storage.getAllUsers().filter(u => following.includes(u.id))
+    .map(u => ({ u, p: presenceOf(u) }))
+    // Online first, then whoever was seen most recently
+    .sort((a, b) => (b.p.online - a.p.online) || (new Date(b.u.lastSeenAt || 0) - new Date(a.u.lastSeenAt || 0)) || a.u.name.localeCompare(b.u.name));
 
   if (!users.length) {
     container.innerHTML = `<div class="notif-empty" style="padding:14px;font-size:0.78rem;text-align:center;">Você ainda não segue ninguém.</div>`;
     return;
   }
 
-  container.innerHTML = users.map(u => {
+  container.innerHTML = users.map(({ u, p }) => {
     const isImage = isImageAvatar(u.avatar);
     const avatarHtml = isImage
       ? `<img class="friend-avatar" src="${safeUrl(u.avatar)}" alt="${esc(u.name)}" style="width:30px;height:30px;min-width:30px;aspect-ratio:1/1;border-radius:50%;object-fit:cover;flex-shrink:0;">`
       : `<div class="friend-avatar" style="width:30px;height:30px;min-width:30px;aspect-ratio:1/1;border-radius:50%;background:var(--purple-dark);color:var(--purple-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;border:1px solid var(--purple-mid);flex-shrink:0;">${esc(u.avatar || u.name[0])}</div>`;
+    const lfm = lastFmUserOf(u);
+    const sub = p.known ? p.label : (u.status || u.handle || '');
 
     return `
       <div class="friend-item" onclick="window._goToProfile('${u.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;">
-        <div class="friend-online-dot" style="width:7px;height:7px;border-radius:50%;background:var(--success);flex-shrink:0;box-shadow:0 0 6px var(--success);"></div>
+        <div class="friend-online-dot${p.online ? ' online' : ''}" title="${p.online ? 'Online' : esc(p.label || 'Offline')}" aria-label="${p.online ? 'Online' : 'Offline'}"></div>
         ${avatarHtml}
         <div style="flex:1;min-width:0;">
           <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.name)}</div>
-          <div style="font-size:0.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.status || u.handle || 'online')}</div>
+          <div class="friend-sub" ${lfm ? `data-np-user="${esc(lfm)}"` : ''} style="font-size:0.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(sub)}</div>
         </div>
       </div>`;
   }).join('');
+
+  // Who is playing something right now (Last.fm), filled in after the list shows up
+  container.querySelectorAll('[data-np-user]').forEach(async (el, i) => {
+    if (i >= 15) return;
+    try {
+      const { nowPlaying } = await fetchLastFmRecentTracks(el.dataset.npUser, 1);
+      if (nowPlaying && el.isConnected) {
+        el.classList.add('now-playing');
+        el.innerHTML = `${ICONS.headphones} ${esc(nowPlaying.title)} — ${esc(nowPlaying.artist)}`;
+        el.title = `Ouvindo agora: ${nowPlaying.title} — ${nowPlaying.artist}`;
+      }
+    } catch { /* no Last.fm, private profile...: keep the presence line */ }
+  });
 }

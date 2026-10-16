@@ -4,7 +4,8 @@ import * as Storage from './storage.js';
 import { ICONS, renderRatingStars } from './icons.js';
 import { renderPostCard } from './feed.js';
 import { openSearchModalForFeaturedSong } from './ui.js';
-import { getArtistImage } from './lastfm.js';
+import { getArtistImage, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.js';
+import { presenceOf, relativeTime } from './sync.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { BIO_FONTS, bioFont, bioFontStyle } from './bioFonts.js';
 
@@ -92,6 +93,13 @@ export function renderProfileView(container, targetUserId) {
 
   const showcaseHtml = buildShowcaseHtml(user, isMe);
   const topArtistsHtml = buildTopArtistsMonthHtml(user, isMe);
+  const presence = isMe ? { online: true, known: true, label: 'online' } : presenceOf(user);
+  const lfmUser = lastFmUserOf(user);
+  const listeningHtml = lfmUser ? `
+    <section class="profile-listening" id="profile-listening" data-lfm="${esc(lfmUser)}" aria-label="O que ${esc(user.name)} anda ouvindo">
+      <div class="profile-listening-head">${ICONS.headphones}<span>Ouvindo no Last.fm</span></div>
+      <div class="profile-listening-body"><div class="profile-listening-empty">Carregando…</div></div>
+    </section>` : '';
 
   // Banner: the user's image, or a neutral wash of the chosen accent color
   const bannerStyle = user.bannerUrl && safeUrl(user.bannerUrl)
@@ -138,7 +146,9 @@ export function renderProfileView(container, targetUserId) {
         </div>
         <div class="profile-details">
           <div class="profile-name">${esc(user.name)}</div>
-          <div class="profile-handle">${esc(user.handle || '@' + user.name.toLowerCase())}</div>
+          <div class="profile-handle">${esc(user.handle || '@' + user.name.toLowerCase())}
+            ${presence.known ? `<span class="profile-presence${presence.online ? ' online' : ''}"><i aria-hidden="true"></i>${esc(presence.online ? 'Online' : presence.label.replace(/^visto/, 'Visto'))}</span>` : ''}
+          </div>
           <!-- Inline editable status (shown above actions) -->
           <div class="profile-status-wrap">
             ${isMe ? `
@@ -169,6 +179,7 @@ export function renderProfileView(container, targetUserId) {
           </div>
         </div>
         ${featuredHtml}
+        ${listeningHtml}
         ${topArtistsHtml}
         ${showcaseHtml}
         <div class="profile-subtabs">
@@ -193,6 +204,7 @@ export function renderProfileView(container, targetUserId) {
 
   // Load default tab
   loadProfileTab('posts', user.id);
+  if (lfmUser) loadListening(container.querySelector('#profile-listening'), lfmUser);
 
 
   // Inline status editing
@@ -225,6 +237,34 @@ export function renderProfileView(container, targetUserId) {
     loadProfileTab(tabId, user.id);
     animatePanel(el, direction);
   };
+}
+
+// What the person is playing now and the last few songs, straight from Last.fm
+async function loadListening(section, username) {
+  const body = section?.querySelector('.profile-listening-body');
+  if (!body) return;
+  try {
+    const { nowPlaying, recent } = await fetchLastFmRecentTracks(username, 5);
+    if (!section.isConnected) return;
+    const row = (t, now) => `
+      <div class="profile-listening-row${now ? ' now' : ''}" role="button" tabindex="0"
+        onclick="window._playTrack(${jsArg({ title: t.title, artist: t.artist, artwork: t.artwork })})" title="Tocar prévia">
+        ${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy">` : `<span class="profile-listening-cover">${ICONS.music}</span>`}
+        <div class="profile-listening-text">
+          <strong>${esc(t.title)}</strong>
+          <span>${esc(t.artist)}</span>
+        </div>
+        <span class="profile-listening-when">${now ? '<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span> agora' : esc(t.playedAt ? relativeTime(t.playedAt) : '')}</span>
+      </div>`;
+    if (!nowPlaying && !recent.length) {
+      body.innerHTML = `<div class="profile-listening-empty">Nada registrado no Last.fm ainda.</div>`;
+      return;
+    }
+    section.querySelector('.profile-listening-head span').textContent = nowPlaying ? 'Ouvindo agora' : 'Ouviu por último';
+    body.innerHTML = `${nowPlaying ? row(nowPlaying, true) : ''}${recent.slice(0, nowPlaying ? 4 : 5).map(t => row(t, false)).join('')}`;
+  } catch (err) {
+    if (section.isConnected) body.innerHTML = `<div class="profile-listening-empty">${esc(err?.code === 17 ? 'O histórico desse perfil é privado no Last.fm.' : 'Não foi possível ver o Last.fm agora.')}</div>`;
+  }
 }
 
 function buildSocialsHtml(user, isMe) {
@@ -687,6 +727,21 @@ function loadProfileTab(tabId, userId) {
 // PROFILE EDIT MODAL
 // ──────────────────────────────────────────
 
+function featuredEditRowHtml(user) {
+  const song = user.featuredSong;
+  return `
+    <button type="button" class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="window._editFeaturedSong()" style="max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+      ${song ? `Alterar: ${esc(song.title)} — ${esc(song.artist)}` : '+ Escolher Música'}
+    </button>
+    ${song ? `<button type="button" class="doodle-btn doodle-btn-danger doodle-btn-sm" onclick="window._removeFeaturedSong()">Remover</button>` : ''}`;
+}
+
+/** Refresh just the "Música em Destaque" row of the open edit modal (keeps what was typed in the other fields). */
+export function refreshFeaturedEditRow() {
+  const row = document.getElementById('edit-featured-row');
+  if (row) row.innerHTML = featuredEditRowHtml(Storage.getActiveUser());
+}
+
 export function renderProfileEditModal() {
   const user = Storage.getActiveUser();
   const modal = document.getElementById('profile-edit-modal');
@@ -757,15 +812,7 @@ export function renderProfileEditModal() {
 
       <div>
         <label class="form-label">Música em Destaque</label>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button type="button" class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="window._editFeaturedSong()">
-            ${user.featuredSong ? `Alterar: ${esc(user.featuredSong.title)} — ${esc(user.featuredSong.artist)}` : '+ Escolher Música'}
-          </button>
-          ${user.featuredSong ? `
-            <button type="button" class="doodle-btn doodle-btn-danger doodle-btn-sm" onclick="window._removeFeaturedSong();renderProfileEditModal();">
-              Remover
-            </button>` : ''}
-        </div>
+        <div id="edit-featured-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${featuredEditRowHtml(user)}</div>
       </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:6px;">
@@ -822,12 +869,16 @@ export function renderProfileEditModal() {
 // ──────────────────────────────────────────
 
 export function renderFollowListModal(userId, mode) {
+  const ids = mode === 'following' ? Storage.getFollowing(userId) : Storage.getFollowers(userId);
+  renderPeopleListModal(mode === 'following' ? 'Seguindo' : 'Seguidores', ids);
+}
+
+/** A list of people (with follow buttons) in the shared modal: followers, who liked, who reposted... */
+export function renderPeopleListModal(title, ids, emptyText = 'Ninguém aqui ainda.') {
   const modal = document.getElementById('follow-list-modal');
   if (!modal) return;
 
-  modal.querySelector('.modal-header h3').textContent = mode === 'following' ? 'Seguindo' : 'Seguidores';
-
-  const ids = mode === 'following' ? Storage.getFollowing(userId) : Storage.getFollowers(userId);
+  modal.querySelector('.modal-header h3').textContent = title;
   const users = ids.map(id => Storage.getUserById(id)).filter(Boolean);
 
   modal.querySelector('.modal-body').innerHTML = users.length ? users.map(u => `
@@ -842,7 +893,7 @@ export function renderFollowListModal(userId, mode) {
           ${Storage.isFollowing(u.id) ? 'Seguindo' : 'Seguir'}
         </button>` : ''}
     </div>`).join('') :
-    `<div class="empty-state"><div class="empty-state-sub">Ninguém aqui ainda.</div></div>`;
+    `<div class="empty-state"><div class="empty-state-sub">${esc(emptyText)}</div></div>`;
 
   openModal('follow-list-modal');
 }

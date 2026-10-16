@@ -92,3 +92,5 @@
   .app-dialog-panel { width: 100%; max-height: 92dvh; border-radius: 18px 18px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateY(24px); }
 }
 @media (prefers-reduced-motion: reduce) { .app-dialog-scrim, .app-dialog-panel { transition: none; } }
+#acc-pass-form { padding-top: 16px; border-top: 1px solid var(--line); }
+.account-email .account-hint { margin-top: 6px; }

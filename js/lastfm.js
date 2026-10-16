@@ -56,7 +56,7 @@ export function isValidLastFmUsername(username) {
   return /^[A-Za-z][A-Za-z0-9_-]{1,14}$/.test(username);
 }
 
-async function callLastFm(method, params = {}) {
+async function callLastFm(method, params = {}, { ttl = CACHE_TTL_MS } = {}) {
   if (!LASTFM_API_KEY) {
     throw new LastFmError('nokey', 'A integração com o Last.fm ainda não está configurada: falta a chave da API em js/config.js.');
   }
@@ -65,7 +65,7 @@ async function callLastFm(method, params = {}) {
   const url = `${LASTFM_URL}?${query}`;
 
   const cached = responseCache.get(url);
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.data;
+  if (cached && Date.now() - cached.at < ttl) return cached.data;
 
   let json;
   try {
@@ -243,6 +243,105 @@ export async function fetchLastFmUserTop(rawUsername) {
     topArtistsMonth: topArtists,
     topTracksMonth: topTracks
   };
+}
+
+// ──────────────────────────────────────────
+// WHAT SOMEONE IS LISTENING TO
+// ──────────────────────────────────────────
+
+/** The Last.fm username saved on a profile ('' when there is none). */
+export function lastFmUserOf(user) {
+  const raw = user?.lastfm || user?.socials?.lastfm || (user?.musicService === 'lastfm' ? user?.spotifyUsername : '') || '';
+  const name = normalizeLastFmUsername(raw);
+  return isValidLastFmUsername(name) ? name : '';
+}
+
+/**
+ * Latest scrobbles of a Last.fm user; the first one may be playing right now.
+ * @param {string} username
+ * @param {number} limit
+ * @returns {Promise<{nowPlaying: object|null, recent: Array<{title, artist, album, artwork, url, nowPlaying, playedAt}>}>}
+ */
+export async function fetchLastFmRecentTracks(username, limit = 6) {
+  const json = await callLastFm('user.getrecenttracks', { user: username, limit, extended: 0 }, { ttl: 60 * 1000 });
+  const list = asArray(json.recenttracks?.track).slice(0, limit + 1).map(t => {
+    const images = asArray(t.image);
+    const art = (images.find(i => i.size === 'extralarge') || images[images.length - 1] || {})['#text'] || '';
+    return {
+      title: t.name || '',
+      artist: t.artist?.['#text'] || t.artist?.name || '',
+      album: t.album?.['#text'] || '',
+      // Last.fm's grey star is "no cover"
+      artwork: /2a96cbd8b46e442fc41c2b86b821562f/.test(art) ? '' : art,
+      url: t.url || '',
+      nowPlaying: t['@attr']?.nowplaying === 'true',
+      playedAt: t.date?.uts ? new Date(Number(t.date.uts) * 1000).toISOString() : null
+    };
+  }).filter(t => t.title);
+  const nowPlaying = list.find(t => t.nowPlaying) || null;
+  return { nowPlaying, recent: list.filter(t => !t.nowPlaying).slice(0, limit) };
+}
+
+// ──────────────────────────────────────────
+// RECOMMENDATIONS (similar tracks)
+// ──────────────────────────────────────────
+
+const songKey = (title, artist) => `${title}|${artist}`.toLowerCase().replace(/\s*[([].*?[)\]]/g, '').replace(/\s+/g, ' ').trim();
+
+/**
+ * Songs similar to a set of seed songs (e.g. a playlist), with iTunes cover and preview.
+ * Uses Last.fm's track.getSimilar; falls back to other songs by the same artists on iTunes.
+ * @param {Array<{title:string, artist:string}>} seeds
+ * @param {number} limit
+ */
+export async function fetchSimilarTracks(seeds, limit = 10) {
+  const exclude = new Set(seeds.map(s => songKey(s.title, s.artist)));
+  const picked = [...seeds].sort(() => Math.random() - 0.5).slice(0, 6);
+  const scores = new Map(); // key → { title, artist, score }
+
+  if (LASTFM_API_KEY) {
+    await Promise.all(picked.map(async (seed) => {
+      try {
+        const json = await callLastFm('track.getsimilar', { track: seed.title, artist: seed.artist, limit: 15, autocorrect: 1 }, { ttl: 30 * 60 * 1000 });
+        asArray(json.similartracks?.track).forEach((t, i) => {
+          const artist = t.artist?.name || '';
+          const key = songKey(t.name, artist);
+          if (!t.name || exclude.has(key)) return;
+          const entry = scores.get(key) || { title: t.name, artist, score: 0 };
+          entry.score += (Number(t.match) || 0) + 1 / (i + 2); // songs similar to several seeds rise to the top
+          scores.set(key, entry);
+        });
+      } catch { /* one seed failing shouldn't sink the rest */ }
+    }));
+  }
+
+  // Keep the mix varied: at most 2 songs per artist
+  const perArtist = {};
+  let ranked = [...scores.values()].sort((a, b) => b.score - a.score).filter(t => {
+    const a = t.artist.toLowerCase();
+    perArtist[a] = (perArtist[a] || 0) + 1;
+    return perArtist[a] <= 2;
+  }).slice(0, limit);
+
+  if (ranked.length) {
+    const resolved = await Promise.all(ranked.map(async (t) => {
+      try {
+        const results = await searchTracks(`${t.title} ${t.artist}`, 4);
+        const match = results.find(r => r.artist.toLowerCase() === t.artist.toLowerCase()) || results[0];
+        return match && !exclude.has(songKey(match.title, match.artist)) ? match : null;
+      } catch { return null; }
+    }));
+    const seen = new Set();
+    ranked = resolved.filter(t => t && !seen.has(t.id) && seen.add(t.id));
+    if (ranked.length >= Math.min(4, limit)) return ranked.slice(0, limit);
+  }
+
+  // Fallback: more from the playlist's artists
+  const artists = [...new Set(picked.map(s => s.artist).filter(Boolean))].slice(0, 4);
+  const extra = (await Promise.all(artists.map(a => searchTracks(a, 12).catch(() => []))))
+    .flatMap(list => list.filter(t => !exclude.has(songKey(t.title, t.artist))).slice(0, 4));
+  const seen = new Set(ranked.map(t => t.id));
+  return [...ranked, ...extra.filter(t => !seen.has(t.id) && seen.add(t.id))].slice(0, limit);
 }
 
 // ──────────────────────────────────────────
