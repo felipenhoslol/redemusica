@@ -5,9 +5,9 @@ import { globalAudio } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks } from './lastfm.js';
-import { getRandomLyric } from './lyrics_db.js';
 import { compressImage } from './sync.js';
 import { pollHtml } from './poll.js';
+import { openLyricPicker, EXCERPT_MAX_LINES, EXCERPT_MAX_CHARS } from './lyricPicker.js';
 
 // ──────────────────────────────────────────
 // RENDER HELPERS
@@ -430,61 +430,59 @@ export function renderPostCreator(containerEl) {
     </div>`;
 
   // Re-bind creator global handlers
+  // "Letra": pick lines from the real lyrics (LRCLIB), or write the excerpt yourself
   window._creatorToggleLyrics = () => {
-    creatorState.showLyrics = !creatorState.showLyrics;
+    const current = creatorState.selectedLyricsTrack || window._pendingCreatorSong || null;
+    openLyricPicker({
+      track: current,
+      onPick: ({ lyrics, track }) => renderLyricsAttach(lyrics, track),
+      onManual: (track) => renderLyricsAttach('', track)
+    });
+  };
+
+  function renderLyricsAttach(lyrics, track) {
     const el = document.getElementById('creator-lyrics-attach');
     if (!el) return;
-    if (creatorState.showLyrics) {
-      // Pick a random card style
-      const lyricData = getRandomLyric();
-      creatorState.lyricsText = lyricData.lyrics;
-      creatorState.lyricsSong = `${lyricData.song} — ${lyricData.artist}`;
-      creatorState.lyricsArt = lyricData.albumArt || '';
-      el.style.display = 'block';
-      el.innerHTML = `
-        <div class="creator-lyrics-box">
-          <!-- Header -->
-          <div class="creator-lyrics-header">
-            <div style="display:flex;align-items:center;gap:6px;">
-              ${ICONS.music}
-              <span style="font-weight:700;color:var(--white);font-size:0.88rem;">Letra Anexada</span>
-            </div>
-            <button type="button" class="btn-attach" style="color:var(--danger);border-color:color-mix(in srgb, var(--danger) 35%, transparent);" onclick="window._creatorRemoveLyrics()">
-              Remover ${ICONS.close}
-            </button>
+    creatorState.showLyrics = true;
+    creatorState.lyricsText = lyrics;
+    creatorState.selectedLyricsTrack = track || null;
+    creatorState.lyricsSong = track ? `${track.title} — ${track.artist}` : '';
+    creatorState.lyricsArt = track?.artwork || '';
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div class="creator-lyrics-box">
+        <div class="creator-lyrics-header">
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${ICONS.music}
+            <span style="font-weight:700;color:var(--text);font-size:0.88rem;">Trecho da letra</span>
           </div>
-
-          <!-- Lyrics textarea -->
-          <textarea id="creator-lyrics" class="creator-lyrics-textarea" placeholder="Cole o trecho da letra aqui..." oninput="window._creatorLyricsChanged()">${esc(lyricData.lyrics)}</textarea>
-
-          <!-- Song chip — shows selected track or CTA to search -->
-          <div id="creator-lyrics-song-row" style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--purple-accent);border-radius:var(--radius-md);">
-            <div id="creator-lyrics-song-info" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-              ${creatorState.selectedLyricsTrack ? `
-                <img id="creator-lyrics-preview-img" src="${safeUrl(creatorState.selectedLyricsTrack.artwork)}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;">
-                <div style="min-width:0;flex:1;">
-                  <div id="creator-lyrics-preview-title" style="font-size:0.9rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(creatorState.lyricsSong)}</div>
-                  <div style="font-size:0.72rem;color:var(--purple-light);">Música vinculada à letra</div>
-                </div>
-              ` : `
-                <div style="min-width:0;flex:1;">
-                  <div id="creator-lyrics-preview-title" style="font-size:0.88rem;color:var(--muted);">Nenhuma música vinculada ainda</div>
-                </div>
-              `}
-            </div>
-            <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="flex-shrink:0;display:flex;align-items:center;gap:6px;" onclick="window._openSearchForLyrics()">
-              ${ICONS.search} Buscar música
-            </button>
+          <div style="display:flex;gap:6px;">
+            <button type="button" class="btn-attach" onclick="window._creatorToggleLyrics()">Trocar trecho</button>
+            <button type="button" class="btn-attach" style="color:var(--danger);" onclick="window._creatorRemoveLyrics()">Remover ${ICONS.close}</button>
           </div>
-
-          <!-- Hidden inputs to carry data through -->
-          <input type="hidden" id="creator-lyrics-song" value="${esc(lyricData.song)} — ${esc(lyricData.artist)}">
-          <input type="hidden" id="creator-lyrics-art" value="${lyricData.albumArt || ''}">
-        </div>`;
-    } else {
-      window._creatorRemoveLyrics();
-    }
-  };
+        </div>
+        <textarea id="creator-lyrics" class="creator-lyrics-textarea" maxlength="${EXCERPT_MAX_CHARS}" placeholder="Escreva o trecho da letra (até ${EXCERPT_MAX_LINES} linhas)" oninput="window._creatorLyricsChanged()">${esc(lyrics)}</textarea>
+        <div id="creator-lyrics-song-row" class="creator-lyrics-song">
+          <div id="creator-lyrics-song-info" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+            ${track ? `
+              <img id="creator-lyrics-preview-img" src="${safeUrl(track.artwork)}" alt="" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;">
+              <div style="min-width:0;flex:1;">
+                <div id="creator-lyrics-preview-title" style="font-size:0.9rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(creatorState.lyricsSong)}</div>
+                <div style="font-size:0.78rem;color:var(--text-2);">Música do trecho</div>
+              </div>
+            ` : `
+              <div id="creator-lyrics-preview-title" style="font-size:0.88rem;color:var(--text-2);">Nenhuma música vinculada</div>
+            `}
+          </div>
+          <button type="button" class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="flex-shrink:0;display:flex;align-items:center;gap:6px;" onclick="window._openSearchForLyrics()">
+            ${ICONS.search} ${track ? 'Trocar' : 'Vincular música'}
+          </button>
+        </div>
+        <input type="hidden" id="creator-lyrics-song" value="${esc(creatorState.lyricsSong)}">
+        <input type="hidden" id="creator-lyrics-art" value="${esc(creatorState.lyricsArt)}">
+      </div>`;
+    if (!lyrics) setTimeout(() => document.getElementById('creator-lyrics')?.focus(), 0);
+  }
 
   window._setCreatorLyricsSong = (track) => {
     creatorState.lyricsSong = `${track.title} — ${track.artist}`;
@@ -513,6 +511,7 @@ export function renderPostCreator(containerEl) {
     creatorState.lyricsText = '';
     creatorState.lyricsSong = '';
     creatorState.lyricsArt = '';
+    creatorState.selectedLyricsTrack = null;
     const el = document.getElementById('creator-lyrics-attach');
     if (el) {
       el.style.display = 'none';

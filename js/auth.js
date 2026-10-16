@@ -64,11 +64,22 @@ export async function initAuth(onChange) {
     }
   });
 
-  try {
-    await applySession(await sb.getSession());
-  } catch (err) {
-    console.warn('Could not restore session:', err);
-    await applySession(null);
+  // A saved session whose token is being refreshed (or a flaky mobile connection) can come back empty
+  // for a moment: retry before showing the login screen. Visitors without a saved session don't wait.
+  const hasSavedSession = Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+  const attempts = hasSavedSession ? 3 : 1;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const session = await sb.getSession();
+      if (session || i === attempts - 1) { await applySession(session); break; }
+    } catch (err) {
+      if (i === attempts - 1) {
+        console.warn('Could not restore session:', err);
+        await applySession(null);
+        break;
+      }
+    }
+    await new Promise(r => setTimeout(r, 600 * (i + 1)));
   }
   // A recovery link opens the app with a session plus a recovery marker in the URL
   if (/type=recovery/.test(window.location.hash)) auth.mode = 'recovery';

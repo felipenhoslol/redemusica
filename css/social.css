@@ -688,3 +688,37 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .poll-row-add:not(:disabled):hover .poll-add-icon { color: var(--accent); }
 .poll-row-add:disabled .poll-add-icon { color: var(--accent); }
 .poll-add-icon svg { width: 17px; height: 17px; }
+
+/* ─── Seletor de trecho da letra (js/lyricPicker.js) ─── */
+.lyric-picker { width: min(520px, 100%); }
+.lyric-results { max-height: 50vh; }
+.lyric-manual { align-self: flex-start; }
+.lyric-song { display: flex; align-items: center; gap: 10px; }
+.lyric-song .search-see-all { flex-shrink: 0; }
+.lyric-counter { margin: 0; font-size: .85rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.lyric-counter.over { color: var(--danger); }
+.lyric-lines { display: flex; flex-direction: column; gap: 2px; max-height: 52vh; overflow-y: auto; padding: 2px; margin: 0 -4px; }
+.lyric-line {
+  display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: 10px;
+  background: none; color: var(--text); text-align: left; cursor: pointer;
+  font: 500 1rem/1.4 var(--f-ui); box-shadow: inset 3px 0 0 transparent;
+  transition: background .12s, box-shadow .12s;
+}
+.lyric-line:hover { background: var(--hover); }
+.lyric-line.selected { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); font-weight: 700; }
+.lyric-gap { display: block; height: 10px; }
+.lyric-credit { margin: 0; font-size: .78rem; color: var(--text-2); }
+.lyric-credit a { color: var(--text-2); text-decoration: underline; }
+.lyric-empty { padding: 24px 8px; }
+.lyric-empty .doodle-btn { margin-top: 14px; }
+.creator-lyrics-song {
+  display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 12px;
+}
+@media (max-width: 700px) { .lyric-lines { max-height: 46vh; } }
+
+/* Caixa do trecho no campo de postar: cabe 4 linhas e os botões não quebram */
+.creator-lyrics-header { flex-wrap: wrap; gap: 8px; }
+.creator-lyrics-header .btn-attach { white-space: nowrap; }
+.creator-lyrics-textarea { min-height: calc(4 * 1.45em + 20px); line-height: 1.45; }
+.creator-lyrics-song .doodle-btn { white-space: nowrap; }
