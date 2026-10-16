@@ -65,7 +65,22 @@ function freeServerCaches() {
   });
 }
 
+// Parsed values of the hot read paths (users, posts, follows...), so rendering 150 post cards
+// doesn't re-parse the whole cache several times per card. Any write to a key drops its entry.
+const parsedCache = new Map();
+function cachedJson(key, fallback) {
+  if (!parsedCache.has(key)) {
+    let value = null;
+    try { value = JSON.parse(lsGet(key)); } catch { /* corrupt or missing */ }
+    parsedCache.set(key, value);
+  }
+  return parsedCache.get(key) ?? fallback;
+}
+// Another tab changed something: forget what we parsed
+window.addEventListener('storage', (e) => { if (e.key) parsedCache.delete(e.key); else parsedCache.clear(); });
+
 function lsSet(key, value) {
+  parsedCache.delete(key);
   if (SERVER_CACHES.has(key) && value.length > MAX_PERSISTED_CACHE) {
     memStore.set(key, value);
     try { localStorage.removeItem(key); } catch { /* ignore */ }
@@ -284,8 +299,7 @@ export function replaceFollows(map) {
 // ──────────────────────────────────────────
 
 export function getAllUsers() {
-  try { return JSON.parse(lsGet(STORAGE_KEYS.USERS)) || []; }
-  catch { return INITIAL_USERS; }
+  return cachedJson(STORAGE_KEYS.USERS, null) || [];
 }
 
 export function getActiveUserId() {
@@ -397,7 +411,7 @@ export function removeFromShowcase(trackId) {
 // ──────────────────────────────────────────
 
 function getAllFollows() {
-  try { return JSON.parse(lsGet(STORAGE_KEYS.FOLLOWS)) || {}; }
+  try { return cachedJson(STORAGE_KEYS.FOLLOWS, null) || {}; }
   catch { return {}; }
 }
 
@@ -448,7 +462,7 @@ export function toggleFollow(targetUserId) {
 // ──────────────────────────────────────────
 
 function getAllBlocked() {
-  try { return JSON.parse(lsGet(STORAGE_KEYS.BLOCKED)) || {}; }
+  try { return cachedJson(STORAGE_KEYS.BLOCKED, null) || {}; }
   catch { return {}; }
 }
 
@@ -476,7 +490,7 @@ export function toggleBlock(userId) {
 // ──────────────────────────────────────────
 
 function getAllBookmarks() {
-  try { return JSON.parse(lsGet(STORAGE_KEYS.BOOKMARKS)) || {}; }
+  try { return cachedJson(STORAGE_KEYS.BOOKMARKS, null) || {}; }
   catch { return {}; }
 }
 
@@ -512,7 +526,7 @@ export function getUserBookmarkedPosts() {
 // ──────────────────────────────────────────
 
 export function getAllNotifications() {
-  try { return JSON.parse(lsGet(STORAGE_KEYS.NOTIFICATIONS)) || []; }
+  try { return cachedJson(STORAGE_KEYS.NOTIFICATIONS, null) || []; }
   catch { return []; }
 }
 
@@ -574,7 +588,7 @@ export function addNotification(targetUserId, data) {
 
 export function getFeedPosts(filterBy = 'all') {
   try {
-    const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
+    const posts = cachedJson(STORAGE_KEYS.POSTS, null) || [];
     const activeId = getActiveUserId();
     const blocked = getAllBlocked()[activeId] || [];
     const filtered = posts.filter(p => !blocked.includes(p.authorId));
@@ -606,7 +620,7 @@ export function getFeedPosts(filterBy = 'all') {
 }
 
 export function getPostById(postId) {
-  const posts = JSON.parse(lsGet(STORAGE_KEYS.POSTS)) || [];
+  const posts = cachedJson(STORAGE_KEYS.POSTS, null) || [];
   return posts.find(p => p.id === postId) || null;
 }
 

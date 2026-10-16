@@ -731,7 +731,7 @@ window._openChatGifPicker = () => {
     }
     return gifs.map(g => `
       <div class="gif-picker-item" onclick="window._setChatGif(${jsArg(g.url)})" title="Clique para enviar no chat">
-        <img src="${safeUrl(g.url)}" alt="" loading="lazy">
+        <img src="${safeUrl(g.url)}" alt="" loading="lazy" decoding="async">
       </div>
     `).join('');
   };

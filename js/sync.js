@@ -5,7 +5,7 @@ import * as Storage from './storage.js';
 
 const POLL_MS = 45000;
 const PROFILE_FIELDS = 'id, name, handle, avatar_url';
-const FULL_PROFILE_FIELDS = `${PROFILE_FIELDS}, banner_url, bio, status, extras`;
+const FULL_PROFILE_FIELDS = `${PROFILE_FIELDS}, banner_url, bio, status, extras, updated_at`;
 
 const pending = new Set();  // post ids created here that the server hasn't confirmed yet
 // Follows/likes/reposts clicked here and still on their way up: a pull that started before
@@ -339,24 +339,105 @@ async function uploadLegacyPosts(db, serverIds) {
   localStorage.setItem(key, '1');
 }
 
+// Profiles come in full once, then only the ones changed since (updated_at); a full re-read every
+// ~10 pulls catches anything missed. Each profile's last version is remembered to tell real changes.
+const FULL_PROFILES_EVERY = 10;
+let profilePulls = 0;
+let profilesSince = null;
+const profileVersions = new Map(); // id → hash of the shared fields
+let profilesVersion = 0;
+let legacyProfileChecked = false;
+
+function trackProfiles(rows) {
+  let changed = false;
+  rows.forEach(p => {
+    const hash = JSON.stringify([p.name, p.handle, p.avatar_url, p.banner_url, p.bio, p.status, p.extras]);
+    if (profileVersions.get(p.id) !== hash) { profileVersions.set(p.id, hash); changed = true; }
+    if (p.updated_at && (!profilesSince || p.updated_at > profilesSince)) profilesSince = p.updated_at;
+  });
+  if (changed) profilesVersion++;
+  return changed;
+}
+
+// Posts, comments and messages saved before images went to Storage still carry base64 pictures
+// (hundreds of KB each, re-downloaded by everyone on every pull). Each author moves their own to
+// Storage in the background, a few per session, and the rows get a short link instead.
+let legacyImagesStarted = false;
+const LEGACY_IMAGES_PER_SESSION = 25;
+const isInlineImage = (u) => typeof u === 'string' && u.startsWith('data:image/');
+
+async function migrateLegacyImages(db, rows) {
+  if (legacyImagesStarted) return;
+  legacyImagesStarted = true;
+  const jobs = [];
+  rows.forEach(r => {
+    if (r.author_id === me && isInlineImage(r.body?.imageUrl)) jobs.push({ kind: 'post', row: r });
+    (r.post_comments || []).forEach(c => { if (c.user_id === me && isInlineImage(c.body?.imageUrl)) jobs.push({ kind: 'comment', row: c }); });
+  });
+  Storage.getLocalMessagesFrom(me).forEach(m => { if (isInlineImage(m.imageUrl) && !pendingMessages.has(m.id)) jobs.push({ kind: 'message', row: m }); });
+
+  for (const job of jobs.slice(0, LEGACY_IMAGES_PER_SESSION)) {
+    try {
+      if (job.kind === 'message') {
+        const m = job.row;
+        const imageUrl = await uploadPhoto(m.imageUrl, 'chat');
+        await must(db.from('messages').update({ body: messageBody({ ...m, imageUrl }) }).eq('id', m.id));
+        Storage.patchMessageCache(m.id, { imageUrl });
+      } else {
+        const { row } = job;
+        const imageUrl = await uploadPhoto(row.body.imageUrl, job.kind);
+        const table = job.kind === 'post' ? 'posts' : 'post_comments';
+        await must(db.from(table).update({ body: { ...row.body, imageUrl } }).eq('id', row.id));
+        if (job.kind === 'post') Storage.patchPostCache(row.id, { imageUrl });
+      }
+    } catch (err) {
+      // No permission yet (comments need supabase/009_performance.sql) or offline: try next session
+      if (err?.code === '42501' || /row-level/i.test(err?.message || '')) continue;
+    }
+  }
+}
+
 export function pullNow() {
   if (!me || disabled) return Promise.resolve();
   if (pulling) return pulling;
   pulling = (async () => {
     const db = getSupabase();
-    await uploadLegacyProfile(db);
+    if (!legacyProfileChecked) { legacyProfileChecked = true; await uploadLegacyProfile(db); }
+    const fullProfiles = !profilesSince || profilePulls % FULL_PROFILES_EVERY === 0;
+    profilePulls++;
     const [rows, follows, profiles, presence] = await Promise.all([
       fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
-      fetchProfiles(db, q => q.eq('banned', false).limit(1000)),
+      fetchProfiles(db, q => (fullProfiles ? q : q.gt('updated_at', profilesSince)).eq('banned', false).limit(1000)),
       fetchPresence(db).catch(() => [])
     ]);
 
     await uploadLegacyPosts(db, new Set(rows.map(r => r.id)));
     rows.forEach(r => pending.delete(r.id));
+    migrateLegacyImages(db, rows).catch(() => {}); // background
+    const profilesChanged = trackProfiles(profiles);
 
-    Storage.mergeRemoteProfiles(profiles, { skipId: profileDirty ? me : null });
-    Storage.setPresence(Object.fromEntries(presence.filter(p => p.id !== me).map(p => [p.id, p.last_seen_at])));
+    const posts = rows.map(fromRow);
+    const overlay = (list, on) => { const rest = list.filter(id => id !== me); return on ? [...rest, me] : rest; };
+    posts.forEach(p => {
+      if (pendingLikes.has(p.id)) p.likes = overlay(p.likes, pendingLikes.get(p.id));
+      if (pendingReposts.has(p.id)) p.reposts = overlay(p.reposts, pendingReposts.get(p.id));
+    });
+    const others = presence.filter(p => p.id !== me);
+
+    // Same data as last time (the usual case): nothing to write, nothing to redraw
+    const signature = JSON.stringify([
+      posts.map(p => [p.id, p.likes, p.reposts, p.updatedAt || '', p.votes,
+        p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length]),
+      follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(','),
+      others.map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
+      profilesVersion, [...pending]
+    ]);
+    if (signature === lastSignature) { pullFailures = 0; return; }
+    lastSignature = signature;
+
+    if (profilesChanged) Storage.mergeRemoteProfiles(profiles, { skipId: profileDirty ? me : null });
+    Storage.setPresence(Object.fromEntries(others.map(p => [p.id, p.last_seen_at])));
     const graph = {};
     follows.forEach(f => { (graph[f.follower_id] ||= []).push(f.following_id); });
     pendingFollows.forEach((on, target) => {
@@ -364,26 +445,9 @@ export function pullNow() {
       graph[me] = on ? [...list, target] : list;
     });
     Storage.replaceFollows(graph);
-    const posts = rows.map(fromRow);
-    const overlay = (list, on) => { const rest = list.filter(id => id !== me); return on ? [...rest, me] : rest; };
-    posts.forEach(p => {
-      if (pendingLikes.has(p.id)) p.likes = overlay(p.likes, pendingLikes.get(p.id));
-      if (pendingReposts.has(p.id)) p.reposts = overlay(p.reposts, pendingReposts.get(p.id));
-    });
     Storage.replacePostsCache(posts, [...pending]);
     Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows), 'feed');
-
-    const signature = JSON.stringify([
-      posts.map(p => [p.id, p.likes.length, p.reposts.length, p.updatedAt || '', JSON.stringify(p.votes),
-        p.comments.map(c => `${c.id}:${c.likes.length}`).join(',')]),
-      follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(','),
-      presence.filter(p => p.id !== me).map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
-      profiles.map(p => [p.id, p.name, p.avatar_url, p.banner_url, p.bio, p.status, JSON.stringify(p.extras || {}).length])
-    ]);
-    if (signature !== lastSignature) {
-      lastSignature = signature;
-      handlers.onUpdate?.();
-    }
+    handlers.onUpdate?.();
     pullFailures = 0;
   })().catch(err => {
     if (isMissingTable(err)) {
@@ -713,12 +777,17 @@ export function startSync(userId, opts = {}) {
   messagesOn = true;
   lastSignature = '';
   lastMessagesSignature = '';
+  profilesSince = null;
+  profilePulls = 0;
+  profileVersions.clear();
+  legacyProfileChecked = false;
+  legacyImagesStarted = false;
   newestMessageAt = null;
   messagePolls = 1; // the first pull is full anyway (nothing cached yet)
   pullFailures = 0;
   warnedPullFailure = false;
   Storage.setRemoteHooks(hooks);
-  timer = setInterval(pullNow, POLL_MS);
+  timer = setInterval(() => { if (document.visibilityState === 'visible') pullNow(); }, POLL_MS);
   presenceTimer = setInterval(heartbeat, PRESENCE_MS);
   heartbeat();
   messagesTimer = setInterval(pollMessages, MESSAGES_POLL_MS);

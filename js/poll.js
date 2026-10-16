@@ -38,7 +38,7 @@ export function pollHtml(post) {
           <button type="button" class="poll-vote" onclick="window._votePoll(${jsArg(post.id)}, ${i})"
             aria-pressed="${isMine}" aria-label="${isMine ? 'Tirar meu voto de' : 'Votar em'} ${esc(t.title)}, ${esc(t.artist)}${showResults ? `: ${pct}%` : ''}">
             ${showResults ? `<span class="poll-bar" style="width:${pct}%"></span>` : ''}
-            ${t.artwork ? `<img class="poll-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy">` : '<span class="poll-cover"></span>'}
+            ${t.artwork ? `<img class="poll-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async">` : '<span class="poll-cover"></span>'}
             <span class="poll-text"><span class="poll-title">${esc(t.title)}</span><span class="poll-artist">${esc(t.artist)}</span></span>
             ${isMine ? `<span class="poll-check" aria-hidden="true">${ICONS.check}</span>` : ''}
             ${showResults ? `<span class="poll-pct">${pct}%</span>` : ''}

@@ -405,7 +405,7 @@ async function loadPlaylistRecs(pl, isOwner) {
     <div class="playlist-track-row playlist-rec-row" onclick="window._playTrack(${jsArg(t)})">
       <div class="playlist-track-index"><button class="track-play-icon" style="opacity:1" title="Tocar prévia">${ICONS.play}</button></div>
       <div class="playlist-track-cover">
-        ${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy">` : `<div class="track-cover-fallback">${ICONS.music}</div>`}
+        ${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async">` : `<div class="track-cover-fallback">${ICONS.music}</div>`}
       </div>
       <div class="playlist-track-info">
         <div class="playlist-track-title">${esc(t.title)}</div>
@@ -445,7 +445,7 @@ function renderTrackRow(playlist, song, index, isOwner) {
       </div>
 
       <div class="playlist-track-cover">
-        ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy">` : `<div class="track-cover-fallback">${ICONS.music}</div>`}
+        ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy" decoding="async">` : `<div class="track-cover-fallback">${ICONS.music}</div>`}
       </div>
 
       <div class="playlist-track-info">

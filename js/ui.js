@@ -152,7 +152,7 @@ function modalTrackRow(t, { number } = {}) {
   return `
     <div class="search-result-item" role="button" tabindex="0" data-pick="${key}">
       ${number != null ? `<span class="msearch-no">${number}</span>` : ''}
-      ${t.artwork ? `<img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="search-result-cover"></span>'}
+      ${t.artwork ? `<img class="search-result-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">` : '<span class="search-result-cover"></span>'}
       <div class="msearch-text">
         <div class="search-result-title">${esc(t.title)}</div>
         <div class="search-result-artist">
@@ -261,7 +261,7 @@ function hydrateModalArtistPhotos(scope) {
   scope.querySelectorAll('[data-m-photo]').forEach(async el => {
     try {
       const url = await getArtistImage(el.dataset.mPhoto);
-      if (url && el.isConnected) el.innerHTML = `<img src="${safeUrl(url)}" alt="" loading="lazy">`;
+      if (url && el.isConnected) el.innerHTML = `<img src="${safeUrl(url)}" alt="" loading="lazy" decoding="async">`;
     } catch { /* keep the initial */ }
   });
 }
@@ -286,7 +286,7 @@ async function openModalView(view) {
           <div class="msearch-albums">
             ${albums.map(al => `
               <button type="button" class="msearch-album" data-m-album="${esc(al.id)}">
-                ${al.artwork ? `<img src="${safeUrl(al.artwork)}" alt="" loading="lazy">` : '<span></span>'}
+                ${al.artwork ? `<img src="${safeUrl(al.artwork)}" alt="" loading="lazy" decoding="async">` : '<span></span>'}
                 <span class="msearch-album-title">${esc(al.title)}</span>
                 <span class="msearch-album-sub">${esc(al.year || '')}</span>
               </button>`).join('')}
@@ -395,7 +395,7 @@ export function renderMusicAskGrid(container, challengeId, userId) {
     return `
       <div class="q-card${hasAns ? ' answered' : ''}" onclick="${isMe ? `window._openQuestion('${cid}',${q.id})` : ''}">
         <div class="q-card-cover">
-          ${hasAns && ans.artwork ? `<img src="${safeUrl(ans.artwork)}" alt="${esc(ans.title)}" loading="lazy">` : `<span style="color:var(--dimmed);display:flex;align-items:center;justify-content:center;">${ICONS.music}</span>`}
+          ${hasAns && ans.artwork ? `<img src="${safeUrl(ans.artwork)}" alt="${esc(ans.title)}" loading="lazy" decoding="async">` : `<span style="color:var(--dimmed);display:flex;align-items:center;justify-content:center;">${ICONS.music}</span>`}
         </div>
         ${hasAns ? `<div class="q-card-answered-badge">${ICONS.check}</div>` : ''}
         <div class="q-card-info">

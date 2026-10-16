@@ -466,6 +466,7 @@ function renderFeedTab() {
     }
     const feedPostsEl = document.getElementById('feed-posts');
     if (feedPostsEl) {
+      feedPostsEl.dataset.shown = ''; // another list: start from the first page
       renderFeed(feedPostsEl, feedFilterMode);
       if (direction) animatePanel(feedPostsEl, direction);
     }
