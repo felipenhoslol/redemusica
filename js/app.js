@@ -97,6 +97,7 @@ function startApp() {
   if (auth.mode === 'signed-in') {
     startSync(auth.user.id, {
       onUpdate: refreshFromServer,
+      onTyping: (from) => { import('./chat.js').then(c => c.showTyping(from)); },
       onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); renderNotifBadge(); showNotificationPopups(); },
       onError: (msg) => showDoodleToast(msg)
     }).then(() => publishChallengeAnswers()); // answers saved before this version become visible to others

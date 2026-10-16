@@ -4,7 +4,7 @@ import * as Storage from './storage.js';
 import { ICONS } from './icons.js';
 import { globalAudio } from './audio.js';
 import { fetchLinkMetadata, renderRichLinkCard, extractFirstUrl } from './api.js';
-import { compressImage } from './sync.js';
+import { compressImage, openChatChannel, closeChatChannel, sendTyping, markConversationRead } from './sync.js';
 import { adminBadge } from './badges.js';
 
 let activeContactId = null;
@@ -309,6 +309,8 @@ function renderChatTabMain(contactId) {
   const msgs = Storage.getChatMessages(activeUser.id, contactId);
   Storage.markChatRead(contactId);
   window._renderChatBadge?.();
+  openChatChannel(contactId);
+  markConversationRead(contactId);
 
   const cAvatarHtml = isImageAvatar(contact.avatar)
     ? `<img src="${safeUrl(contact.avatar)}" alt="${esc(contact.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
@@ -339,6 +341,8 @@ function renderChatTabMain(contactId) {
       ${renderMessagesListHtml(msgs, activeUser.id)}
     </div>
 
+    <div class="chat-typing" id="chat-typing" hidden aria-live="polite"><span class="chat-typing-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>${esc(contact.name)} está digitando…</span></div>
+
     <!-- Attached Media Preview Bar -->
     <div class="chat-tab-attached-preview" id="chat-tab-attached-preview" style="display:none;"></div>
 
@@ -361,7 +365,7 @@ function renderChatTabMain(contactId) {
         </button>
       </div>
       <div class="chat-composer-row">
-        <input class="doodle-input" id="chat-tab-text-input" placeholder="Digite uma mensagem para ${esc(contact.name)}..." style="flex:1;font-size:0.9rem;padding:9px 14px;border-radius:24px;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._sendChatTabMessage();}">
+        <input class="doodle-input" id="chat-tab-text-input" placeholder="Digite uma mensagem para ${esc(contact.name)}..." style="flex:1;font-size:0.9rem;padding:9px 14px;border-radius:24px;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._sendChatTabMessage();}" oninput="window._chatTyping()">
         <button class="doodle-btn doodle-btn-primary" id="chat-tab-send-btn" style="padding:9px 20px;border-radius:24px;display:flex;align-items:center;gap:6px;" onclick="window._sendChatTabMessage()">
           <span>Enviar</span>
           ${ICONS.send || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>'}
@@ -378,6 +382,10 @@ function renderChatTabMain(contactId) {
 }
 
 function renderMessagesListHtml(msgs, activeUserId) {
+  // "Enviada" / "Visto" goes under your latest message only (like most chat apps)
+  let lastSentId = null;
+  for (let i = msgs.length - 1; i >= 0; i--) { if (msgs[i].fromUserId === activeUserId) { lastSentId = msgs[i].id; break; } }
+  const lastIsTheirs = msgs.length && msgs[msgs.length - 1].fromUserId !== activeUserId;
   if (!msgs.length) {
     return `
       <div style="text-align:center;padding:40px 10px;color:var(--muted);font-size:0.88rem;">
@@ -448,7 +456,8 @@ function renderMessagesListHtml(msgs, activeUserId) {
           <span>${esc(m.createdAt || '')}</span>
           ${m.edited ? '<span class="chat-edited-tag">(editada)</span>' : ''}
         </div>
-      </div>`;
+      </div>
+      ${m.id === lastSentId && !lastIsTheirs ? `<div class="chat-seen${m.readAt ? ' seen' : ''}">${m.readAt ? `${ICONS.check} Visto` : (m.synced ? 'Enviada' : 'Enviando…')}</div>` : ''}`;
   }).join('');
 }
 
@@ -562,6 +571,26 @@ export function renderMessages(contactId) {
  * New messages arrived from the server: refresh the lists and the open conversation
  * without touching what is being typed.
  */
+let typingTimer = null;
+function hideTyping() {
+  clearTimeout(typingTimer);
+  const el = document.getElementById('chat-typing');
+  if (el) el.hidden = true;
+}
+
+/** The other person is typing in the open conversation (shown for a few seconds after each ping). */
+export function showTyping(contactId) {
+  if (contactId !== activeContactId) return;
+  const el = document.getElementById('chat-typing');
+  if (!el) return;
+  const area = document.getElementById('chat-tab-messages');
+  const nearBottom = area && area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+  el.hidden = false;
+  if (nearBottom) area.scrollTop = area.scrollHeight;
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(hideTyping, 4000);
+}
+
 export function refreshChatFromServer() {
   const me = Storage.getActiveUserId();
   renderChatTabContacts();
@@ -576,7 +605,10 @@ export function refreshChatFromServer() {
     area.innerHTML = renderMessagesListHtml(msgs, me);
     if (nearBottom) area.scrollTop = area.scrollHeight;
     Storage.markChatRead(activeContactId);
+    markConversationRead(activeContactId);
   });
+  // A message arrived: they stopped typing
+  if (msgs.length && msgs[msgs.length - 1].fromUserId === activeContactId) hideTyping();
 }
 
 // ──────────────────────────────────────────
@@ -615,6 +647,9 @@ export function sendDMMessage(isLargeView = false) {
   renderChatTabMain(activeContactId);
   renderContacts();
   renderChatTabContacts();
+  // Ready for the next message: the field stays selected (the phone keyboard stays up)
+  const next = isLargeView ? document.getElementById('chat-tab-text-input') : (document.getElementById('dm-text-input') || document.getElementById('chat-tab-text-input'));
+  next?.focus({ preventScroll: true });
 }
 
 function renderReplyBanners() {
@@ -837,6 +872,7 @@ export function initChatBindings() {
 
   window._closeChatConversation = () => {
     activeContactId = null;
+    closeChatChannel();
     document.querySelector('.chat-tab-container')?.classList.remove('has-conversation');
     renderChatTabContacts();
     renderChatTabMain(null);
@@ -938,8 +974,11 @@ export function initChatBindings() {
     import('./ui.js').then(u => u.showToast('Mensagem excluída!'));
   };
 
+  window._chatTyping = () => sendTyping();
+
   const input = document.getElementById('dm-text-input');
   if (input) {
+    input.addEventListener('input', () => sendTyping());
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();

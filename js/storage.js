@@ -1118,6 +1118,39 @@ export function addMessagesToCache(userId, messages) {
   return current.filter(m => m.fromUserId === userId || m.toUserId === userId);
 }
 
+/** Apply read marks ({ messageId: iso }) to your sent messages; true if anything changed. */
+export function applyMessageReads(map) {
+  const all = readJson(STORAGE_KEYS.MESSAGES, []);
+  let changed = false;
+  all.forEach(m => { if (map[m.id] && !m.readAt) { m.readAt = map[m.id]; changed = true; } });
+  if (changed) lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+  return changed;
+}
+
+/** The other side opened the conversation: everything you sent them counts as seen. */
+export function markSentRead(contactId) {
+  const me = getActiveUserId();
+  const all = readJson(STORAGE_KEYS.MESSAGES, []);
+  const now = new Date().toISOString();
+  let changed = false;
+  all.forEach(m => { if (m.fromUserId === me && m.toUserId === contactId && !m.readAt) { m.readAt = now; changed = true; } });
+  if (changed) lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+}
+
+/** You opened the conversation: what they sent you is read (locally; the server is told by sync.js). */
+export function markReceivedRead(contactId) {
+  const me = getActiveUserId();
+  const all = readJson(STORAGE_KEYS.MESSAGES, []);
+  const now = new Date().toISOString();
+  let changed = false;
+  all.forEach(m => { if (m.toUserId === me && m.fromUserId === contactId && !m.readAt) { m.readAt = now; changed = true; } });
+  if (changed) lsSet(STORAGE_KEYS.MESSAGES, JSON.stringify(all));
+}
+
+export function hasUnreadFrom(userId, contactId) {
+  return readJson(STORAGE_KEYS.MESSAGES, []).some(m => m.toUserId === userId && m.fromUserId === contactId && m.synced && !m.readAt);
+}
+
 /** Messages this account wrote while the chat was still local-only. */
 export function getLocalMessagesFrom(userId) {
   return readJson(STORAGE_KEYS.MESSAGES, []).filter(m => m.fromUserId === userId);

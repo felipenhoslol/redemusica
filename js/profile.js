@@ -259,6 +259,7 @@ async function loadListening(section, username) {
         <div class="profile-listening-text">
           <strong>${esc(t.title)}</strong>
           <span>${esc(t.artist)}</span>
+          ${now ? `<span class="np-wave" aria-hidden="true">${'<i></i>'.repeat(28)}</span>` : ''}
         </div>
         <span class="profile-listening-when">${now ? '<span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span> agora' : esc(t.playedAt ? relativeTime(t.playedAt) : '')}</span>
       </div>`;
