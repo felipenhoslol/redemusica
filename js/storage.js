@@ -763,6 +763,7 @@ export function addCommentToPost(postId, commentData) {
     imageUrl = commentData.imageUrl || '';
     gifUrl = commentData.gifUrl || '';
   }
+  const parentId = (commentData && typeof commentData === 'object' && commentData.parentId) || null;
 
   if (!text && !song && !imageUrl && !gifUrl) return null;
 
@@ -780,6 +781,7 @@ export function addCommentToPost(postId, commentData) {
       song: song,
       imageUrl: imageUrl,
       gifUrl: gifUrl,
+      ...(parentId && post.comments.some(c => c.id === parentId) ? { parentId } : {}),
       createdAt: 'agora'
     };
     post.comments.push(newComment);

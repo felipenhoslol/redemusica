@@ -1042,7 +1042,7 @@ function openNotificationTarget(el) {
   } else if (el.dataset.notifProfile) window._goToProfile?.(el.dataset.notifProfile);
 }
 
-const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', message: 'send', mention: 'edit' };
+const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', reply: 'chat', message: 'send', mention: 'edit' };
 
 function emailReminderHtml() {
   if (!needsEmailConfirmation()) return '';

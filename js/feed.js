@@ -212,18 +212,45 @@ export function renderCommentRow(c, postId, isMaximized = false) {
           const detectedCommentUrl = extractFirstUrl(c.text);
           return c.link ? renderRichLinkCard(c.link) : (detectedCommentUrl ? renderRichLinkCard(detectedCommentUrl) : '');
         })()}
-        ${likeBtnHtml}
+        <div class="comment-actions">
+          ${likeBtnHtml}
+          ${c.id && postId ? `<button type="button" class="comment-reply-btn" onclick="event.stopPropagation();window._replyToComment('${postId}', '${c.id}', this)">Responder</button>` : ''}
+        </div>
       </div>
     </div>`;
 }
 
+const NO_COMMENTS_HTML = '<div class="no-comments-msg" style="font-size:0.8rem;color:var(--muted);text-align:center;padding:12px 0;">Seja o primeiro a comentar!</div>';
+
+/** Comments with their replies indented under them (one level; a reply whose comment was deleted shows on its own). */
+export function renderCommentThreadHtml(comments, postId) {
+  const list = comments || [];
+  const byId = new Map(list.map(c => [c.id, c]));
+  const rootOf = (c) => {
+    let cur = c;
+    for (let i = 0; i < 5 && cur.parentId && byId.has(cur.parentId); i++) cur = byId.get(cur.parentId);
+    return cur;
+  };
+  const replies = new Map();
+  const roots = [];
+  list.forEach(c => {
+    const root = rootOf(c);
+    if (root === c) roots.push(c);
+    else replies.set(root.id, [...(replies.get(root.id) || []), c]);
+  });
+  return roots.map(c => {
+    const kids = replies.get(c.id) || [];
+    return renderCommentRow(c, postId) + (kids.length
+      ? `<div class="comment-replies">${kids.map(r => renderCommentRow(r, postId)).join('')}</div>` : '');
+  }).join('') || NO_COMMENTS_HTML;
+}
+
 export function renderCommentsSectionHtml(post) {
-  const commentsHtml = (post.comments || []).map(c => renderCommentRow(c, post.id)).join('');
 
   return `
     <div class="post-comments-container">
       <div id="comments-list-${post.id}" class="comments-list">
-        ${commentsHtml || '<div class="no-comments-msg" style="font-size:0.8rem;color:var(--muted);text-align:center;padding:12px 0;">Seja o primeiro a comentar!</div>'}
+        ${renderCommentThreadHtml(post.comments, post.id)}
       </div>
 
       <!-- Pending Attachment Preview (large & clear) -->
@@ -231,8 +258,9 @@ export function renderCommentsSectionHtml(post) {
 
       <!-- Input and Tool Bar -->
       <div class="comment-composer-box" style="margin-top:8px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;">
+        <div class="comment-reply-banner" hidden></div>
         <div style="display:flex;align-items:center;gap:8px;width:100%;">
-          <input class="doodle-input" id="comment-input-${post.id}" placeholder="Escreva um comentário..." style="font-size:0.84rem;padding:6px 10px;flex:1;background:transparent;border:none;box-shadow:none;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._submitRichComment('${post.id}', this)}">
+          <input class="doodle-input" id="comment-input-${post.id}" placeholder="Escreva um comentário..." style="font-size:0.84rem;padding:6px 10px;flex:1;background:transparent;border:none;box-shadow:none;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._submitRichComment('${post.id}', this)}else if(event.key==='Escape'){window._cancelCommentReply('${post.id}', this)}">
           <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="padding:6px 16px;" onclick="window._submitRichComment('${post.id}', this)">Enviar</button>
         </div>
         
@@ -1102,8 +1130,7 @@ export function refreshCommentsDisplay(postId) {
   cards.forEach(card => {
     const listEl = card.querySelector('.comments-list');
     if (listEl) {
-      listEl.innerHTML = (updatedPost.comments || []).map(c => renderCommentRow(c, postId)).join('') ||
-        '<div class="no-comments-msg" style="font-size:0.8rem;color:var(--muted);text-align:center;padding:12px 0;">Seja o primeiro a comentar!</div>';
+      listEl.innerHTML = renderCommentThreadHtml(updatedPost.comments, postId);
     }
     const countEl = card.querySelector('.btn-post-action .comment-count');
     if (countEl) countEl.textContent = updatedCount;
@@ -1133,12 +1160,61 @@ window._toggleComments = (postId, btn, event) => {
   }
 };
 
-window._submitRichComment = (postId, btn) => {
-  let postCard = btn ? btn.closest('.post-card') : null;
-  if (!postCard) {
-    const cards = Array.from(document.querySelectorAll(`.post-card[data-post-id="${postId}"]`));
-    postCard = cards.find(c => c.offsetParent !== null) || cards[0];
+function visiblePostCard(postId, el) {
+  const card = el ? el.closest('.post-card') : null;
+  if (card) return card;
+  const cards = Array.from(document.querySelectorAll(`.post-card[data-post-id="${postId}"]`));
+  return cards.find(c => c.offsetParent !== null) || cards[0] || null;
+}
+
+// Who the comment being written answers, per post: { parentId, name }
+const commentReplyTarget = {};
+
+function paintReplyBanner(postId, postCard) {
+  const target = commentReplyTarget[postId];
+  (postCard ? [postCard] : document.querySelectorAll(`.post-card[data-post-id="${postId}"]`)).forEach(card => {
+    const banner = card.querySelector('.comment-reply-banner');
+    if (!banner) return;
+    banner.hidden = !target;
+    banner.innerHTML = target ? `
+      <span>Respondendo a <strong>${esc(target.name)}</strong></span>
+      <button type="button" class="comment-reply-cancel" aria-label="Cancelar resposta" onclick="window._cancelCommentReply('${esc(postId)}', this)">✕</button>` : '';
+    const input = card.querySelector('input[id^="comment-input-"]');
+    if (input) input.placeholder = target ? `Responder ${target.name}...` : 'Escreva um comentário...';
+  });
+}
+
+window._replyToComment = (postId, commentId, btn) => {
+  const post = Storage.getPostById(postId);
+  const comment = post?.comments?.find(c => c.id === commentId);
+  if (!comment) return;
+  // Replies stay one level deep: answering a reply goes under the same comment, @mentioning who wrote it
+  const parent = (comment.parentId && post.comments.find(c => c.id === comment.parentId)) || comment;
+  commentReplyTarget[postId] = { parentId: parent.id, name: comment.userName || 'Alguém' };
+  const postCard = visiblePostCard(postId, btn);
+  const section = postCard?.querySelector('.post-comments-section');
+  if (section && window.getComputedStyle(section).display === 'none') window._toggleComments(postId, btn);
+  paintReplyBanner(postId, postCard);
+  const input = postCard?.querySelector('input[id^="comment-input-"]');
+  if (!input) return;
+  const handle = (Storage.getAllUsers().find(u => u.id === comment.userId)?.handle || '').replace(/^@/, '');
+  const me = Storage.getActiveUserId();
+  if (comment !== parent && handle && comment.userId !== me && !input.value.includes('@' + handle)) {
+    input.value = `@${handle} ${input.value.replace(/^\s+/, '')}`;
   }
+  attachMentionAutocomplete(input);
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+};
+
+window._cancelCommentReply = (postId, el) => {
+  if (!commentReplyTarget[postId]) return;
+  delete commentReplyTarget[postId];
+  paintReplyBanner(postId, visiblePostCard(postId, el));
+};
+
+window._submitRichComment = (postId, btn) => {
+  const postCard = visiblePostCard(postId, btn);
   const inputEl = postCard ? postCard.querySelector(`input[id^="comment-input-"]`) : document.getElementById(`comment-input-${postId}`);
   const text = inputEl?.value?.trim() || '';
   window._pendingCommentAttachments = window._pendingCommentAttachments || {};
@@ -1150,11 +1226,16 @@ window._submitRichComment = (postId, btn) => {
     text,
     song: attach.song || null,
     imageUrl: attach.imageUrl || '',
-    gifUrl: attach.gifUrl || ''
+    gifUrl: attach.gifUrl || '',
+    parentId: commentReplyTarget[postId]?.parentId || null
   });
 
   if (newComment) {
     if (inputEl) inputEl.value = '';
+    if (commentReplyTarget[postId]) {
+      delete commentReplyTarget[postId];
+      paintReplyBanner(postId);
+    }
 
     window._pendingCommentAttachments[postId] = {};
     updateCommentPendingBox(postId);

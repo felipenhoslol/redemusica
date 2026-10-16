@@ -143,6 +143,7 @@ function fromRow(row) {
       id: c.id, userId: c.user_id,
       userName: c.author?.name || 'Alguém', userAvatar: c.author?.avatar_url || initialOf(c.author?.name),
       text: c.body?.text || '', song: c.body?.song || null, imageUrl: c.body?.imageUrl || '', gifUrl: c.body?.gifUrl || '',
+      parentId: c.body?.parentId || null,
       likes: (c.comment_likes || []).map(l => l.user_id),
       ...(c.body?.imageInline ? { imageLazy: true } : {}),
       createdAt: relativeTime(c.created_at), createdAtIso: c.created_at
@@ -361,13 +362,17 @@ function buildNotifications(rows, follows) {
     if (row.author_id !== me && Array.isArray(row.body?.mentions) && row.body.mentions.includes(me)) {
       add('mention', row.author_id, row.created_at, 'te marcou em um post', { key: row.id, postId: row.id, preview });
     }
+    const commentAuthor = new Map((row.post_comments || []).map(c => [c.id, c.user_id]));
+    const repliesToMe = (c) => !!c.body?.parentId && commentAuthor.get(c.body.parentId) === me;
     if (row.author_id === me) {
       (row.post_likes || []).forEach(l => add('like', l.user_id, l.created_at, 'curtiu seu post', { key: row.id, postId: row.id, preview }));
       (row.post_reposts || []).forEach(r => add('repost', r.user_id, r.created_at, 'repostou seu post', { key: row.id, postId: row.id, preview }));
-      (row.post_comments || []).forEach(c => add('comment', c.user_id, c.created_at, 'comentou no seu post',
+      (row.post_comments || []).forEach(c => repliesToMe(c) || add('comment', c.user_id, c.created_at, 'comentou no seu post',
         { key: c.id, postId: row.id, commentId: c.id, preview: snippet(c.body?.text) || preview }));
     }
     (row.post_comments || []).forEach(c => {
+      if (repliesToMe(c)) add('reply', c.user_id, c.created_at, 'respondeu seu comentário',
+        { key: c.id, postId: row.id, commentId: c.id, preview: snippet(c.body?.text) || preview });
       if (c.user_id !== me) return;
       (c.comment_likes || []).forEach(l => add('comment_like', l.user_id, l.created_at, 'curtiu seu comentário',
         { key: c.id, postId: row.id, commentId: c.id, preview: snippet(c.body?.text) }));
@@ -386,6 +391,11 @@ async function must(query) {
 
 function isMissingTable(err) {
   return err?.code === 'PGRST205' || err?.code === 'PGRST200' || err?.code === '42P01';
+}
+
+/** What a comment saves in post_comments.body (parentId: the comment it answers, if any). */
+function commentBody(c, imageUrl) {
+  return { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '', ...(c.parentId ? { parentId: c.parentId } : {}) };
 }
 
 // Posts written in this browser before the shared feed existed go up once
@@ -438,7 +448,7 @@ function flushPostOutbox(db, rows) {
     for (const { postId, comment: c } of outComments) {
       try {
         const imageUrl = await hostImage(c.imageUrl || '', 'comment');
-        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body: { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' } }));
+        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body: commentBody(c, imageUrl) }));
       } catch (err) {
         pendingComments.delete(c.id);
         if (!alreadyThere(err)) console.warn('Comentário não reenviado:', c.id, err?.code, err?.message);
@@ -628,7 +638,7 @@ const POST_FIELDS = `id, author_id, edited, created_at,
   images:body->images, mentions:body->mentions,
   plId:body->playlist->>id, plTitle:body->playlist->>title, plDescription:body->playlist->>description,
   plAuthorId:body->playlist->>authorId, plSongs:body->playlist->songs`;
-const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl`;
+const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl, parentId:body->>parentId`;
 const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll', 'images', 'mentions'];
 
 async function fetchPostRows(db, refine) {
@@ -719,7 +729,7 @@ async function fetchPosts(db, refine) {
     }
     const comments = (r.post_comments || []).map(c => ({
       ...c,
-      body: { text: c.text || '', song: c.song || null, gifUrl: c.gifUrl || '', imageUrl: commentPics.urls.get(c.id) || '', ...(commentPics.inline.has(c.id) ? { imageInline: true } : {}) }
+      body: { text: c.text || '', song: c.song || null, gifUrl: c.gifUrl || '', parentId: c.parentId || null, imageUrl: commentPics.urls.get(c.id) || '', ...(commentPics.inline.has(c.id) ? { imageInline: true } : {}) }
     }));
     return { id: r.id, author_id: r.author_id, edited: r.edited, created_at: r.created_at, body,
       post_likes: r.post_likes, post_reposts: r.post_reposts, post_comments: comments, post_votes: r.post_votes };
@@ -994,8 +1004,7 @@ const hooks = {
     write(async db => {
       try {
         const imageUrl = await hostImage(c.imageUrl || '', 'comment');
-        const body = { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' };
-        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body }));
+        await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body: commentBody(c, imageUrl) }));
       } catch (err) { if (!alreadyThere(err)) { pendingComments.delete(c.id); throw err; } }
       // stays pending until a pull sees it (the outbox resends it if it never arrives)
     }, 'Não foi possível enviar o comentário.');
