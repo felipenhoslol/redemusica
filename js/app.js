@@ -23,6 +23,7 @@ import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
+import { creditHtml } from './credit.js';
 import { renderAdminTab } from './admin.js';
 import { renderDailyLyric } from './dailyLyric.js';
 import { searchTracks } from './api.js';
@@ -294,6 +295,7 @@ function openMeSheet() {
         ${item('feedback', ICONS.feedback, 'Enviar feedback')}
         ${item('logout', ICONS.logout, 'Sair da conta')}
       </div>
+      ${creditHtml('me-sheet-credit')}
     </div>`;
   const close = () => { sheet.classList.remove('open'); document.removeEventListener('keydown', onKey); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
@@ -421,6 +423,7 @@ function renderFeedTab() {
           </div>
           <div id="lyric-widget-content"></div>
         </section>
+        ${creditHtml()}
       </div>
     </div>`;
 

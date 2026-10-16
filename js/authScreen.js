@@ -1,4 +1,5 @@
 // Login / sign-up / password recovery screen shown before the app boots.
+import { creditHtml } from './credit.js';
 import { catLogoHtml } from './logo.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import * as sb from './supabase.js';
@@ -54,6 +55,7 @@ function render(mode) {
         ${!configured && mode !== 'banned' ? localNoticeHtml() : ''}
         ${formHtml(mode, configured)}
       </section>
+      ${creditHtml('auth-credit')}
     </div>`;
 
   bindForm(mode);
