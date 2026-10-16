@@ -1,6 +1,6 @@
 // Session state: links the Supabase account to the local app user and exposes who is signed in.
 import * as sb from './supabase.js';
-import { ensureAccountUser } from './storage.js';
+import { ensureAccountUser, getUserById } from './storage.js';
 
 export const auth = {
   mode: 'signed-out',   // 'signed-in' | 'signed-out' | 'local' (Supabase not configured) | 'recovery' | 'banned'
@@ -28,7 +28,11 @@ async function applySession(session) {
     Object.assign(auth, { mode: 'signed-out', user: null, profile: null, isAdmin: false, emailVerified: true });
     return auth;
   }
-  const profile = await sb.getMyProfile(session.user.id);
+  // A slow or flaky connection must not turn a valid saved session into "logged out":
+  // without the profile row the app still works from the session's own data
+  let profile = null;
+  try { profile = await sb.getMyProfile(session.user.id); }
+  catch (err) { console.warn('Profile unavailable, continuing with the session:', err); }
   const isAdmin = await sb.checkIsAdmin();
   Object.assign(auth, { user: session.user, profile, isAdmin, emailVerified: await resolveEmailVerified(profile) });
 
@@ -37,10 +41,11 @@ async function applySession(session) {
     return auth;
   }
   auth.mode = 'signed-in';
+  const known = profile ? null : getUserById(session.user.id); // keep the cached name/@ if the row didn't load
   ensureAccountUser({
     id: session.user.id,
-    name: profile?.name || session.user.user_metadata?.name || session.user.email.split('@')[0],
-    handle: profile?.handle || ('@' + (session.user.user_metadata?.handle || 'voce'))
+    name: profile?.name || known?.name || session.user.user_metadata?.name || (session.user.email || 'você').split('@')[0],
+    handle: profile?.handle || known?.handle || ('@' + (session.user.user_metadata?.handle || 'voce'))
   });
   return auth;
 }

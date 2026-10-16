@@ -96,7 +96,7 @@ function startApp() {
   if (auth.mode === 'signed-in') {
     startSync(auth.user.id, {
       onUpdate: refreshFromServer,
-      onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); },
+      onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); renderNotifBadge(); },
       onError: (msg) => showDoodleToast(msg)
     });
   }

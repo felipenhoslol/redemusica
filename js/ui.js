@@ -1006,7 +1006,7 @@ window._submitNewChallenge = () => {
 // NOTIFICATIONS PANEL
 // ──────────────────────────────────────────
 
-const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat' };
+const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', message: 'send' };
 
 function emailReminderHtml() {
   if (!needsEmailConfirmation()) return '';
@@ -1031,10 +1031,16 @@ export function renderNotificationsPanel(container) {
   container.onclick = (e) => {
     const verify = e.target.closest('[data-send-verify]');
     if (verify) { sendVerify(verify); return; }
-    const item = e.target.closest('[data-notif-profile]');
+    const item = e.target.closest('[data-notif-profile], [data-notif-chat]');
     if (!item) return;
     if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
-    window._goToProfile?.(item.dataset.notifProfile);
+    if (item.dataset.notifChat) {
+      // Opens even if you don't follow them back: it's a conversation they started
+      window.switchTab?.('chat');
+      setTimeout(() => window._selectChatContact?.(item.dataset.notifChat), 60);
+    } else {
+      window._goToProfile?.(item.dataset.notifProfile);
+    }
   };
 
   if (!notifs.length) {
@@ -1051,7 +1057,7 @@ export function renderNotificationsPanel(container) {
     const icon = ICONS[NOTIF_ICONS[n.type]] || '';
     const profileId = fromUser ? n.fromUserId : '';
     return `
-      <div class="notif-item${!n.read ? ' unread' : ''}${profileId ? '' : ' no-link'}" ${profileId ? `role="button" tabindex="0" data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"` : ''}>
+      <div class="notif-item${!n.read ? ' unread' : ''}${profileId ? '' : ' no-link'}" ${profileId ? `role="button" tabindex="0" ${n.type === 'message' ? `data-notif-chat="${esc(profileId)}" title="Abrir conversa com ${esc(name)}"` : `data-notif-profile="${esc(profileId)}" title="Ver perfil de ${esc(name)}"`}` : ''}>
         <div class="notif-avatar" style="overflow:hidden;">${avatarHtml}</div>
         <div class="notif-body">
           <div class="notif-text">
@@ -1065,7 +1071,7 @@ export function renderNotificationsPanel(container) {
   }).join('');
 
   container.onkeydown = (e) => {
-    if (e.key === 'Enter' && e.target.matches('[data-notif-profile]')) e.target.click();
+    if (e.key === 'Enter' && e.target.matches('[data-notif-profile], [data-notif-chat]')) e.target.click();
   };
 }
 

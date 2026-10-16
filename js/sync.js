@@ -14,6 +14,8 @@ const pendingFollows = new Map(); // targetId → following?
 const pendingLikes = new Map();   // postId → liked?
 const pendingReposts = new Map(); // postId → reposted?
 let pullSoonTimer = null;
+let pullFailures = 0;
+let warnedPullFailure = false;
 let me = null;
 let handlers = {};
 let lastSignature = '';
@@ -186,28 +188,50 @@ function messageBody(m) {
   return { text: m.text || '', song: m.song || null, imageUrl: m.imageUrl || '', gifUrl: m.gifUrl || '', link: m.link || null, replyTo: reply };
 }
 
-// Messages written while the chat was local-only never reached anyone: send them once
+// Messages written while the chat was local-only never reached anyone: send them once, in the
+// background. The flag is only set when every message was accepted or refused for good (a network
+// failure leaves it for the next session), and they stay in the cache while they go up.
+let legacyUploading = false;
 async function uploadLegacyMessages(db, serverIds) {
   const key = `rmsn_messages_uploaded_${me}`;
-  if (localStorage.getItem(key)) return;
+  if (legacyUploading || localStorage.getItem(key)) return;
   const mine = Storage.getLocalMessagesFrom(me).filter(m => !serverIds.has(m.id) && isAccountId(m.toUserId) && /^msg_[A-Za-z0-9_]{4,60}$/.test(m.id));
-  for (const m of mine) {
-    try { await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody(m) })); }
-    catch { /* skip the ones the server refuses */ }
-  }
-  localStorage.setItem(key, '1');
+  if (!mine.length) { localStorage.setItem(key, '1'); return; }
+  legacyUploading = true;
+  mine.forEach(m => pendingMessages.add(m.id));
+  let retryLater = false;
+  try {
+    for (const m of mine) {
+      try {
+        const imageUrl = await hostImage(m.imageUrl, 'chat');
+        await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody({ ...m, imageUrl }) }));
+      } catch (err) {
+        // Constraint errors (too big, bad data, duplicate) won't get better: let it go.
+        // Anything else may: keep it in the cache and try again next session.
+        if (/^(23|42)/.test(err?.code || '')) pendingMessages.delete(m.id);
+        else retryLater = true;
+      }
+    }
+  } finally { legacyUploading = false; }
+  if (!retryLater) localStorage.setItem(key, '1');
 }
+
+const MESSAGE_FIELDS = 'id, from_id, to_id, body, edited, created_at';
+const FULL_MESSAGES_EVERY = 15; // polls (~2 min): a full re-read catches edits and deletions
+let messagePolls = 0;
+let newestMessageAt = null;
 
 export function pullMessages() {
   if (!me || disabled || !messagesOn) return Promise.resolve();
   if (messagesPulling) return messagesPulling;
   messagesPulling = (async () => {
     const db = getSupabase();
-    const { data, error } = await db.from('messages')
-      .select('id, from_id, to_id, body, edited, created_at')
-      .or(`from_id.eq.${me},to_id.eq.${me}`)
-      .order('created_at', { ascending: false })
-      .limit(800);
+    const full = !newestMessageAt || messagePolls % FULL_MESSAGES_EVERY === 0;
+    messagePolls++;
+    let q = db.from('messages').select(MESSAGE_FIELDS).or(`from_id.eq.${me},to_id.eq.${me}`);
+    // In between, only what arrived after the newest message we have
+    q = full ? q.order('created_at', { ascending: false }).limit(500) : q.gt('created_at', newestMessageAt).order('created_at', { ascending: false }).limit(200);
+    const { data, error } = await q;
     if (error) {
       if (isMissingTable(error)) {
         messagesOn = false;
@@ -215,16 +239,41 @@ export function pullMessages() {
       }
       return;
     }
-    await uploadLegacyMessages(db, new Set(data.map(r => r.id)));
-    const messages = data.reverse().map(fromMessageRow);
-    Storage.replaceMessagesCache(me, messages, [...pendingMessages]);
-    const signature = messages.map(m => `${m.id}:${m.edited ? 1 : 0}:${m.text.length}`).join(',');
+    if (full) uploadLegacyMessages(db, new Set(data.map(r => r.id))); // background
+    data.forEach(r => pendingMessages.delete(r.id));
+    if (!full && !data.length) return; // nothing new: no rewrite, no re-render
+
+    const incoming = data.reverse().map(fromMessageRow);
+    if (data.length) {
+      const latest = incoming[incoming.length - 1].createdAtIso;
+      if (!newestMessageAt || latest > newestMessageAt) newestMessageAt = latest;
+    }
+    const all = full ? Storage.replaceMessagesCache(me, incoming, [...pendingMessages]) : Storage.addMessagesToCache(me, incoming);
+    Storage.seedChatRead(me, all); // first sync on this browser: history counts as read
+    Storage.mergeRemoteNotifications(me, buildMessageNotifications(all), 'messages');
+
+    const signature = all.map(m => `${m.id}:${m.edited ? 1 : 0}:${m.text.length}`).join(',');
     if (signature !== lastMessagesSignature) {
       lastMessagesSignature = signature;
       handlers.onMessages?.();
     }
-  })().catch(() => { /* network blip: next poll */ }).finally(() => { messagesPulling = null; });
+  })().catch(err => console.warn('Chat sync failed:', err)).finally(() => { messagesPulling = null; });
   return messagesPulling;
+}
+
+// One notification per person: the latest message they sent you
+function buildMessageNotifications(messages) {
+  const latest = new Map();
+  messages.forEach(m => {
+    if (m.toUserId !== me || !m.createdAtIso) return;
+    const prev = latest.get(m.fromUserId);
+    if (!prev || m.createdAtIso > prev.createdAtIso) latest.set(m.fromUserId, m);
+  });
+  return [...latest.values()].map(m => ({
+    id: `message:${m.id}`, type: 'message', fromUserId: m.fromUserId, createdAt: m.createdAtIso,
+    text: 'te enviou uma mensagem',
+    preview: snippet(m.text) || (m.song ? `🎵 ${m.song.title}` : m.imageUrl ? 'Imagem' : m.gifUrl ? 'GIF' : '')
+  }));
 }
 
 const pollMessages = () => { if (document.visibilityState === 'visible') pullMessages(); };
@@ -304,6 +353,7 @@ export function pullNow() {
     ]);
 
     await uploadLegacyPosts(db, new Set(rows.map(r => r.id)));
+    rows.forEach(r => pending.delete(r.id));
 
     Storage.mergeRemoteProfiles(profiles, { skipId: profileDirty ? me : null });
     Storage.setPresence(Object.fromEntries(presence.filter(p => p.id !== me).map(p => [p.id, p.last_seen_at])));
@@ -321,7 +371,7 @@ export function pullNow() {
       if (pendingReposts.has(p.id)) p.reposts = overlay(p.reposts, pendingReposts.get(p.id));
     });
     Storage.replacePostsCache(posts, [...pending]);
-    Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows));
+    Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows), 'feed');
 
     const signature = JSON.stringify([
       posts.map(p => [p.id, p.likes.length, p.reposts.length, p.updatedAt || '', JSON.stringify(p.votes),
@@ -334,12 +384,23 @@ export function pullNow() {
       lastSignature = signature;
       handlers.onUpdate?.();
     }
+    pullFailures = 0;
   })().catch(err => {
     if (isMissingTable(err)) {
       disabled = true;
       handlers.onError?.('O feed compartilhado ainda não foi criado no banco: rode supabase/002_posts.sql no SQL Editor do Supabase.');
+      return;
     }
-    // Network blips: the next poll tries again; the cache keeps the app usable meanwhile
+    // Network blips: the next poll tries again. Anything that keeps failing gets reported (once)
+    // instead of silently freezing the feed and the notifications.
+    console.warn('Feed sync failed:', err);
+    pullFailures++;
+    if (pullFailures === 3 && !warnedPullFailure) {
+      warnedPullFailure = true;
+      handlers.onError?.(/jwt|token|401/i.test(`${err?.message || ''} ${err?.code || ''}`)
+        ? 'Sua sessão expirou: saia e entre de novo para o feed voltar a atualizar.'
+        : 'Não estamos conseguindo atualizar o feed. Verifique sua conexão; tentamos de novo sozinhos.');
+    }
   }).finally(() => { pulling = null; });
   return pulling;
 }
@@ -403,6 +464,17 @@ async function removeOldUpload(url) {
   if (!isOurUpload(url)) return;
   const path = url.split('/storage/v1/object/public/media/')[1];
   try { await getSupabase().storage.from('media').remove([decodeURIComponent(path)]); } catch { /* leftovers are harmless */ }
+}
+
+/**
+ * Pictures attached to posts, comments and messages go to the media bucket as files, so rows
+ * (and every poll and the local cache) carry a short https link instead of a base64 image.
+ * Falls back to the inline image if the upload fails.
+ */
+async function hostImage(url, kind) {
+  if (!/^data:image\//.test(url || '')) return url || '';
+  try { return await uploadPhoto(url, kind); }
+  catch { return url; }
 }
 
 let serverPhotos = { avatar: null, banner: null }; // what the server had, to clean up replaced files
@@ -549,12 +621,20 @@ const hooks = {
   createPost(post) {
     pending.add(post.id);
     write(async db => {
-      try { await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody(post) })); }
-      finally { pending.delete(post.id); }
+      try {
+        const imageUrl = await hostImage(post.imageUrl, 'post');
+        if (imageUrl !== post.imageUrl) Storage.patchPostCache(post.id, { imageUrl });
+        await must(db.from('posts').insert({ id: post.id, author_id: me, body: toBody({ ...post, imageUrl }) }));
+      } catch (err) { pending.delete(post.id); throw err; }
+      // stays pending until a pull sees it, so a pull that read the server just before can't drop it
     }, 'Não foi possível publicar o post. Verifique sua conexão.');
   },
   updatePost(post) {
-    write(db => must(db.from('posts').update({ body: toBody(post), edited: true }).eq('id', post.id)), 'Não foi possível salvar a edição.');
+    write(async db => {
+      const imageUrl = await hostImage(post.imageUrl, 'post');
+      if (imageUrl !== post.imageUrl) Storage.patchPostCache(post.id, { imageUrl });
+      await must(db.from('posts').update({ body: toBody({ ...post, imageUrl }), edited: true }).eq('id', post.id));
+    }, 'Não foi possível salvar a edição.');
   },
   deletePost(postId) {
     write(db => must(db.from('posts').delete().eq('id', postId)), 'Não foi possível apagar o post.');
@@ -570,8 +650,11 @@ const hooks = {
       : db.from('post_reposts').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar o repost.');
   },
   addComment(postId, c) {
-    const body = { text: c.text || '', song: c.song || null, imageUrl: c.imageUrl || '', gifUrl: c.gifUrl || '' };
-    write(db => must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body })), 'Não foi possível enviar o comentário.');
+    write(async db => {
+      const imageUrl = await hostImage(c.imageUrl || '', 'comment');
+      const body = { text: c.text || '', song: c.song || null, imageUrl, gifUrl: c.gifUrl || '' };
+      await must(db.from('post_comments').insert({ id: c.id, post_id: postId, user_id: me, body }));
+    }, 'Não foi possível enviar o comentário.');
   },
   likeComment(commentId, on) {
     if (!commentLikesTable) return;
@@ -583,8 +666,12 @@ const hooks = {
     if (!messagesOn || !isAccountId(m.toUserId)) return;
     pendingMessages.add(m.id);
     write(async db => {
-      try { await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody(m) })); }
-      finally { pendingMessages.delete(m.id); }
+      try {
+        const imageUrl = await hostImage(m.imageUrl, 'chat');
+        if (imageUrl !== m.imageUrl) Storage.patchMessageCache(m.id, { imageUrl });
+        await must(db.from('messages').insert({ id: m.id, from_id: me, to_id: m.toUserId, body: messageBody({ ...m, imageUrl }) }));
+      } catch (err) { pendingMessages.delete(m.id); throw err; }
+      // stays pending until pullMessages sees it on the server
     }, 'Não foi possível enviar a mensagem. Verifique sua conexão.');
   },
   editMessage(m) {
@@ -626,6 +713,10 @@ export function startSync(userId, opts = {}) {
   messagesOn = true;
   lastSignature = '';
   lastMessagesSignature = '';
+  newestMessageAt = null;
+  messagePolls = 1; // the first pull is full anyway (nothing cached yet)
+  pullFailures = 0;
+  warnedPullFailure = false;
   Storage.setRemoteHooks(hooks);
   timer = setInterval(pullNow, POLL_MS);
   presenceTimer = setInterval(heartbeat, PRESENCE_MS);
