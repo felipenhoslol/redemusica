@@ -415,14 +415,15 @@ const isInlineImage = (u) => typeof u === 'string' && u.startsWith('data:image/'
 async function migrateLegacyImages(db) {
   if (legacyImagesStarted) return;
   legacyImagesStarted = true;
-  // Only this person's own heavy rows, a few at a time (the feed itself never downloads them)
+  // Only this person's own heavy rows: first just their ids, then each body alone (the feed itself
+  // never downloads them, and fetching them all at once could be several MB)
   const [posts, comments] = await Promise.all([
-    db.from('posts').select('id, body').eq('author_id', me).like('body->>imageUrl', 'data:image/%').limit(LEGACY_IMAGES_PER_SESSION),
-    db.from('post_comments').select('id, body').eq('user_id', me).like('body->>imageUrl', 'data:image/%').limit(LEGACY_IMAGES_PER_SESSION)
+    db.from('posts').select('id').eq('author_id', me).like('body->>imageUrl', 'data:image/%').limit(LEGACY_IMAGES_PER_SESSION),
+    db.from('post_comments').select('id').eq('user_id', me).like('body->>imageUrl', 'data:image/%').limit(LEGACY_IMAGES_PER_SESSION)
   ]);
   const jobs = [
-    ...(posts.data || []).map(row => ({ kind: 'post', row })),
-    ...(comments.data || []).map(row => ({ kind: 'comment', row }))
+    ...(posts.data || []).map(r => ({ kind: 'post', id: r.id })),
+    ...(comments.data || []).map(r => ({ kind: 'comment', id: r.id }))
   ];
   Storage.getLocalMessagesFrom(me).forEach(m => { if (isInlineImage(m.imageUrl) && !pendingMessages.has(m.id)) jobs.push({ kind: 'message', row: m }); });
 
@@ -434,9 +435,10 @@ async function migrateLegacyImages(db) {
         await must(db.from('messages').update({ body: messageBody({ ...m, imageUrl }) }).eq('id', m.id));
         Storage.patchMessageCache(m.id, { imageUrl });
       } else {
-        const { row } = job;
-        const imageUrl = await uploadPhoto(row.body.imageUrl, job.kind);
         const table = job.kind === 'post' ? 'posts' : 'post_comments';
+        const row = await must(db.from(table).select('id, body').eq('id', job.id).maybeSingle());
+        if (!row || !isInlineImage(row.body?.imageUrl)) continue;
+        const imageUrl = await uploadPhoto(row.body.imageUrl, job.kind);
         await must(db.from(table).update({ body: { ...row.body, imageUrl } }).eq('id', row.id));
         if (job.kind === 'post') Storage.patchPostCache(row.id, { imageUrl, imageLazy: false });
       }
@@ -455,52 +457,65 @@ export function pullNow() {
     if (!legacyProfileChecked) { legacyProfileChecked = true; await uploadLegacyProfile(db); }
     const fullProfiles = !profilesSince || profilePulls % FULL_PROFILES_EVERY === 0;
     profilePulls++;
-    const [rows, follows, profiles, presence] = await Promise.all([
+    // Each part stands on its own: if the posts fail, followers, profiles and who's online still update
+    const [postsRes, followsRes, profilesRes, presenceRes] = await Promise.allSettled([
       fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
       fetchProfiles(db, q => (fullProfiles ? q : q.gt('updated_at', profilesSince)).eq('banned', false).limit(1000)),
-      fetchPresence(db).catch(() => [])
+      fetchPresence(db)
     ]);
+    const rows = postsRes.status === 'fulfilled' ? postsRes.value : null;
+    const follows = followsRes.status === 'fulfilled' ? followsRes.value : null;
+    const profiles = profilesRes.status === 'fulfilled' ? profilesRes.value : [];
+    const presence = presenceRes.status === 'fulfilled' ? presenceRes.value : [];
+    if (profilesRes.status === 'rejected') profilePulls = 0; // retry a full read next time
+    if (profilesRes.status === 'rejected') console.warn('Perfis não atualizados:', profilesRes.reason?.code, profilesRes.reason?.message);
+    if (followsRes.status === 'rejected') console.warn('Seguidores não atualizados:', followsRes.reason?.code, followsRes.reason?.message);
 
-    rows.forEach(r => {
-      pending.delete(r.id);
-      (r.post_comments || []).forEach(c => pendingComments.delete(c.id));
-    });
-    flushPostOutbox(db, rows);
-    migrateLegacyImages(db).catch(() => {}); // background
+    let posts = null;
+    if (rows) {
+      rows.forEach(r => {
+        pending.delete(r.id);
+        (r.post_comments || []).forEach(c => pendingComments.delete(c.id));
+      });
+      flushPostOutbox(db, rows);
+      migrateLegacyImages(db).catch(() => {}); // background
+      posts = rows.map(fromRow);
+      const overlay = (list, on) => { const rest = list.filter(id => id !== me); return on ? [...rest, me] : rest; };
+      posts.forEach(p => {
+        if (pendingLikes.has(p.id)) p.likes = overlay(p.likes, pendingLikes.get(p.id));
+        if (pendingReposts.has(p.id)) p.reposts = overlay(p.reposts, pendingReposts.get(p.id));
+      });
+    }
     const profilesChanged = trackProfiles(profiles);
-
-    const posts = rows.map(fromRow);
-    const overlay = (list, on) => { const rest = list.filter(id => id !== me); return on ? [...rest, me] : rest; };
-    posts.forEach(p => {
-      if (pendingLikes.has(p.id)) p.likes = overlay(p.likes, pendingLikes.get(p.id));
-      if (pendingReposts.has(p.id)) p.reposts = overlay(p.reposts, pendingReposts.get(p.id));
-    });
     const others = presence.filter(p => p.id !== me);
 
     // Same data as last time (the usual case): nothing to write, nothing to redraw
     const signature = JSON.stringify([
-      posts.map(p => [p.id, p.likes, p.reposts, p.updatedAt || '', p.votes,
-        p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length, Boolean(p.imageLazy)]),
-      follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(','),
+      posts ? posts.map(p => [p.id, p.likes, p.reposts, p.updatedAt || '', p.votes,
+        p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length, Boolean(p.imageLazy)]) : 'posts?',
+      follows ? follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(',') : 'follows?',
       others.map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
       profilesVersion, [...pending], [...pendingComments]
     ]);
-    if (signature === lastSignature) { pullFailures = 0; return; }
-    lastSignature = signature;
-
-    if (profilesChanged) Storage.mergeRemoteProfiles(profiles, { skipId: profileDirty ? me : null });
-    Storage.setPresence(Object.fromEntries(others.map(p => [p.id, p.last_seen_at])));
-    const graph = {};
-    follows.forEach(f => { (graph[f.follower_id] ||= []).push(f.following_id); });
-    pendingFollows.forEach((on, target) => {
-      const list = (graph[me] ||= []).filter(id => id !== target);
-      graph[me] = on ? [...list, target] : list;
-    });
-    Storage.replaceFollows(graph);
-    Storage.replacePostsCache(posts, [...pending], [...pendingComments]);
-    Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows), 'feed');
-    handlers.onUpdate?.();
+    if (signature !== lastSignature) {
+      lastSignature = signature;
+      if (profilesChanged) Storage.mergeRemoteProfiles(profiles, { skipId: profileDirty ? me : null });
+      Storage.setPresence(Object.fromEntries(others.map(p => [p.id, p.last_seen_at])));
+      if (follows) {
+        const graph = {};
+        follows.forEach(f => { (graph[f.follower_id] ||= []).push(f.following_id); });
+        pendingFollows.forEach((on, target) => {
+          const list = (graph[me] ||= []).filter(id => id !== target);
+          graph[me] = on ? [...list, target] : list;
+        });
+        Storage.replaceFollows(graph);
+      }
+      if (posts) Storage.replacePostsCache(posts, [...pending], [...pendingComments]);
+      if (rows && follows) Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows), 'feed');
+      handlers.onUpdate?.();
+    }
+    if (!rows) throw postsRes.reason; // reported below (the rest already updated)
     pullFailures = 0;
   })().catch(err => {
     if (isMissingTable(err)) {
@@ -538,7 +553,7 @@ async function fetchPostRows(db, refine) {
   for (;;) {
     const select = `${POST_FIELDS},
       post_likes(user_id, created_at), post_reposts(user_id, created_at),
-      post_comments(${COMMENT_FIELDS}, author:profiles(${PROFILE_FIELDS})${commentLikesTable ? ', comment_likes(user_id, created_at)' : ''})
+      post_comments(${COMMENT_FIELDS}, author:profiles!user_id(${PROFILE_FIELDS})${commentLikesTable ? ', comment_likes(user_id, created_at)' : ''})
       ${votesTable ? ', post_votes(user_id, option)' : ''}`;
     try { return await must(refine(db.from('posts').select(select))); }
     catch (err) {
@@ -556,26 +571,57 @@ async function fetchPostRows(db, refine) {
 }
 
 // Picture links (https only) and which rows still hold a base64 picture, for a set of ids
+// Picture links (https only) and which rows still hold a base64 picture, for a set of ids.
+// Ids go in small batches (a URL with hundreds of ids is refused by the server), and a failed batch
+// only costs those pictures: the feed itself still loads.
+const PICTURE_BATCH = 40;
 async function fetchPictures(db, table, ids) {
-  if (!ids.length) return { urls: new Map(), covers: new Map(), inline: new Set() };
-  const idList = ids.slice(0, 200);
-  const [urls, inline, covers] = await Promise.all([
-    must(db.from(table).select('id, url:body->>imageUrl').in('id', idList).like('body->>imageUrl', 'https://%')),
-    must(db.from(table).select('id').in('id', idList).like('body->>imageUrl', 'data:image/%')),
-    table === 'posts'
-      ? must(db.from(table).select('id, url:body->playlist->>coverUrl').in('id', idList).like('body->playlist->>coverUrl', 'https://%'))
-      : Promise.resolve([])
-  ]);
-  return {
-    urls: new Map(urls.map(r => [r.id, r.url])),
-    covers: new Map(covers.map(r => [r.id, r.url])),
-    inline: new Set(inline.map(r => r.id))
-  };
+  const result = { urls: new Map(), covers: new Map(), inline: new Set() };
+  const batches = [];
+  for (let i = 0; i < Math.min(ids.length, 400); i += PICTURE_BATCH) batches.push(ids.slice(i, i + PICTURE_BATCH));
+  const safe = (q) => q.then(({ data, error }) => {
+    if (error) { console.warn(`Fotos de ${table} indisponíveis:`, error.code, error.message); return []; }
+    return data || [];
+  }, () => []);
+  await Promise.all(batches.map(async (batch) => {
+    const [urls, inline, covers] = await Promise.all([
+      safe(db.from(table).select('id, url:body->>imageUrl').in('id', batch).like('body->>imageUrl', 'https://%')),
+      safe(db.from(table).select('id').in('id', batch).like('body->>imageUrl', 'data:image/%')),
+      table === 'posts'
+        ? safe(db.from(table).select('id, url:body->playlist->>coverUrl').in('id', batch).like('body->playlist->>coverUrl', 'https://%'))
+        : Promise.resolve([])
+    ]);
+    urls.forEach(r => result.urls.set(r.id, r.url));
+    covers.forEach(r => result.covers.set(r.id, r.url));
+    inline.forEach(r => result.inline.add(r.id));
+  }));
+  return result;
+}
+
+// If the field-by-field query is ever refused, fall back to the plain one (whole body), which is
+// heavier but always worked: the feed must never go blank because of an optimization
+let lightQueryOk = true;
+async function fetchFullRows(db, refine) {
+  const select = `id, author_id, body, edited, created_at,
+    post_likes(user_id, created_at), post_reposts(user_id, created_at),
+    post_comments(id, user_id, body, created_at, author:profiles!user_id(${PROFILE_FIELDS})${commentLikesTable ? ', comment_likes(user_id, created_at)' : ''})
+    ${votesTable ? ', post_votes(user_id, option)' : ''}`;
+  return must(refine(db.from('posts').select(select)));
 }
 
 /** Posts with likes, reposts, comments (and poll votes / comment likes once 004/005 are run), in the row shape fromRow reads. */
 async function fetchPosts(db, refine) {
-  const rows = await fetchPostRows(db, refine);
+  let rows;
+  if (lightQueryOk) {
+    try { rows = await fetchPostRows(db, refine); }
+    catch (err) {
+      if (isMissingTable(err) && !/post_votes|comment_likes/.test(`${err?.message} ${err?.details}`)) throw err;
+      console.warn('Consulta leve do feed recusada, usando a completa:', err?.code, err?.message);
+      lightQueryOk = false;
+    }
+  }
+  if (!rows) return fetchFullRows(db, refine);
+
   const commentIds = rows.flatMap(r => (r.post_comments || []).map(c => c.id));
   const [postPics, commentPics] = await Promise.all([
     fetchPictures(db, 'posts', rows.map(r => r.id)),
