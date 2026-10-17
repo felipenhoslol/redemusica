@@ -71,3 +71,15 @@ export function avatarInner(avatar, name, imgStyle = 'width:100%;height:100%;obj
   }
   return esc(avatar || (name ? name[0] : '') || 'U');
 }
+
+/**
+ * Phone keyboard on a search field: "Buscar" (Enter) or scrolling the results closes it, so the results show.
+ * @param {HTMLInputElement} input
+ * @param {Element} scroller the element whose scrolling should close the keyboard
+ */
+export function searchKeyboard(input, scroller) {
+  input.setAttribute('enterkeyhint', 'search');
+  const touch = () => matchMedia('(pointer: coarse)').matches;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && touch()) input.blur(); });
+  scroller?.addEventListener('touchmove', () => { if (document.activeElement === input) input.blur(); }, { passive: true });
+}

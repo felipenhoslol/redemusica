@@ -1,6 +1,6 @@
 // Lyric picker for the composer: find the song, load its lyrics from LRCLIB (free, no key, crowdsourced),
 // tap the lines to quote. Posts carry only a short excerpt (max 4 lines / 280 characters).
-import { esc, safeUrl } from './dom.js';
+import { esc, safeUrl, searchKeyboard } from './dom.js';
 import { ICONS } from './icons.js';
 import { searchTracks } from './api.js';
 
@@ -85,6 +85,7 @@ export function openLyricPicker({ track = null, onPick, onManual }) {
       <button type="button" class="search-see-all lyric-manual" data-manual>Prefiro escrever o trecho</button>`;
     const input = body.querySelector('input');
     const list = body.querySelector('.lyric-results');
+    searchKeyboard(input, list); // list is rebuilt with each search screen, so listeners don't pile up
     const run = () => {
       clearTimeout(timer);
       const term = input.value.trim();

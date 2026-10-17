@@ -78,3 +78,21 @@
   #search-modal .modal-body { padding: 8px 12px calc(16px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
   .msearch-bar { padding: 10px 12px; }
 }
+
+/* Votação e trecho de letra no celular: tela cheia, a página inteira rola e a busca fica no topo */
+@media (max-width: 700px) {
+  .app-dialog-panel.poll-builder, .app-dialog-panel.lyric-picker {
+    display: flex; flex-direction: column; height: 100dvh; max-height: 100dvh; overflow: hidden;
+    border-radius: 0; border: 0; padding-bottom: 0;
+  }
+  .poll-builder .app-dialog-head, .lyric-picker .app-dialog-head { padding-top: max(10px, env(safe-area-inset-top)); flex-shrink: 0; }
+  .poll-builder .app-dialog-body, .lyric-picker .app-dialog-body {
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+  .poll-search, .lyric-picker .search-bar { flex: none; position: sticky; top: 0; z-index: 1; box-shadow: 0 -12px 0 var(--bg), 0 8px 12px -6px var(--bg); }
+  .poll-results, .lyric-results { max-height: none; overflow: visible; }
+}
+@media (pointer: coarse) {
+  .poll-results .poll-row-add { min-height: 56px; }
+}

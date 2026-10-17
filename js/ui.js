@@ -1,6 +1,6 @@
 // UI Controller — modals, search, music ask grid, compare, notifications, global search
 import { animateSpring, swapContent } from './motion.js';
-import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
+import { esc, safeUrl, jsArg, avatarInner, isImageAvatar, searchKeyboard } from './dom.js';
 import * as storage from './storage.js';
 import { relativeTime } from './sync.js';
 import { auth, needsEmailConfirmation, markEmailReminderSeen } from './auth.js';
@@ -168,7 +168,6 @@ function modalTrackRow(t, { number } = {}) {
 
 const modalMsg = (text, color = 'var(--muted)') => `<div style="padding:20px;text-align:center;color:${color}">${text}</div>`;
 const MODAL_HINT = modalMsg('Digite o nome da música ou do artista.');
-const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
 // The play button of the song previewing now shows pause (the player bar sits behind this window)
 const isPreviewing = (t) => Boolean(t?.previewUrl) && globalAudio.getIsPlaying() && globalAudio.getCurrentTrack()?.previewUrl === t.previewUrl;
@@ -207,18 +206,12 @@ export function initSearchModal() {
   });
 
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      clearTimeout(searchDebounceTimer); modalView = null; performSearch(input.value.trim());
-      if (isTouch()) input.blur(); // "Buscar" on the phone keyboard: hide it so the results show
-    }
+    if (e.key === 'Enter') { clearTimeout(searchDebounceTimer); modalView = null; performSearch(input.value.trim()); }
     if (e.key === 'Escape') closeDoodleModal('search-modal');
   });
 
   const results = document.getElementById('search-results');
-  // Scrolling the results on a phone closes the keyboard, like any search screen
-  results?.closest('.modal-body')?.addEventListener('touchmove', () => {
-    if (document.activeElement === input) input.blur();
-  }, { passive: true });
+  searchKeyboard(input, results?.closest('.modal-body'));
   globalAudio.subscribe((event) => {
     if (['play', 'pause', 'ended', 'trackchange', 'error'].includes(event)) syncPreviewButtons();
   });

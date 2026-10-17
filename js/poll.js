@@ -1,6 +1,6 @@
 // Song polls: a post with 2–4 songs that people vote on. Results show after voting (or to the author),
 // so nobody is swayed before choosing. Votes live in post.votes ({ userId: optionIndex }) and sync via sync.js.
-import { esc, safeUrl, jsArg, avatarInner } from './dom.js';
+import { esc, safeUrl, jsArg, avatarInner, searchKeyboard } from './dom.js';
 import { ICONS } from './icons.js';
 import * as Storage from './storage.js';
 import { searchTracks } from './api.js';
@@ -95,6 +95,7 @@ export function openPollBuilder(initial, onDone) {
   document.body.appendChild(root);
 
   const input = root.querySelector('input');
+  searchKeyboard(input, root.querySelector('.app-dialog-body'));
   const pickedEl = root.querySelector('.poll-picked');
   const resultsEl = root.querySelector('.poll-results');
   const doneBtn = root.querySelector('[data-done]');
@@ -157,7 +158,7 @@ export function openPollBuilder(initial, onDone) {
     if (t.hasAttribute('data-close')) close();
     else if (t.hasAttribute('data-done')) { close(); onDone(picked); }
     else if (t.dataset.remove != null) { picked.splice(Number(t.dataset.remove), 1); paint(); }
-    else if (t.dataset.add != null && picked.length < POLL_MAX) { picked.push(pollTrack(results[Number(t.dataset.add)])); paint(); input.focus(); }
+    else if (t.dataset.add != null && picked.length < POLL_MAX) { picked.push(pollTrack(results[Number(t.dataset.add)])); paint(); if (!matchMedia('(pointer: coarse)').matches) input.focus(); }
   });
 
   paint();
