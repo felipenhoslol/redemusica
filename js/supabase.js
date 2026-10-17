@@ -90,7 +90,10 @@ export async function signUp({ name, handle, email, password }) {
 const LOGIN_GUARD_KEY = 'rmsn_login_guard_v1';
 const LOGIN_FREE_TRIES = 5;
 const readLoginGuard = () => {
-  try { return JSON.parse(localStorage.getItem(LOGIN_GUARD_KEY)) || { fails: 0, until: 0 }; } catch { return { fails: 0, until: 0 }; }
+  let g = null;
+  try { g = JSON.parse(localStorage.getItem(LOGIN_GUARD_KEY)); } catch { /* treat as no record */ }
+  // A wrong password more than an hour ago no longer counts: only mistakes in a row lock
+  return g && Date.now() - g.at < 3600000 ? g : { fails: 0, until: 0 };
 };
 const writeLoginGuard = (g) => {
   try { g ? localStorage.setItem(LOGIN_GUARD_KEY, JSON.stringify(g)) : localStorage.removeItem(LOGIN_GUARD_KEY); } catch { /* optional */ }
@@ -113,7 +116,7 @@ export async function signIn({ email, password }) {
       const fails = (Number(guard.fails) || 0) + 1;
       const extra = fails - LOGIN_FREE_TRIES;
       const until = extra >= 0 ? Date.now() + Math.min(30000 * 2 ** extra, 15 * 60000) : 0;
-      writeLoginGuard({ fails, until });
+      writeLoginGuard({ fails, until, at: Date.now() });
     }
     throw err;
   }
