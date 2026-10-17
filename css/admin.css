@@ -17,7 +17,7 @@
 }
 .admin-tab-count:not(:empty) {
   min-width: 20px; padding: 1px 6px; border-radius: 10px;
-  background: var(--volt); color: var(--on-accent); font: 600 .72rem/1.5 var(--f-ui); text-align: center;
+  background: var(--volt); color: var(--on-accent); font: 600 .78rem/1.5 var(--f-ui); text-align: center;
 }
 
 /* Respiro entre a barra de filtros e o conteúdo de cada seção */
@@ -54,7 +54,7 @@
 .admin-danger { color: var(--danger) !important; }
 .admin-danger[data-armed="true"] { background: color-mix(in srgb, var(--danger) 15%, transparent) !important; border-color: var(--danger) !important; }
 
-.admin-chip { font: 600 .72rem var(--f-ui); padding: 2px 9px; border-radius: 20px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--neon); }
+.admin-chip { font: 600 .78rem var(--f-ui); padding: 2px 9px; border-radius: 20px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--neon); }
 .admin-chip-bug { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
 .admin-chip-elogio { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
 .admin-chip-outro { background: var(--tint-2); color: var(--dust); }

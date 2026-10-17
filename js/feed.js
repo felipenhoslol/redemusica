@@ -63,9 +63,9 @@ function renderPostPlaylistCard(post) {
   // Top tracks preview
   const songsPreviewHtml = songs.slice(0, 3).map((s, idx) => `
     <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">
-      <span style="color:var(--purple-light);font-weight:700;font-size:0.7rem;min-width:14px;">${idx+1}.</span>
+      <span style="color:var(--purple-light);font-weight:700;font-size:0.78rem;min-width:14px;">${idx+1}.</span>
       <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.title)}</span>
-      <span style="color:var(--muted);font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">— ${esc(s.artist)}</span>
+      <span style="color:var(--muted);font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">— ${esc(s.artist)}</span>
     </div>
   `).join('');
 
@@ -77,10 +77,10 @@ function renderPostPlaylistCard(post) {
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;">
         <div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <div style="display:inline-flex;align-items:center;gap:4px;font-size:0.68rem;font-weight:800;color:var(--purple-light);letter-spacing:0.04em;">
+            <div style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:800;color:var(--purple-light);letter-spacing:0.04em;">
               ${ICONS.playlist} Playlist
             </div>
-            <span style="font-size:0.72rem;color:var(--muted);">${songsCount} ${songsCount === 1 ? 'música' : 'músicas'}</span>
+            <span style="font-size:0.78rem;color:var(--muted);">${songsCount} ${songsCount === 1 ? 'música' : 'músicas'}</span>
           </div>
           <h4 style="margin:2px 0 4px;font-size:0.95rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</h4>
           ${pl.description ? `<p style="margin:0 0 4px;font-size:0.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.description)}</p>` : ''}
@@ -161,7 +161,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
         ${c.song.artwork ? `<img src="${safeUrl(c.song.artwork)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;">` : ''}
         <div style="min-width:0;">
           <div style="font-size:0.78rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.song.title)}</div>
-          <div style="font-size:0.7rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.song.artist)}</div>
+          <div style="font-size:0.78rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.song.artist)}</div>
         </div>
       </div>
       <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="padding:0;border-radius:50%;width:26px;height:26px;min-width:26px;display:flex;align-items:center;justify-content:center;" onclick="window._playTrack(${jsArg(c.song)})" title="Tocar prévia">
@@ -183,7 +183,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
     </div>` : '';
 
   const deleteBtnHtml = canDelete ? `
-    <button class="comment-delete-btn" title="Excluir comentário" onclick="event.stopPropagation();window._deleteComment('${postId}', '${c.id}')" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;font-size:0.72rem;line-height:1;border-radius:4px;transition:all 0.15s;opacity:0.6;" onmouseover="this.style.opacity=1;this.style.color='#ff5555'" onmouseout="this.style.opacity=0.6;this.style.color='var(--muted)'">
+    <button class="comment-delete-btn" title="Excluir comentário" onclick="event.stopPropagation();window._deleteComment('${postId}', '${c.id}')" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;font-size:0.78rem;line-height:1;border-radius:4px;transition:all 0.15s;opacity:0.6;" onmouseover="this.style.opacity=1;this.style.color='#ff5555'" onmouseout="this.style.opacity=0.6;this.style.color='var(--muted)'">
       ${ICONS.trash || '✕'}
     </button>` : '';
 
@@ -202,7 +202,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
           <div class="comment-name" onclick="window._goToProfile('${c.userId || ''}')" style="cursor:pointer;">${esc(c.userName)}${adminBadge(c.userId)}</div>
           <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:0.68rem;color:var(--muted);">${esc(c.createdAt || '')}</span>
+            <span style="font-size:0.75rem;color:var(--muted);">${esc(c.createdAt || '')}</span>
             ${deleteBtnHtml}
           </div>
         </div>
@@ -268,14 +268,14 @@ export function renderCommentsSectionHtml(post) {
         
         <!-- Attachment Toolbar -->
         <div style="display:flex;align-items:center;gap:6px;border-top:1px solid var(--tint-1);padding-top:6px;">
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.74rem;padding:3px 8px;gap:4px;color:var(--purple-light);" onclick="window._openCommentMusicSearch('${post.id}')" title="Anexar música">
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.78rem;padding:3px 8px;gap:4px;color:var(--purple-light);" onclick="window._openCommentMusicSearch('${post.id}')" title="Anexar música">
             ${ICONS.music} <span>Música</span>
           </button>
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.74rem;padding:3px 8px;gap:4px;color:var(--purple-light);" onclick="window._openCommentImagePicker('${post.id}')" title="Anexar imagem">
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.78rem;padding:3px 8px;gap:4px;color:var(--purple-light);" onclick="window._openCommentImagePicker('${post.id}')" title="Anexar imagem">
             ${ICONS.image || '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>'}
             <span>Imagem</span>
           </button>
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.74rem;padding:3px 8px;gap:4px;color:var(--purple-light);" onclick="window._openCommentGifPicker('${post.id}')" title="Anexar GIF">
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.78rem;padding:3px 8px;gap:4px;color:var(--purple-light);" onclick="window._openCommentGifPicker('${post.id}')" title="Anexar GIF">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M7 15V9h2.5v2H8.5"></path><path d="M12 9v6"></path><path d="M15 9h3M15 12h2M15 9v6"></path></svg>
             <span>GIF</span>
           </button>
@@ -560,7 +560,7 @@ export function renderPostCreator(containerEl) {
         <img id="creator-lyrics-preview-img" src="${safeUrl(track.artwork)}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid var(--purple-accent);">
         <div style="min-width:0;flex:1;">
           <div id="creator-lyrics-preview-title" style="font-size:0.9rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(creatorState.lyricsSong)}</div>
-          <div style="font-size:0.72rem;color:var(--purple-light);">Música vinculada à letra</div>
+          <div style="font-size:0.78rem;color:var(--purple-light);">Música vinculada à letra</div>
         </div>`;
     }
   };
@@ -690,7 +690,7 @@ function renderCreatorRating(el) {
           <span class="rating-value-badge" style="font-size:0.9rem;font-weight:800;color:var(--star);background:color-mix(in srgb, var(--star) 12%, transparent);padding:2px 8px;border-radius:var(--radius-pill);border:1px solid color-mix(in srgb, var(--star) 30%, transparent);display:inline-flex;align-items:center;gap:4px;">
             ${currentRating > 0 ? `${getStarSVG(1, 14)} <span>${currentRating.toFixed(1)}</span>` : 'Sem nota'}
           </span>
-          ${currentRating > 0 ? `<button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.7rem;padding:2px 6px;" onclick="window._pickStar(0)">Limpar</button>` : ''}
+          ${currentRating > 0 ? `<button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.78rem;padding:2px 6px;" onclick="window._pickStar(0)">Limpar</button>` : ''}
         </div>
       </div>
 
@@ -712,7 +712,7 @@ function renderCreatorRating(el) {
       <!-- Quick Decimal Rating Preset Pills -->
       <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
         ${presets.map(p => `
-          <button type="button" class="rating-preset-btn${currentRating === p ? ' active' : ''}" onclick="window._pickStar(${p})" style="padding:2px 6px;font-size:0.72rem;background:${currentRating === p ? 'color-mix(in srgb, var(--star) 20%, transparent)' : 'var(--bg-card)'};border:1px solid ${currentRating === p ? 'var(--star)' : 'var(--border)'};color:${currentRating === p ? 'var(--star)' : 'var(--muted)'};border-radius:4px;cursor:pointer;">
+          <button type="button" class="rating-preset-btn${currentRating === p ? ' active' : ''}" onclick="window._pickStar(${p})" style="padding:2px 6px;font-size:0.78rem;background:${currentRating === p ? 'color-mix(in srgb, var(--star) 20%, transparent)' : 'var(--bg-card)'};border:1px solid ${currentRating === p ? 'var(--star)' : 'var(--border)'};color:${currentRating === p ? 'var(--star)' : 'var(--muted)'};border-radius:4px;cursor:pointer;">
             ${p.toFixed(1)}
           </button>
         `).join('')}
@@ -803,7 +803,7 @@ function updateCommentPendingBox(postId) {
         <div style="display:flex;align-items:center;gap:12px;min-width:0;">
           ${data.song.artwork ? `<img src="${safeUrl(data.song.artwork)}" style="width:54px;height:54px;border-radius:8px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.3);flex-shrink:0;">` : ''}
           <div style="min-width:0;">
-            <div style="font-size:0.72rem;color:var(--purple-light);font-weight:800;letter-spacing:0.5px;margin-bottom:2px;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> Música anexada</div>
+            <div style="font-size:0.78rem;color:var(--purple-light);font-weight:800;letter-spacing:0.5px;margin-bottom:2px;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> Música anexada</div>
             <div style="font-size:0.94rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(data.song.title)}</div>
             <div style="font-size:0.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(data.song.artist)}</div>
           </div>
@@ -819,7 +819,7 @@ function updateCommentPendingBox(postId) {
     ${data.imageUrl ? `
       <div style="position:relative;display:inline-block;max-width:340px;border-radius:10px;overflow:hidden;border:1.5px solid color-mix(in srgb, var(--accent) 60%, transparent);box-shadow:0 4px 14px rgba(0,0,0,0.3);background:#000;">
         <img src="${safeUrl(data.imageUrl)}" alt="Prévia da imagem" style="width:100%;max-height:240px;object-fit:cover;display:block;">
-        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.72rem;color:var(--accent);font-weight:800;">
+        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.78rem;color:var(--accent);font-weight:800;">
           <span class="ui-icon" aria-hidden="true">${ICONS.image}</span> Imagem anexada
         </div>
         <button type="button" onclick="window._removeCommentAttachment('${postId}', 'imageUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid var(--tint-3);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover imagem" aria-label="Remover imagem"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
@@ -828,7 +828,7 @@ function updateCommentPendingBox(postId) {
     ${data.gifUrl ? `
       <div style="position:relative;display:inline-block;max-width:340px;border-radius:10px;overflow:hidden;border:1.5px solid color-mix(in srgb, var(--star) 70%, transparent);box-shadow:0 4px 14px rgba(0,0,0,0.3);background:#000;">
         <img src="${safeUrl(data.gifUrl)}" alt="Prévia do GIF" style="width:100%;max-height:240px;object-fit:cover;display:block;">
-        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.72rem;color:var(--star);font-weight:800;">
+        <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.78rem;color:var(--star);font-weight:800;">
           GIF anexado
         </div>
         <button type="button" onclick="window._removeCommentAttachment('${postId}', 'gifUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid var(--tint-3);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover GIF" aria-label="Remover GIF"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
@@ -1333,7 +1333,7 @@ export function renderFriendsWidget(container) {
         ${avatarHtml}
         <div style="flex:1;min-width:0;">
           <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.name)}${adminBadge(u.id)}</div>
-          <div class="friend-sub" ${lfm ? `data-np-user="${esc(lfm)}"` : ''} style="font-size:0.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(sub)}</div>
+          <div class="friend-sub" ${lfm ? `data-np-user="${esc(lfm)}"` : ''} style="font-size:0.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(sub)}</div>
         </div>
       </div>`;
   }).join('');

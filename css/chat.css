@@ -47,7 +47,7 @@
 }
 
 .dm-header-title { font-size: 0.9rem; font-weight: 700; color: var(--white); }
-.dm-header-sub   { font-size: 0.7rem; color: var(--purple-light); }
+.dm-header-sub   { font-size: 0.78rem; color: var(--purple-light); }
 
 .dm-header-actions { display: flex; align-items: center; gap: 4px; }
 
@@ -103,7 +103,7 @@
 }
 
 .dm-contact-name { font-size: 0.8rem; font-weight: 700; color: var(--white); }
-.dm-contact-preview { font-size: 0.68rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-contact-preview { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Messages area */
 .dm-messages {
@@ -140,7 +140,7 @@
 .dm-bubble.sent  .dm-bubble-content { background: var(--purple-accent); color: var(--on-accent); border-radius: var(--radius-md) var(--radius-md) 4px var(--radius-md); }
 .dm-bubble.recv  .dm-bubble-content { background: var(--bg-card);        color: var(--white); border: var(--border); border-radius: var(--radius-md) var(--radius-md) var(--radius-md) 4px; }
 
-.dm-time { font-size: 0.62rem; color: var(--dimmed); align-self: flex-end; }
+.dm-time { font-size: 0.75rem; color: var(--dimmed); align-self: flex-end; }
 
 /* Attached song in DM */
 .dm-attached-song {
@@ -156,7 +156,7 @@
 
 .dm-song-cover { width: 30px; height: 30px; border-radius: 4px; object-fit: cover; }
 .dm-song-title { font-size: 0.75rem; font-weight: 700; color: var(--white); }
-.dm-song-artist { font-size: 0.65rem; color: var(--muted); }
+.dm-song-artist { font-size: 0.75rem; color: var(--muted); }
 
 /* Attached song bar above input */
 .dm-attached-bar {
@@ -556,7 +556,7 @@
   padding: 5px 8px;
   border-radius: 4px;
   margin-bottom: 6px;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   max-width: 100%;
   overflow: hidden;
 }
@@ -564,7 +564,7 @@
 .chat-replied-author {
   font-weight: 800;
   color: var(--purple-light);
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   margin-bottom: 1px;
 }
 
@@ -573,7 +573,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 /* Reply Banner above Composer */
@@ -604,13 +604,13 @@
 }
 
 .chat-reply-banner-title {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   color: var(--purple-light);
 }
 
 .chat-reply-banner-text {
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   color: var(--white);
   white-space: nowrap;
   overflow: hidden;
@@ -635,17 +635,17 @@
 
 /* Edited Tag */
 .chat-edited-tag {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.5);
   margin-left: 4px;
   font-style: italic;
 }
 
 /* Mensagens não lidas na lista de conversas */
-.chat-unread-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font: 700 .68rem/18px var(--f-ui, inherit); text-align: center; margin-left: 6px; }
+.chat-unread-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font: 700 .75rem/18px var(--f-ui, inherit); text-align: center; margin-left: 6px; }
 
 /* "Enviada" / "Visto" embaixo da sua última mensagem */
-.chat-seen { align-self: flex-end; margin: -2px 6px 6px 0; font-size: .72rem; color: var(--text-2, var(--muted)); display: inline-flex; align-items: center; gap: 3px; }
+.chat-seen { align-self: flex-end; margin: -2px 6px 6px 0; font-size: 0.78rem; color: var(--text-2, var(--muted)); display: inline-flex; align-items: center; gap: 3px; }
 .chat-seen.seen { color: var(--accent); font-weight: 600; }
 .chat-seen svg { width: 12px; height: 12px; }
 

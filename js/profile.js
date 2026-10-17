@@ -381,7 +381,7 @@ function buildTopArtistsMonthHtml(user, isMe) {
             : `<span class="top-artists-service-badge custom">Escolhidos</span>`}
         </div>
         ${isMe ? `
-          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openSpotifyModal()" style="font-size:0.72rem;padding:3px 8px;" title="Atualizar com o Last.fm ou escolher artistas">
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openSpotifyModal()" style="font-size:0.78rem;padding:3px 8px;" title="Atualizar com o Last.fm ou escolher artistas">
             ${isLastFm ? 'Atualizar' : 'Editar'}
           </button>
         ` : ''}
@@ -502,7 +502,7 @@ function buildShowcaseHtml(user, isMe) {
 
   return `
     <div style="padding:6px 14px 4px;border-top:var(--border);">
-      <div style="font-size:0.7rem;color:var(--muted);margin-bottom:5px;">Vitrine de Músicas</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:5px;">Vitrine de Músicas</div>
       <div class="song-showcase-grid">${html}</div>
     </div>`;
 }
@@ -602,7 +602,7 @@ function loadProfileTab(tabId, userId) {
                   <div style="font-size:0.88rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
                   ${pl.description ? `<div style="font-size:0.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${esc(pl.description)}</div>` : ''}
                 </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:0.72rem;color:var(--purple-light);font-weight:600;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:0.78rem;color:var(--purple-light);font-weight:600;">
                   <span>${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}</span>
                   <span style="color:var(--muted);font-weight:normal;">${esc(pl.createdAt || '')}</span>
                 </div>
@@ -712,9 +712,9 @@ function loadProfileTab(tabId, userId) {
                   <div style="font-size:0.75rem;color:var(--purple-light);font-style:italic;margin-top:4px;">
                     "${esc(item.lyrics)}"
                   </div>` : ''}
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:0.7rem;color:var(--purple-muted);">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:0.78rem;color:var(--purple-muted);">
                   <span>${item.isChallengeReview ? `<span class="ui-icon" aria-hidden="true">${ICONS.star}</span> Avaliação em Comparar` : (item.createdAt || '')}</span>
-                  <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${jsArg(trackObj)})">
+                  <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:0.78rem;display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${jsArg(trackObj)})">
                     ${ICONS.play} Ouvir
                   </button>
                 </div>
@@ -896,7 +896,7 @@ export function renderPeopleListModal(title, ids, emptyText = 'Ninguém aqui ain
       <div class="post-author-avatar" style="overflow:hidden;">${avatarInner(u.avatar, u.name)}</div>
       <div>
         <div style="font-size:0.88rem;font-weight:700;color:var(--white)">${esc(u.name)}${adminBadge(u.id)}</div>
-        <div style="font-size:0.72rem;color:var(--muted)">${esc(u.handle || '')}</div>
+        <div style="font-size:0.78rem;color:var(--muted)">${esc(u.handle || '')}</div>
       </div>
       ${u.id !== Storage.getActiveUserId() ? `
         <button class="doodle-btn doodle-btn-follow doodle-btn-sm${Storage.isFollowing(u.id) ? ' following' : ''}" data-follow-id="${u.id}" style="margin-left:auto;" onclick="event.stopPropagation();window._toggleFollow('${u.id}')">

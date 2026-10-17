@@ -1,0 +1,55 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Acabamento: alinhamento, espaçamento, áreas de toque e estabilidade de layout.
+   Pequenos desvios que ninguém nomeia mas todo mundo sente. Carregado por último.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Celular: o feed usava 20px de margem à direita pensada para o computador ─── */
+@media (max-width: 700px) {
+  body[data-tab="feed"] .app-main { padding-right: 0; }
+}
+
+/* ─── Posts: a fileira de ações alinha com o texto nas duas pontas ───
+   O ícone ficava centralizado num botão de largura mínima e começava 12–28px depois do texto. */
+.post-actions { margin-left: -8px; margin-right: -8px; }
+.btn-post-action { justify-content: flex-start; }
+.post-actions .btn-post-action:last-child { justify-content: flex-end; }
+
+/* ─── Imagem do post: espaço reservado desde o início (antes: 2px até carregar e o post "pulava") ─── */
+.post-attached-image {
+  aspect-ratio: 4 / 3;
+  height: auto;
+  max-height: 460px;
+  object-fit: cover;
+  background: var(--surface);
+}
+
+/* ─── Campo de postar: os ícones começam na coluna do texto, não embaixo da foto ─── */
+@media (min-width: 701px) {
+  .creator-action-bar { margin-left: 58px; } /* avatar 44px + espaço 14px */
+  .creator-attach-btns { margin-left: -8px; } /* compensa o respiro interno do primeiro ícone */
+}
+
+/* ─── Música em destaque: sem degradê roxo→azul no play (decoração genérica) ─── */
+.featured-play-btn { background: var(--accent) !important; color: var(--on-accent) !important; box-shadow: none !important; }
+
+/* ─── Áreas de toque mínimas em telas de toque (36–40px) ─── */
+@media (pointer: coarse) {
+  .post-options-btn { min-width: 40px; min-height: 40px; margin: -6px -10px -6px 0; }
+  .profile-social-edit-icon { min-width: 36px; min-height: 36px; }
+  .pill-btn, .playlist-pill { min-height: 36px; }
+  .search-see-all { min-height: 36px; padding-inline: 6px; }
+  .search-chip-x { min-width: 32px; min-height: 32px; }
+  .creator-image-thumb button { width: 28px; height: 28px; }
+  .showcase-remove { min-width: 32px; min-height: 32px; }
+  .poll-see-votes { min-height: 32px; padding-block: 6px; }
+}
+
+/* ─── Desafios: o número da pergunta legível e alinhado ao título ─── */
+.q-number { font-size: .75rem; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* ─── Metadados: tamanho mínimo e números de largura fixa ─── */
+.post-meta, .friend-sub, .chat-seen, .notif-time, .player-time, .player-vol-pct, .trending-count {
+  font-variant-numeric: tabular-nums;
+}
+.friend-sub, .trending-artist, .profile-listening-when, .artist-item-sub, .chat-contact-card-preview { font-size: .8rem; }
+.top-artists-service-badge, .spotlight-rank-crown, .artist-rank-badge { font-size: .75rem; }

@@ -159,7 +159,7 @@ a { color: var(--accent); }
   position: absolute; top: 6px; left: 30px;
   min-width: 18px; padding: 0 5px;
   background: var(--accent); color: var(--on-accent);
-  font: 700 .68rem/18px var(--f-ui);
+  font: 700 .75rem/18px var(--f-ui);
   border-radius: 9px; text-align: center;
 }
 
@@ -488,7 +488,7 @@ a { color: var(--accent); }
 .player-vol-btn:hover { color: var(--text); transform: none; }
 .player-vol-bar-wrapper { height: 4px; background: var(--line); }
 .player-vol-fill { background: var(--accent); }
-.player-vol-pct { font: 400 .72rem var(--f-ui); color: var(--text-2); }
+.player-vol-pct { font: 400 .78rem var(--f-ui); color: var(--text-2); }
 
 /* ─── Perfil: top artistas e músicas ─── */
 .artist-photo-fallback {
@@ -684,7 +684,7 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .top-artist-spotlight:hover { transform: none; box-shadow: none; background: var(--hover); border-color: var(--line); }
 .spotlight-rank-crown {
   position: static; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px;
-  backdrop-filter: none; padding: 2px 8px; font-size: .72rem; white-space: nowrap;
+  backdrop-filter: none; padding: 2px 8px; font-size: 0.78rem; white-space: nowrap;
 }
 .spotlight-rank-crown svg { width: 13px; height: 13px; }
 .top-artist-spotlight > .doodle-btn { flex-shrink: 0; align-self: center; }
@@ -849,7 +849,7 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .msearch-album:hover { background: var(--tint-1); }
 .msearch-album img, .msearch-album > span:first-child { width: 100%; aspect-ratio: 1; border-radius: 8px; object-fit: cover; background: var(--tint-2); }
 .msearch-album-title { font-size: .78rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.msearch-album-sub { font-size: .72rem; color: var(--text-2); }
+.msearch-album-sub { font-size: 0.78rem; color: var(--text-2); }
 .msearch-album-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .msearch-album-head img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; }
 .msearch-album-head div { display: flex; flex-direction: column; min-width: 0; }

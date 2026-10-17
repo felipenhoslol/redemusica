@@ -1047,7 +1047,7 @@ function bindGlobalHandlers() {
           ${track.artwork ? `<img src="${safeUrl(track.artwork)}" style="width:32px;height:32px;border-radius:5px;object-fit:cover;">` : ''}
           <div>
             <div style="font-size:0.8rem;font-weight:700;color:var(--white)">${esc(track.title)}</div>
-            <div style="font-size:0.72rem;color:var(--muted)">${esc(track.artist)}</div>
+            <div style="font-size:0.78rem;color:var(--muted)">${esc(track.artist)}</div>
           </div>
         </div>
         <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCreatorSong()">Remover</button>
@@ -1130,7 +1130,7 @@ function bindGlobalHandlers() {
             ${coverArt ? `<img src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
           </div>
           <div style="min-width:0;">
-            <div style="font-size:0.7rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
+            <div style="font-size:0.78rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
             <div style="font-size:0.86rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
           </div>
         </div>
@@ -1260,7 +1260,7 @@ function bindGlobalHandlers() {
         <img src="${safeUrl(a.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80')}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.name)}</div>
-          <div style="font-size:0.68rem;color:var(--muted);">${esc(a.genre || 'Artista')}</div>
+          <div style="font-size:0.75rem;color:var(--muted);">${esc(a.genre || 'Artista')}</div>
         </div>
         <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 6px;color:var(--danger);" onclick="window._removeArtistFromPicker(${i})">&times;</button>
       </div>
@@ -1312,7 +1312,7 @@ function bindGlobalHandlers() {
           <img src="${safeUrl(a.imageUrl)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
           <div style="flex:1;min-width:0;">
             <div style="font-size:0.82rem;font-weight:700;color:var(--white);">${esc(a.name)}</div>
-            <div style="font-size:0.68rem;color:var(--muted);">${esc(a.genre)}</div>
+            <div style="font-size:0.75rem;color:var(--muted);">${esc(a.genre)}</div>
           </div>
           <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._addArtistToPicker(${jsArg(a)})">+ Adicionar</button>
         </div>

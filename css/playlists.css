@@ -398,7 +398,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   text-transform: none;
   color: var(--purple-light);
@@ -585,7 +585,7 @@
 }
 
 .playlist-track-note {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--star);
   margin-top: 2px;
   white-space: nowrap;

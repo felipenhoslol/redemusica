@@ -268,7 +268,7 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 600;
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent);
@@ -379,7 +379,7 @@
 .featured-label-pill {
   background: rgba(0, 0, 0, 0.6);
   color: var(--accent);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.5px;
   padding: 3px 12px;
@@ -672,7 +672,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--purple-light);
   padding: 4px 14px 0;
@@ -690,7 +690,7 @@
 }
 
 .profile-edit-preview-title {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--purple-light);
   text-transform: none;
@@ -760,14 +760,14 @@
 }
 
 .preview-handle {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   opacity: 0.6;
   margin-bottom: 4px;
 }
 
 .preview-status {
   display: inline-block;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   border: 1px dashed currentColor;
@@ -801,7 +801,7 @@
   color: var(--white);
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -848,7 +848,7 @@
 }
 
 .top-artists-service-badge {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: none;
   padding: 2px 8px;
@@ -900,7 +900,7 @@
   position: absolute;
   top: 8px;
   right: 12px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   color: var(--star);
   display: flex;
@@ -945,7 +945,7 @@
 }
 
 .spotlight-scrobbles {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--profile-status-color, var(--muted));
   opacity: 0.85;
   margin-top: 3px;
@@ -1012,7 +1012,7 @@
 }
 
 .artist-item-sub {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1057,7 +1057,7 @@
 .profile-listening-text strong, .profile-listening-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-listening-text strong { font-size: .86rem; color: var(--text, var(--white)); }
 .profile-listening-text span { font-size: .76rem; color: var(--text-2, var(--muted)); }
-.profile-listening-when { flex: none; font-size: .72rem; color: var(--text-2, var(--muted)); display: inline-flex; align-items: center; gap: 5px; }
+.profile-listening-when { flex: none; font-size: 0.78rem; color: var(--text-2, var(--muted)); display: inline-flex; align-items: center; gap: 5px; }
 .profile-listening-row.now .profile-listening-when { color: var(--accent); font-weight: 700; }
 .profile-listening-empty { font-size: .82rem; color: var(--text-2, var(--muted)); padding: 4px 0; }
 .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }

@@ -81,7 +81,7 @@
     position: absolute; top: 7px; left: calc(50% + 3px);
     min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
     background: var(--accent); color: var(--on-accent);
-    font: 700 .68rem/18px var(--f-ui); text-align: center; box-shadow: 0 0 0 2px var(--bg);
+    font: 700 .75rem/18px var(--f-ui); text-align: center; box-shadow: 0 0 0 2px var(--bg);
   }
 
   /* Player: só aparece tocando, logo acima das abas */

@@ -129,7 +129,7 @@ function renderAttachmentItemsHtml(context) {
           ${attachedSong.artwork ? `<img src="${safeUrl(attachedSong.artwork)}" style="width:${isTab ? '36px' : '26px'};height:${isTab ? '36px' : '26px'};border-radius:4px;object-fit:cover;">` : ''}
           <div style="max-width:160px;min-width:0;">
             <div style="font-size:0.8rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> ${esc(attachedSong.title)}</div>
-            <div style="font-size:0.7rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(attachedSong.artist)}</div>
+            <div style="font-size:0.78rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(attachedSong.artist)}</div>
           </div>
           <button type="button" onclick="window._clearChatAttachment('song')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover música" aria-label="Remover música"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>` : ''}
@@ -275,7 +275,7 @@ function renderChatTabContacts() {
         <div class="chat-contact-card-info">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div class="chat-contact-card-name">${esc(u.name)}${adminBadge(u.id)}</div>
-            ${last ? `<span style="font-size:0.68rem;color:var(--muted);">${esc(last.createdAt || '')}</span>` : ''}
+            ${last ? `<span style="font-size:0.75rem;color:var(--muted);">${esc(last.createdAt || '')}</span>` : ''}
             ${unread && activeContactId !== u.id ? `<span class="chat-unread-badge" aria-label="${unread} não lidas">${unread > 9 ? '9+' : unread}</span>` : ''}
           </div>
           <div class="chat-contact-card-preview">${esc(previewText)}</div>

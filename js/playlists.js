@@ -594,7 +594,7 @@ export function openCreatePlaylistModal(playlistId = null) {
       <div style="margin-bottom:18px;">
         <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
           <span>Capa Customizada (opcional)</span>
-          <span style="font-size:0.72rem;color:var(--muted);font-weight:normal;">URL ou Arquivo</span>
+          <span style="font-size:0.78rem;color:var(--muted);font-weight:normal;">URL ou Arquivo</span>
         </label>
         <div style="display:flex;gap:8px;">
           <input type="text" id="playlist-form-cover" class="doodle-input" placeholder="https://exemplo.com/capa.jpg ou arquivo" value="${esc(pl?.coverUrl || '')}">
@@ -862,7 +862,7 @@ window._sharePlaylistToFeedAction = (playlistId) => {
           ${coverArt ? `<img src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
         </div>
         <div style="min-width:0;flex:1;">
-          <div style="font-size:0.7rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
+          <div style="font-size:0.78rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
           <div style="font-size:0.9rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
           <div style="font-size:0.75rem;color:var(--muted);">${songs.length} músicas</div>
         </div>

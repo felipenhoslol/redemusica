@@ -75,7 +75,7 @@
 
 .notif-text { font-size: 0.8rem; color: var(--white); line-height: 1.35; }
 .notif-text strong { color: var(--purple-light); }
-.notif-time { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+.notif-time { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
 .notif-empty { text-align: center; padding: 30px; color: var(--muted); font-size: 0.85rem; }
 
 /* ─── FLOATING AUDIO PLAYER ─── */
@@ -273,7 +273,7 @@
 }
 
 .player-vol-pct {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
   width: 28px;
@@ -334,7 +334,7 @@
 }
 
 .compare-challenge-pill-count {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   padding: 1px 6px;
   border-radius: var(--radius-pill);
   background: var(--tint-3);
@@ -409,7 +409,7 @@
 }
 
 .compare-user-handle {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -424,7 +424,7 @@
 }
 
 .compare-user-prog-badge {
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 4px;
@@ -434,7 +434,7 @@
 }
 
 .compare-user-affinity-badge {
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--purple-light);
   display: inline-flex;
@@ -526,7 +526,7 @@
 }
 
 .battle-stat-label {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--muted);
   text-transform: none;
   font-weight: 700;
@@ -547,7 +547,7 @@
   background: var(--bg-card);
   border: var(--border);
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -603,7 +603,7 @@
 }
 
 .compare-q-badge {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 800;
   color: var(--purple-light);
   background: var(--bg-card);
@@ -622,7 +622,7 @@
 }
 
 .compare-q-sub {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: var(--muted);
   margin-top: 1px;
 }
@@ -656,7 +656,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--muted);
   text-transform: none;
@@ -718,7 +718,7 @@
 }
 
 .compare-song-artist {
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -737,7 +737,7 @@
 }
 
 .compare-add-song-btn {
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
   padding: 4px 10px;
   color: var(--purple-light);
@@ -793,7 +793,7 @@
   background: color-mix(in srgb, var(--star) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--star) 30%, transparent);
   color: var(--star);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -817,7 +817,7 @@
   border: var(--border);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--muted);
   width: 100%;
   box-sizing: border-box;
@@ -899,7 +899,7 @@
   padding: 8px 10px;
 }
 
-.q-number { font-size: 0.65rem; color: var(--dimmed); }
+.q-number { font-size: 0.75rem; color: var(--dimmed); }
 .q-title  { font-size: 0.8rem; font-weight: 700; color: var(--white); line-height: 1.2; margin: 2px 0 4px; }
 
 .q-card-answered-badge {
@@ -908,7 +908,7 @@
   right: 6px;
   background: var(--purple-mid);
   color: var(--purple-light);
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -944,7 +944,7 @@
 }
 
 .search-result-title  { font-size: 0.85rem; font-weight: 700; color: var(--white); }
-.search-result-artist { font-size: 0.72rem; color: var(--muted); }
+.search-result-artist { font-size: 0.78rem; color: var(--muted); }
 
 /* ─── PROFILE EDIT MODAL COLORS ─── */
 .color-picker-grid {
@@ -1012,7 +1012,7 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
 .trending-info { flex: 1; min-width: 0; }
 .trending-title  { font-size: 0.88rem; font-weight: 700; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trending-artist { font-size: 0.76rem; color: var(--muted); }
-.trending-count  { font-size: 0.72rem; color: var(--purple-light); margin-top: 2px; }
+.trending-count  { font-size: 0.78rem; color: var(--purple-light); margin-top: 2px; }
 
 /* ─── SHARE MODAL ─── */
 .share-url-row {
@@ -1168,7 +1168,7 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
 }
 
 .rich-link-domain {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--purple-light);
   text-transform: none;
@@ -1200,7 +1200,7 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--purple-light);
   margin-top: 4px;
