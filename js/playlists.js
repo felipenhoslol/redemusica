@@ -451,7 +451,7 @@ function renderTrackRow(playlist, song, index, isOwner) {
       <div class="playlist-track-info">
         <div class="playlist-track-title">${esc(song.title)}</div>
         <div class="playlist-track-artist">${esc(song.artist)}</div>
-        ${song.note ? `<div class="playlist-track-note">💬 "${esc(song.note)}"</div>` : ''}
+        ${song.note ? `<div class="playlist-track-note">“${esc(song.note)}”</div>` : ''}
       </div>
 
       <div class="playlist-track-album" title="${esc(song.album || '')}">
@@ -745,22 +745,22 @@ export function generatePlaylistText(playlist) {
   const author = getUserById(playlist.authorId) || { name: 'Alguém' };
   const songs = playlist.songs || [];
   
-  let text = `🎧 Playlist: ${playlist.title} — por ${author.name}\n`;
+  let text = `Playlist: ${playlist.title}, de ${author.name}\n`;
   if (playlist.description) {
     text += `"${playlist.description}"\n`;
   }
-  text += `📊 Total: ${songs.length} faixas\n`;
+  text += `${songs.length} faixas\n`;
   text += `═══════════════════════════════════════\n\n`;
 
   songs.forEach((s, i) => {
     const num = String(i + 1).padStart(2, '0');
     text += `${num}. ▶ ${s.title} — ${s.artist}${s.album ? ` (${s.album})` : ''}\n`;
     if (s.note) {
-      text += `   💬 "${s.note}"\n`;
+      text += `   “${s.note}”\n`;
     }
   });
 
-  text += `\n═══════════════════════════════════════\nCriada no Music Ask 🎵`;
+  text += `\n═══════════════════════════════════════\nFeita na rede de música`;
   return text;
 }
 
@@ -850,7 +850,7 @@ window._sharePlaylistToFeedAction = (playlistId) => {
 
   const songs = pl.songs || [];
   const topTracks = songs.slice(0, 3).map(s => `• ${s.title} — ${s.artist}`).join('\n');
-  const defaultText = `🎶 Ouçam minha playlist "${pl.title}"!\n${pl.description ? `"${pl.description}"\n\n` : ''}${songs.length} faixas selecionadas:${topTracks ? `\n${topTracks}` : ''}`;
+  const defaultText = `Ouçam minha playlist "${pl.title}"!\n${pl.description ? `"${pl.description}"\n\n` : ''}${songs.length} faixas selecionadas:${topTracks ? `\n${topTracks}` : ''}`;
 
   const coverArt = pl.coverUrl || (songs.find(s => !!s.artwork)?.artwork || '');
 
@@ -938,7 +938,7 @@ window._sharePlaylistLinkAction = async (playlistId) => {
 
   const shareData = {
     title: `Playlist: ${pl.title}`,
-    text: `Confira a playlist "${pl.title}" no Music Ask!`,
+    text: `Confira a playlist "${pl.title}" na rede de música!`,
     url: window.location.href
   };
 

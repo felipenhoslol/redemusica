@@ -1,0 +1,48 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Marca: uma linguagem só para logo, tipografia e ícones.
+   - O gatinho kawaii é o único elemento ilustrado; o resto fica calmo em volta dele.
+   - Uma família arredondada (M PLUS Rounded 1c, em tokens.css): a hierarquia vem do peso.
+   - Ícones de traço 2 com pontas redondas, a mesma linha do rosto do gatinho.
+   Carregado por último para valer sobre os estilos antigos.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Wordmark: "rede de música" sempre igual (barra lateral, topo do celular, login) ─── */
+.sidebar-logo-text h1, .mobile-brand-name, .auth-title {
+  font-family: var(--f-display); font-weight: 900; letter-spacing: -.02em;
+  text-transform: lowercase; color: var(--text);
+}
+.sidebar-logo-text h1 { font-size: 1.12rem; line-height: 1.05; }
+.mobile-brand-name { font-size: 1.12rem; }
+.auth-title { font-size: 2.4rem; line-height: 1; }
+.sidebar-logo-text span, .auth-title span {
+  font-family: var(--f-display); font-weight: 800; letter-spacing: -.01em; color: var(--accent);
+}
+.sidebar-logo-text span { font-size: .8rem; }
+.auth-title span { display: block; font-size: .42em; margin-top: 8px; }
+@media (max-width: 700px) { .auth-title { font-size: 1.8rem; } }
+
+/* ─── Títulos: peso 800, levemente justos ─── */
+.page-title, .timeline-title, .search-section-head h2, .app-dialog-head h2, .photo-editor-head h2,
+.notif-panel-header h3, .chat-tab-header-title, .widget-header h3, .search-empty-title,
+.empty-state-title, .account-fieldset legend, .auth-heading, .admin-subtitle {
+  font-family: var(--f-display); font-weight: 800; letter-spacing: -.01em;
+}
+.page-title, .timeline-title { font-size: var(--fs-lg); }
+.search-section-head h2, .widget-header h3, .app-dialog-head h2, .photo-editor-head h2, .notif-panel-header h3 { font-size: var(--fs-md); }
+.search-detail-title, .profile-name { font-family: var(--f-display); font-weight: 900; letter-spacing: -.02em; }
+
+/* ─── Texto e botões ─── */
+body { font-family: var(--f-ui); }
+.doodle-btn, .nav-post-btn, .search-follow-btn, .photo-editor-save, .account-submit, .search-more { font-family: var(--f-ui); font-weight: 800; }
+.post-text, .comment-text, .profile-bio:not([style*="font-family"]) { font-family: var(--f-ui); }
+
+/* ─── Ícones: traço 2, pontas e cantos redondos em todo o app (o gatinho tem estilo próprio) ─── */
+svg:not(.cat)[stroke="currentColor"],
+svg:not(.cat)[stroke="currentColor"] * {
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Ícone dentro de texto: alinha com a linha */
+.ui-icon { display: inline-flex; vertical-align: -0.18em; }
+.ui-icon svg { width: 1em; height: 1em; }

@@ -27,7 +27,8 @@
   :root { --tabbar-h: 56px; --safe-b: env(safe-area-inset-bottom, 0px); }
 
   .app-sidebar { display: none; }
-  .app-main { margin-left: 0; flex-direction: column; align-items: stretch; }
+  /* Coluna começando no topo: com justify-content: center o cabeçalho descia até o meio em telas curtas (chat) */
+  .app-main { margin-left: 0; flex-direction: column; align-items: stretch; justify-content: flex-start; }
 
   /* Topo: gatinho + nome à esquerda, notificações à direita */
   .mobile-header {
@@ -151,7 +152,20 @@
   .playlists-empty-state .doodle-btn { max-width: 100%; white-space: normal; }
 
   /* Chat: uma tela de cada vez (lista → conversa) */
-  .chat-tab-container { height: calc(100dvh - var(--tabbar-h) - var(--safe-b) - 24px); min-height: 0; border-radius: 12px; }
+  /* Lista: presa entre o topo (56px) e a barra de baixo, nunca por baixo dela.
+     Conversa aberta: tela cheia por cima da barra, como nos apps de mensagem. */
+  body[data-tab="chat"] #tab-chat { padding: 0 !important; }
+  .chat-tab-container {
+    position: fixed; top: 56px; left: 0; right: 0; bottom: calc(var(--tabbar-h) + var(--safe-b));
+    height: auto; min-height: 0; margin: 0; border: 0; border-radius: 0; z-index: 10;
+  }
+  body:has(.player-bar.has-track) .chat-tab-container:not(.has-conversation) { bottom: calc(var(--tabbar-h) + var(--safe-b) + 60px); }
+  .chat-tab-container.has-conversation {
+    top: 0; bottom: 0; z-index: 700;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: var(--safe-b);
+  }
+  .chat-tab-body, .chat-tab-main { min-height: 0; }
+  .chat-main-messages { min-height: 0; overscroll-behavior: contain; }
   .chat-tab-header { padding: 12px 14px; }
   .chat-tab-header-sub { display: none; }
   .chat-tab-sidebar { width: 100%; min-width: 0; border-right: 0; }
@@ -201,3 +215,32 @@
   .search-tabs, .search-artist-row, .profile-subtabs, .playlists-filter-pills, #challenge-pills { cursor: grab; }
 }
 .is-drag-scrolling, .is-drag-scrolling * { cursor: grabbing !important; user-select: none; }
+
+/* ─── Celular: sem zoom automático nem página "torta" ───────────────────────── */
+@media (max-width: 700px) {
+  /* No iPhone, campos com texto menor que 16px dão zoom ao tocar e a página fica deslocada */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea, select { font-size: 16px !important; }
+}
+/* Nada arrasta a página para os lados no toque */
+html, body { max-width: 100%; overflow-x: clip; }
+
+/* Perfil no celular: disco da música em destaque menor, para o título ter espaço */
+@media (max-width: 700px) {
+  .featured-vinyl-stage { width: 96px; height: 64px; flex-shrink: 0; }
+  .featured-album-sleeve { width: 64px; height: 64px; }
+  .featured-vinyl-disk { left: 30px; width: 64px; height: 64px; }
+  .featured-vinyl-stage:hover .featured-vinyl-disk, .featured-vinyl-disk.playing { left: 36px; }
+  .featured-content-row { gap: 12px; }
+  .featured-info { min-width: 0; flex: 1; }
+  .featured-title { font-size: 1rem; }
+}
+
+/* Campo de postar no celular: os 6 ícones numa linha só, ao lado do "Postar" */
+@media (max-width: 700px) {
+  .creator-action-bar { flex-wrap: nowrap; gap: 8px; }
+  .creator-attach-btns { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .creator-attach-btns::-webkit-scrollbar { display: none; }
+  .creator-attach-btns .btn-attach { flex: 0 0 36px; width: 36px; min-width: 36px; padding-inline: 0; justify-content: center; }
+  .creator-action-bar > :last-child { flex-shrink: 0; }
+}

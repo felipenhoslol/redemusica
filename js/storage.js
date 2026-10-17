@@ -295,6 +295,11 @@ const ADMIN_IDS_KEY = 'rmsn_admin_ids_v1';
 export function setAdminIds(ids) {
   lsSet(ADMIN_IDS_KEY, JSON.stringify([...new Set(ids)].slice(0, 200)));
 }
+/** Mark one more admin locally (e.g. yourself, known from is_admin before the server list loads). */
+export function addAdminId(userId) {
+  if (!userId) return;
+  setAdminIds([...(cachedJson(ADMIN_IDS_KEY, null) || []), userId]);
+}
 export function isAdminUser(userId) {
   return Boolean(userId) && (cachedJson(ADMIN_IDS_KEY, null) || []).includes(userId);
 }
@@ -823,7 +828,8 @@ export function deleteComment(postId, commentId, opts = {}) {
     const idx = post.comments.findIndex(c => c.id === commentId);
     if (idx !== -1) {
       const comment = post.comments[idx];
-      if (opts.force || comment.userId === activeUser.id || post.authorId === activeUser.id) {
+      // Only whoever wrote the comment, or an admin (opts.force), can remove it — not the post's author
+      if (opts.force || comment.userId === activeUser.id) {
         post.comments.splice(idx, 1);
         lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
         toRemote('deleteComment', commentId);
@@ -881,13 +887,19 @@ export function deletePost(postId) {
 //  CHALLENGES
 // ──────────────────────────────────────────
 
+// Challenges taken out of the app; browsers that saved them earlier stop showing them
+const REMOVED_CHALLENGES = ['top_10_life', 'night_vibes'];
+
 export function getAllChallenges() {
-  try { return JSON.parse(lsGet(STORAGE_KEYS.CHALLENGES)) || DEFAULT_CHALLENGES; }
-  catch { return DEFAULT_CHALLENGES; }
+  let list;
+  try { list = JSON.parse(lsGet(STORAGE_KEYS.CHALLENGES)) || DEFAULT_CHALLENGES; }
+  catch { list = DEFAULT_CHALLENGES; }
+  return list.filter(c => !REMOVED_CHALLENGES.includes(c.id));
 }
 
 export function getActiveChallengeId() {
-  return lsGet(STORAGE_KEYS.ACTIVE_CHALLENGE) || 'classic_30';
+  const id = lsGet(STORAGE_KEYS.ACTIVE_CHALLENGE) || 'classic_30';
+  return REMOVED_CHALLENGES.includes(id) ? 'classic_30' : id;
 }
 
 export function setActiveChallengeId(id) {

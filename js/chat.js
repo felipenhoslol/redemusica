@@ -128,24 +128,24 @@ function renderAttachmentItemsHtml(context) {
         <div style="display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 22%, transparent);border:1.5px solid var(--purple-accent);border-radius:8px;padding:5px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
           ${attachedSong.artwork ? `<img src="${safeUrl(attachedSong.artwork)}" style="width:${isTab ? '36px' : '26px'};height:${isTab ? '36px' : '26px'};border-radius:4px;object-fit:cover;">` : ''}
           <div style="max-width:160px;min-width:0;">
-            <div style="font-size:0.8rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🎵 ${esc(attachedSong.title)}</div>
+            <div style="font-size:0.8rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> ${esc(attachedSong.title)}</div>
             <div style="font-size:0.7rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(attachedSong.artist)}</div>
           </div>
-          <button type="button" onclick="window._clearChatAttachment('song')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover música">✕</button>
+          <button type="button" onclick="window._clearChatAttachment('song')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover música" aria-label="Remover música"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>` : ''}
 
       ${attachedImage ? `
         <div style="position:relative;display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 15%, transparent);border:1.5px solid var(--accent);border-radius:8px;padding:4px 8px;">
           <img src="${safeUrl(attachedImage)}" alt="Prévia" style="width:${isTab ? '50px' : '32px'};height:${isTab ? '50px' : '32px'};border-radius:4px;object-fit:cover;">
-          <span style="font-size:0.75rem;font-weight:800;color:var(--accent);">🖼️ Imagem</span>
-          <button type="button" onclick="window._clearChatAttachment('image')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover imagem">✕</button>
+          <span style="font-size:0.75rem;font-weight:800;color:var(--accent);"><span class="ui-icon" aria-hidden="true">${ICONS.image}</span> Imagem</span>
+          <button type="button" onclick="window._clearChatAttachment('image')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover imagem" aria-label="Remover imagem"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>` : ''}
 
       ${attachedGif ? `
         <div style="position:relative;display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--star) 18%, transparent);border:1.5px solid var(--star);border-radius:8px;padding:4px 8px;">
           <img src="${safeUrl(attachedGif)}" alt="GIF" style="width:${isTab ? '50px' : '32px'};height:${isTab ? '50px' : '32px'};border-radius:4px;object-fit:cover;">
-          <span style="font-size:0.75rem;font-weight:800;color:var(--star);">👾 GIF</span>
-          <button type="button" onclick="window._clearChatAttachment('gif')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover GIF">✕</button>
+          <span style="font-size:0.75rem;font-weight:800;color:var(--star);">GIF</span>
+          <button type="button" onclick="window._clearChatAttachment('gif')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover GIF" aria-label="Remover GIF"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>` : ''}
     </div>`;
 }
@@ -260,9 +260,9 @@ function renderChatTabContacts() {
     let previewText = 'Iniciar conversa';
     if (last) {
       if (last.text) previewText = last.text;
-      else if (last.song) previewText = `🎵 ${last.song.title}`;
-      else if (last.imageUrl) previewText = '🖼️ Imagem';
-      else if (last.gifUrl) previewText = '👾 GIF';
+      else if (last.song) previewText = `Música: ${last.song.title}`;
+      else if (last.imageUrl) previewText = 'Foto';
+      else if (last.gifUrl) previewText = 'GIF';
     }
 
     const uAvatarHtml = isImageAvatar(u.avatar)
@@ -389,7 +389,7 @@ function renderMessagesListHtml(msgs, activeUserId) {
   if (!msgs.length) {
     return `
       <div style="text-align:center;padding:40px 10px;color:var(--muted);font-size:0.88rem;">
-        Nenhuma mensagem ainda. Envie uma mensagem, música, foto ou GIF para quebrar o gelo! 👋
+        Nenhuma mensagem ainda. Envie uma mensagem, música, foto ou GIF para quebrar o gelo.
       </div>`;
   }
 
@@ -399,7 +399,7 @@ function renderMessagesListHtml(msgs, activeUserId) {
     const replyBoxHtml = m.replyTo ? `
       <div class="chat-replied-box">
         <div class="chat-replied-author">${esc(m.replyTo.authorName || 'Alguém')}</div>
-        <div class="chat-replied-text">${m.replyTo.text || (m.replyTo.song ? `🎵 ${esc(m.replyTo.song.title)}` : (m.replyTo.imageUrl ? '🖼️ Imagem' : (m.replyTo.gifUrl ? '👾 GIF' : 'Mensagem')))}</div>
+        <div class="chat-replied-text">${m.replyTo.text || (m.replyTo.song ? `Música: ${esc(m.replyTo.song.title)}` : (m.replyTo.imageUrl ? 'Foto' : (m.replyTo.gifUrl ? 'GIF' : 'Mensagem')))}</div>
       </div>` : '';
 
     const songHtml = m.song ? `
@@ -507,9 +507,9 @@ function renderContacts() {
     let preview = '';
     if (last) {
       if (last.text) preview = last.text;
-      else if (last.song) preview = `🎵 ${last.song.title}`;
-      else if (last.imageUrl) preview = '🖼️ Imagem';
-      else if (last.gifUrl) preview = '👾 GIF';
+      else if (last.song) preview = `Música: ${last.song.title}`;
+      else if (last.imageUrl) preview = 'Foto';
+      else if (last.gifUrl) preview = 'GIF';
     }
 
     const uAvatarHtml = isImageAvatar(u.avatar)
@@ -662,7 +662,7 @@ function renderReplyBanners() {
     return;
   }
 
-  const snippet = replyingToMessage.text || (replyingToMessage.song ? `🎵 ${replyingToMessage.song.title}` : (replyingToMessage.imageUrl ? '🖼️ Imagem' : (replyingToMessage.gifUrl ? '👾 GIF' : 'Mensagem')));
+  const snippet = replyingToMessage.text || (replyingToMessage.song ? `Música: ${replyingToMessage.song.title}` : (replyingToMessage.imageUrl ? 'Foto' : (replyingToMessage.gifUrl ? 'GIF' : 'Mensagem')));
 
   const bannerHtml = `
     <div class="chat-reply-banner">
@@ -673,7 +673,7 @@ function renderReplyBanners() {
           <div class="chat-reply-banner-text">${esc(snippet)}</div>
         </div>
       </div>
-      <button type="button" class="chat-reply-banner-close" onclick="window._cancelChatReply()" title="Cancelar resposta">✕</button>
+      <button type="button" class="chat-reply-banner-close" onclick="window._cancelChatReply()" title="Cancelar resposta" aria-label="Cancelar resposta"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
     </div>`;
 
   if (largeBanner) {
@@ -752,13 +752,13 @@ window._openChatGifPicker = () => {
   chatGifCategory = 'all';
 
   const categories = [
-    { id: 'all', label: '🔥 Em Alta' },
-    { id: 'dance', label: '💃 Dança' },
-    { id: 'rock', label: '🎸 Rock' },
-    { id: 'dj', label: '🎧 DJ & Fones' },
-    { id: 'cat', label: '🐱 Gatos' },
-    { id: 'sing', label: '🎤 Cantando' },
-    { id: 'react', label: '👏 Reações' }
+    { id: 'all', label: 'Em alta' },
+    { id: 'dance', label: 'Dança' },
+    { id: 'rock', label: 'Rock' },
+    { id: 'dj', label: 'DJ e fones' },
+    { id: 'cat', label: 'Gatos' },
+    { id: 'sing', label: 'Cantando' },
+    { id: 'react', label: 'Reações' }
   ];
 
   const renderGrid = (gifs) => {

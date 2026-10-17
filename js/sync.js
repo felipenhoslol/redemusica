@@ -285,7 +285,7 @@ function buildMessageNotifications(messages) {
   return [...latest.values()].map(m => ({
     id: `message:${m.id}`, type: 'message', fromUserId: m.fromUserId, createdAt: m.createdAtIso,
     text: 'te enviou uma mensagem',
-    preview: snippet(m.text) || (m.song ? `🎵 ${m.song.title}` : m.imageUrl ? 'Imagem' : m.gifUrl ? 'GIF' : '')
+    preview: snippet(m.text) || (m.song ? `Música: ${m.song.title}` : m.imageUrl ? 'Imagem' : m.gifUrl ? 'GIF' : '')
   }));
 }
 
@@ -936,12 +936,21 @@ function write(task, failMessage) {
 }
 
 
+// Writes for the same thing (one post's like, one follow...) run one after another, in click order.
+// Sent in parallel, a quick like→unlike could reach the server reversed and leave the like on.
+const writeQueues = new Map(); // pending map → Map(key → last queued promise)
+
 // A write whose optimistic state stays on screen until the server has it, then a quick re-pull
 function tracked(map, key, on, task, failMessage) {
   map.set(key, on);
+  if (!writeQueues.has(map)) writeQueues.set(map, new Map());
+  const queue = writeQueues.get(map);
   write(async db => {
-    try { await task(db); }
+    const run = (queue.get(key) || Promise.resolve()).catch(() => {}).then(() => task(db));
+    queue.set(key, run);
+    try { await run; }
     finally {
+      if (queue.get(key) === run) queue.delete(key);
       if (map.get(key) === on) map.delete(key);
       clearTimeout(pullSoonTimer);
       // A pull already running may have read the server before this write: chain a fresh one

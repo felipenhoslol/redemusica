@@ -1,6 +1,7 @@
 // Feed module — post creation, rendering, interactions, lyric cards
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
+import { toggleCollapse } from './motion.js';
 import { globalAudio } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
@@ -147,7 +148,8 @@ export const MUSIC_GIFS = [
 export function renderCommentRow(c, postId, isMaximized = false) {
   const activeUser = Storage.getActiveUser();
   const post = postId ? Storage.getPostById(postId) : null;
-  const canDelete = c.userId === activeUser.id || (post && post.authorId === activeUser.id) || auth.isAdmin;
+  // Your own comments, or any comment for an admin; a post's author can't delete other people's comments
+  const canDelete = c.userId === activeUser.id || auth.isAdmin;
 
   const cAvatar = isImageAvatar(c.userAvatar)
     ? `<img src="${safeUrl(c.userAvatar)}" alt="${esc(c.userName)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
@@ -670,7 +672,7 @@ function renderCreatorImages() {
       ${list.map((url, i) => `
         <div class="creator-image-thumb">
           <img src="${safeUrl(url)}" alt="Foto ${i + 1} do post">
-          <button type="button" onclick="window._removeCreatorImage(${i})" aria-label="Tirar a foto ${i + 1}" title="Tirar foto">✕</button>
+          <button type="button" onclick="window._removeCreatorImage(${i})" aria-label="Tirar a foto ${i + 1}" title="Tirar foto"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>`).join('')}
       ${list.length < MAX_POST_IMAGES ? `<button type="button" class="creator-image-add" onclick="window._creatorOpenImagePicker()" aria-label="Adicionar mais fotos">${ICONS.plus}</button>` : ''}
     </div>` : '';
@@ -801,7 +803,7 @@ function updateCommentPendingBox(postId) {
         <div style="display:flex;align-items:center;gap:12px;min-width:0;">
           ${data.song.artwork ? `<img src="${safeUrl(data.song.artwork)}" style="width:54px;height:54px;border-radius:8px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.3);flex-shrink:0;">` : ''}
           <div style="min-width:0;">
-            <div style="font-size:0.72rem;color:var(--purple-light);font-weight:800;letter-spacing:0.5px;margin-bottom:2px;">🎵 Música Anexada</div>
+            <div style="font-size:0.72rem;color:var(--purple-light);font-weight:800;letter-spacing:0.5px;margin-bottom:2px;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> Música anexada</div>
             <div style="font-size:0.94rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(data.song.title)}</div>
             <div style="font-size:0.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(data.song.artist)}</div>
           </div>
@@ -810,9 +812,7 @@ function updateCommentPendingBox(postId) {
           <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;" onclick="window._playTrack(${jsArg(data.song)})" title="Ouvir prévia">
             ${ICONS.play}
           </button>
-          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCommentAttachment('${postId}', 'song')" style="width:30px;height:30px;padding:0;border-radius:50%;color:var(--danger);font-weight:800;" title="Remover música">
-            ✕
-          </button>
+          <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCommentAttachment('${postId}', 'song')" style="width:30px;height:30px;padding:0;border-radius:50%;color:var(--danger);font-weight:800;" title="Remover música"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>
       </div>` : ''}
 
@@ -820,18 +820,18 @@ function updateCommentPendingBox(postId) {
       <div style="position:relative;display:inline-block;max-width:340px;border-radius:10px;overflow:hidden;border:1.5px solid color-mix(in srgb, var(--accent) 60%, transparent);box-shadow:0 4px 14px rgba(0,0,0,0.3);background:#000;">
         <img src="${safeUrl(data.imageUrl)}" alt="Prévia da imagem" style="width:100%;max-height:240px;object-fit:cover;display:block;">
         <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.72rem;color:var(--accent);font-weight:800;">
-          🖼️ Imagem Anexada
+          <span class="ui-icon" aria-hidden="true">${ICONS.image}</span> Imagem anexada
         </div>
-        <button type="button" onclick="window._removeCommentAttachment('${postId}', 'imageUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid var(--tint-3);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover imagem">✕</button>
+        <button type="button" onclick="window._removeCommentAttachment('${postId}', 'imageUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid var(--tint-3);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover imagem" aria-label="Remover imagem"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
       </div>` : ''}
 
     ${data.gifUrl ? `
       <div style="position:relative;display:inline-block;max-width:340px;border-radius:10px;overflow:hidden;border:1.5px solid color-mix(in srgb, var(--star) 70%, transparent);box-shadow:0 4px 14px rgba(0,0,0,0.3);background:#000;">
         <img src="${safeUrl(data.gifUrl)}" alt="Prévia do GIF" style="width:100%;max-height:240px;object-fit:cover;display:block;">
         <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);padding:3px 8px;border-radius:6px;font-size:0.72rem;color:var(--star);font-weight:800;">
-          👾 GIF Anexado
+          GIF anexado
         </div>
-        <button type="button" onclick="window._removeCommentAttachment('${postId}', 'gifUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid var(--tint-3);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover GIF">✕</button>
+        <button type="button" onclick="window._removeCommentAttachment('${postId}', 'gifUrl')" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid var(--tint-3);color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:900;" title="Remover GIF" aria-label="Remover GIF"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
       </div>` : ''}
     `;
   });
@@ -901,13 +901,13 @@ window._openCommentGifPicker = (postId) => {
   activeGifCategory = 'all';
 
   const categories = [
-    { id: 'all', label: '🔥 Em Alta' },
-    { id: 'dance', label: '💃 Dança' },
-    { id: 'rock', label: '🎸 Rock' },
-    { id: 'dj', label: '🎧 DJ & Fones' },
-    { id: 'cat', label: '🐱 Gatos' },
-    { id: 'sing', label: '🎤 Cantando' },
-    { id: 'react', label: '👏 Reações' }
+    { id: 'all', label: 'Em alta' },
+    { id: 'dance', label: 'Dança' },
+    { id: 'rock', label: 'Rock' },
+    { id: 'dj', label: 'DJ e fones' },
+    { id: 'cat', label: 'Gatos' },
+    { id: 'sing', label: 'Cantando' },
+    { id: 'react', label: 'Reações' }
   ];
 
   const renderGridItems = (gifs) => {
@@ -1151,7 +1151,8 @@ window._toggleComments = (postId, btn, event) => {
   if (!commentsSection) return;
 
   const isHidden = window.getComputedStyle(commentsSection).display === 'none' || commentsSection.style.display === 'none' || !commentsSection.style.display;
-  commentsSection.style.display = isHidden ? 'flex' : 'none';
+  // Opens and closes like an accordion: the posts below move with it instead of jumping
+  toggleCollapse(commentsSection, isHidden, 'flex');
   if (isHidden) attachMentionAutocomplete(commentsSection.querySelector('input[id^="comment-input-"]'));
 
   if (isHidden) {
@@ -1178,7 +1179,7 @@ function paintReplyBanner(postId, postCard) {
     banner.hidden = !target;
     banner.innerHTML = target ? `
       <span>Respondendo a <strong>${esc(target.name)}</strong></span>
-      <button type="button" class="comment-reply-cancel" aria-label="Cancelar resposta" onclick="window._cancelCommentReply('${esc(postId)}', this)">✕</button>` : '';
+      <button type="button" class="comment-reply-cancel" aria-label="Cancelar resposta" onclick="window._cancelCommentReply('${esc(postId)}', this)"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>` : '';
     const input = card.querySelector('input[id^="comment-input-"]');
     if (input) input.placeholder = target ? `Responder ${target.name}...` : 'Escreva um comentário...';
   });

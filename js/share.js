@@ -9,7 +9,7 @@
  */
 export function generateTextPlaylist(profile, questions, answers) {
   const answeredCount = Object.keys(answers).length;
-  let text = `Desafio Music Ask 30 Dias — ${profile.name}\n`;
+  let text = `Desafio das 30 músicas, de ${profile.name}\n`;
   text += `Progresso: ${answeredCount}/${questions.length} músicas\n`;
   text += `═══════════════════════════════════════\n\n`;
 
@@ -27,7 +27,7 @@ export function generateTextPlaylist(profile, questions, answers) {
     text += `\n`;
   });
 
-  text += `═══════════════════════════════════════\nFeito no Music Ask`;
+  text += `═══════════════════════════════════════\nFeito na rede de música`;
   return text;
 }
 
@@ -107,13 +107,13 @@ export async function renderShareCanvas(canvas, profile, questions, answers, for
   const headerY = 80;
   
   // App Brand
-  ctx.font = '800 36px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '800 36px "M PLUS Rounded 1c", sans-serif';
   ctx.fillStyle = '#00f2fe';
-  ctx.fillText('MUSIC ASK', 80, headerY + 40);
+  ctx.fillText('rede de música', 80, headerY + 40);
 
-  ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '500 24px "M PLUS Rounded 1c", sans-serif';
   ctx.fillStyle = '#8f9bb3';
-  ctx.fillText('DESAFIO MUSICAL 30 DIAS', 80, headerY + 75);
+  ctx.fillText('Desafio das 30 músicas', 80, headerY + 75);
 
   // User Profile Pill
   const userBoxWidth = 440;
@@ -128,7 +128,7 @@ export async function renderShareCanvas(canvas, profile, questions, answers, for
   ctx.stroke();
 
   // Avatar Initial
-  ctx.font = '700 28px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '700 28px "M PLUS Rounded 1c", sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   const avatarLetter = (profile.avatar && !profile.avatar.startsWith('http') ? profile.avatar : (profile.name?.[0] || 'U')).slice(0, 2);
@@ -137,11 +137,11 @@ export async function renderShareCanvas(canvas, profile, questions, answers, for
   // User Name & Progress
   const answeredCount = Object.keys(answers).length;
   ctx.textAlign = 'left';
-  ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '700 24px "M PLUS Rounded 1c", sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.fillText(profile.name, userBoxX + 90, headerY + 45);
 
-  ctx.font = '600 20px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '600 20px "M PLUS Rounded 1c", sans-serif';
   ctx.fillStyle = '#00f5d4';
   ctx.fillText(`${answeredCount} de ${questions.length} faixas selecionadas`, userBoxX + 90, headerY + 72);
   ctx.restore();
@@ -221,10 +221,10 @@ export async function renderShareCanvas(canvas, profile, questions, answers, for
   // 4. Footer Brand
   ctx.save();
   const footerY = height - 40;
-  ctx.font = '600 18px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '600 18px "M PLUS Rounded 1c", sans-serif';
   ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
   ctx.textAlign = 'center';
-  ctx.fillText('Crie sua lista no Music Ask • Compartilhe com seus amigos', width / 2, footerY);
+  ctx.fillText('Monte a sua lista na rede de música', width / 2, footerY);
   ctx.restore();
 }
 
@@ -251,7 +251,7 @@ async function drawShareSongCard(ctx, q, song, index, x, y, cardWidth, cardHeigh
   ctx.fill();
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = `800 ${cardHeight > 80 ? '16px' : '14px'} "Plus Jakarta Sans", sans-serif`;
+  ctx.font = `800 ${cardHeight > 80 ? '16px' : '14px'} "M PLUS Rounded 1c", sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText(`${index}`, badgeX + (badgeSize / 2), badgeY + (badgeSize / 2) + 5);
 
@@ -282,17 +282,17 @@ async function drawShareSongCard(ctx, q, song, index, x, y, cardWidth, cardHeigh
   ctx.textAlign = 'left';
 
   // Question title
-  ctx.font = `600 ${cardHeight > 80 ? '17px' : '14px'} "Plus Jakarta Sans", sans-serif`;
+  ctx.font = `600 ${cardHeight > 80 ? '17px' : '14px'} "M PLUS Rounded 1c", sans-serif`;
   ctx.fillStyle = '#8f9bb3';
   ctx.fillText(truncateText(ctx, `${q.title}`, maxTextWidth), textStartX, y + (cardHeight * 0.40));
 
   // Song info
   if (song) {
-    ctx.font = `700 ${cardHeight > 80 ? '20px' : '16px'} "Plus Jakarta Sans", sans-serif`;
+    ctx.font = `700 ${cardHeight > 80 ? '20px' : '16px'} "M PLUS Rounded 1c", sans-serif`;
     ctx.fillStyle = '#ffffff';
     ctx.fillText(truncateText(ctx, `${song.title} — ${song.artist}`, maxTextWidth), textStartX, y + (cardHeight * 0.74));
   } else {
-    ctx.font = `italic 500 ${cardHeight > 80 ? '17px' : '14px'} "Plus Jakarta Sans", sans-serif`;
+    ctx.font = `italic 500 ${cardHeight > 80 ? '17px' : '14px'} "M PLUS Rounded 1c", sans-serif`;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.fillText('Pendente', textStartX, y + (cardHeight * 0.74));
   }

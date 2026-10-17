@@ -713,7 +713,7 @@ function loadProfileTab(tabId, userId) {
                     "${esc(item.lyrics)}"
                   </div>` : ''}
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:0.7rem;color:var(--purple-muted);">
-                  <span>${item.isChallengeReview ? '⭐ Avaliação em Comparar' : (item.createdAt || '')}</span>
+                  <span>${item.isChallengeReview ? `<span class="ui-icon" aria-hidden="true">${ICONS.star}</span> Avaliação em Comparar` : (item.createdAt || '')}</span>
                   <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${jsArg(trackObj)})">
                     ${ICONS.play} Ouvir
                   </button>

@@ -65,8 +65,16 @@
   --accent-softer: color-mix(in srgb, var(--accent) 8%, transparent);
 
   /* Tipo: a fonte do sistema, como as redes sociais grandes */
-  --f-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Uma família arredondada para tudo, combinando com o gatinho; o sistema entra só enquanto ela carrega */
+  --f-ui: "M PLUS Rounded 1c", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --f-display: var(--f-ui);
+  /* Escala de texto */
+  --fs-xs: .78rem;   /* metadados, contadores */
+  --fs-sm: .875rem;  /* textos secundários */
+  --fs-base: .95rem; /* texto corrido */
+  --fs-md: 1.06rem;  /* títulos de seção */
+  --fs-lg: 1.3rem;   /* títulos de página */
+  --fs-xl: 1.7rem;   /* títulos grandes (perfil, álbum) */
   --f-mono: ui-monospace, "SF Mono", Consolas, monospace;
 
   /* Forma */

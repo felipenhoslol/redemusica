@@ -6,7 +6,7 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
          createPost, setFeaturedSong, addToShowcase, removeFromShowcase,
          getUnreadNotificationCount, getUnreadMessageCount, getFeedPosts, getChallengeAnswers,
          getActiveChallengeId, getChallengeAnswers as getAnswers,
-         updateUserMusicStats, updateUser, getAllPlaylists, getPlaylistById, publishChallengeAnswers } from './storage.js';
+         updateUserMusicStats, updateUser, addAdminId, getAllPlaylists, getPlaylistById, publishChallengeAnswers } from './storage.js';
 
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
@@ -22,9 +22,11 @@ import { mentionedIds } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
+import { flip, popIcon, rollNumber, swapContent } from './motion.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
 import { creditHtml } from './credit.js';
+import { adminBadge } from './badges.js';
 import { renderAdminTab } from './admin.js';
 import { renderDailyLyric } from './dailyLyric.js';
 import { searchTracks } from './api.js';
@@ -74,6 +76,9 @@ let appStarted = false;
 function startApp() {
   if (appStarted) return;
   appStarted = true;
+  // You are an admin (checked with is_admin at sign-in): show your gear right away,
+  // even before the server's admin list (supabase/010_admin_badge.sql) arrives
+  if (auth.isAdmin && auth.user) addAdminId(auth.user.id);
   renderSidebar();
   renderMobileNav();
   initDragScroll();
@@ -117,8 +122,24 @@ function refreshFromServer() {
   if (activeTab === 'feed') {
     const feedPosts = document.getElementById('feed-posts');
     const typing = feedPosts?.contains(active) || [...(feedPosts?.querySelectorAll('input, textarea') || [])].some(el => el.value);
-    if (feedPosts && !typing) renderFeed(feedPosts, feedFilterMode);
+    // Redraw only when what the feed shows really changed: a sync with nothing new must not
+    // interrupt animations, close open comments or swap elements under the finger
+    const signature = feedSignature();
+    if (feedPosts && !typing && signature !== lastFeedSignature) {
+      lastFeedSignature = signature;
+      flip(feedPosts, '.post-card', () => renderFeed(feedPosts, feedFilterMode));
+    }
   }
+}
+
+let lastFeedSignature = '';
+/** The feed on screen now matches the data (after a render or an in-place update). */
+function markFeedShown() { lastFeedSignature = feedSignature(); }
+function feedSignature() {
+  return JSON.stringify([feedFilterMode, getFeedPosts(feedFilterMode).map(p => [
+    p.id, (p.likes || []).length, (p.reposts || []).length, (p.comments || []).length,
+    p.updatedAt || '', p.text?.length || 0, JSON.stringify(p.votes || {}).length
+  ])]);
 }
 
 // ──────────────────────────────────────────
@@ -199,7 +220,7 @@ function sidebarUserHtml(user) {
   return `
         <div class="sidebar-avatar">${avatarInner(user.avatar, user.name)}</div>
         <div class="sidebar-user-info">
-          <div class="sidebar-user-name">${esc(user.name)}</div>
+          <div class="sidebar-user-name">${esc(user.name)}${adminBadge(user.id)}</div>
           <div class="sidebar-user-handle">${esc(user.handle || '')}</div>
         </div>`;
 }
@@ -297,7 +318,7 @@ function openMeSheet() {
       <div class="me-sheet-grip" aria-hidden="true"></div>
       <button type="button" class="me-sheet-user" data-go="profile">
         <span class="post-author-avatar">${avatarInner(user.avatar, user.name)}</span>
-        <span><strong>${esc(user.name)}</strong><small>${esc(user.handle || '')} · ver perfil</small></span>
+        <span><strong>${esc(user.name)}${adminBadge(user.id)}</strong><small>${esc(user.handle || '')} · ver perfil</small></span>
       </button>
       <div class="me-sheet-list">
         ${item('playlists', ICONS.playlist, 'Playlists', activeTab === 'playlists')}
@@ -338,6 +359,8 @@ window._refreshSidebarUser = refreshSidebarUser;
 
 function switchTab(tabName) {
   if (tabName === 'admin' && !auth.isAdmin) tabName = 'feed';
+  // A different tab opens at its top, not at the previous tab's scroll position
+  if (tabName !== activeTab) window.scrollTo({ top: 0 });
   activeTab = tabName;
   document.body.dataset.tab = tabName; // lets the layout differ per tab (the feed uses the full width)
 
@@ -449,7 +472,7 @@ function renderFeedTab() {
 
   // Render feed
   const feedPosts = document.getElementById('feed-posts');
-  if (feedPosts) renderFeed(feedPosts, feedFilterMode);
+  if (feedPosts) { renderFeed(feedPosts, feedFilterMode); markFeedShown(); }
   // Swipe sideways on the posts to move between "Para você" and "Seguindo"
   bindSwipeTabs(feedPosts, {
     tabs: ['all', 'following'],
@@ -473,6 +496,7 @@ function renderFeedTab() {
     if (feedPostsEl) {
       feedPostsEl.dataset.shown = ''; // another list: start from the first page
       renderFeed(feedPostsEl, feedFilterMode);
+      markFeedShown();
       if (direction) animatePanel(feedPostsEl, direction);
     }
   };
@@ -672,22 +696,26 @@ function bindGlobalHandlers() {
   // Like post
   window._likePost = (postId, btn) => {
     toggleLikePost(postId);
-    const posts = getFeedPosts('all');
-    const post = posts.find(p => p.id === postId);
+    const post = getPostById(postId);
     if (!post) return;
-    const activeUser = getActiveUser();
-    const liked = post.likes.includes(activeUser.id);
+    const liked = post.likes.includes(getActiveUser().id);
     if (liked) setCatMood('love', 1400);
-    if (btn) {
-      btn.classList.toggle('liked', liked);
-      btn.innerHTML = (liked ? ICONS.heartFilled : ICONS.heartEmpty) + `<span class="like-count" role="button" tabindex="0" title="Ver quem curtiu" onclick="event.stopPropagation();window._showPostPeople('${postId}', 'likes')">${post.likes.length}</span>`;
-    }
+    // Every copy of this post on screen (feed, profile, open post) changes in place: nothing reflows
+    document.querySelectorAll(`.post-card[data-post-id="${CSS.escape(postId)}"] .btn-post-action[onclick*="_likePost"]`).forEach(b => {
+      b.classList.toggle('liked', liked);
+      const icon = b.querySelector('svg');
+      if (icon) icon.outerHTML = liked ? ICONS.heartFilled : ICONS.heartEmpty;
+      rollNumber(b.querySelector('.like-count'), post.likes.length, liked ? 1 : -1);
+      if (liked) popIcon(b);
+    });
+    markFeedShown();
   };
 
   const refreshPostsView = () => {
     if (activeTab === 'feed') {
       const feedEl = document.getElementById('feed-posts');
-      if (feedEl) renderFeed(feedEl, feedFilterMode);
+      // Posts glide to their new places instead of jumping (FLIP)
+      if (feedEl) { flip(feedEl, '.post-card', () => renderFeed(feedEl, feedFilterMode)); markFeedShown(); }
     } else if (activeTab === 'profile') {
       window._refreshProfile?.();
     }
@@ -700,7 +728,15 @@ function bindGlobalHandlers() {
     const activeUser = getActiveUser();
     const isNowReposted = post && Array.isArray(post.reposts) && post.reposts.includes(activeUser.id);
     showToast(isNowReposted ? 'Repostado!' : 'Repost removido.');
-    refreshPostsView();
+    document.querySelectorAll(`.post-card[data-post-id="${CSS.escape(postId)}"] .btn-post-action[onclick*="_repostPost"]`).forEach(b => {
+      b.classList.toggle('reposted', isNowReposted);
+      rollNumber(b.querySelector('.repost-count'), (post?.reposts || []).length, isNowReposted ? 1 : -1);
+      if (isNowReposted) popIcon(b);
+    });
+    markFeedShown();
+    // "Seguindo" lists reposts, so there the list itself changes
+    if (activeTab === 'feed' && feedFilterMode === 'following') refreshPostsView();
+    else if (activeTab === 'profile') refreshPostsView();
   };
 
   // Bookmark
@@ -709,7 +745,11 @@ function bindGlobalHandlers() {
     showToast(saved ? 'Post salvo!' : 'Removido dos salvos.');
     // Close options dropdown
     document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
-    refreshPostsView();
+    document.querySelectorAll(`.post-card[data-post-id="${CSS.escape(postId)}"] .btn-post-action[onclick*="_bookmarkPost"]`).forEach(b => {
+      b.classList.toggle('bookmarked', saved);
+      if (saved) popIcon(b);
+    });
+    if (activeTab === 'profile') refreshPostsView();
   };
 
   // Toggle comments: window._toggleComments is defined in feed.js
@@ -958,7 +998,16 @@ function bindGlobalHandlers() {
 
       showToast('Post publicado!');
       setCatMood('happy', 1600);
-      renderFeedTab();
+      // Fresh composer, and the new post slides in on top while the rest move down (no full redraw)
+      const creatorWrap = document.getElementById('creator-wrap');
+      const feedEl = document.getElementById('feed-posts');
+      if (creatorWrap && feedEl) {
+        renderPostCreator(creatorWrap);
+        flip(feedEl, '.post-card', () => renderFeed(feedEl, feedFilterMode));
+        markFeedShown();
+      } else {
+        renderFeedTab();
+      }
     }
   };
 

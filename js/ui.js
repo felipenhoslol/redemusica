@@ -1,4 +1,5 @@
 // UI Controller — modals, search, music ask grid, compare, notifications, global search
+import { animateSpring, swapContent } from './motion.js';
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as storage from './storage.js';
 import { relativeTime } from './sync.js';
@@ -1288,19 +1289,27 @@ export function renderPlayerBar() {
       const titleEl = document.getElementById('player-title');
       const artistEl = document.getElementById('player-artist');
       const btnEl = document.getElementById('player-play-btn');
+      const changed = titleEl && titleEl.textContent !== (data.title || 'Sem título');
       if (coverEl) { coverEl.src = data.artwork || ''; coverEl.style.display = data.artwork ? 'block' : 'none'; }
       if (titleEl) titleEl.textContent = data.title || 'Sem título';
       if (artistEl) artistEl.textContent = data.artist || '—';
-      if (btnEl) btnEl.innerHTML = ICONS.pause;
+      // A new song: cover and title arrive with a short blurred crossfade (state change, not decoration)
+      if (changed) {
+        [coverEl, titleEl?.parentElement].forEach(el => el && animateSpring(el, [
+          { opacity: 0, transform: 'translateY(4px)', filter: 'blur(2px)' },
+          { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }
+        ], 'snappy'));
+      }
+      if (btnEl) swapContent(btnEl, ICONS.pause);
     }
     if (event === 'play') {
       const btn = document.getElementById('player-play-btn');
-      if (btn) btn.innerHTML = ICONS.pause;
+      if (btn) swapContent(btn, ICONS.pause);
       document.getElementById('featured-vinyl-img')?.classList.add('playing');
     }
     if (event === 'pause') {
       const btn = document.getElementById('player-play-btn');
-      if (btn) btn.innerHTML = ICONS.play;
+      if (btn) swapContent(btn, ICONS.play);
       document.getElementById('featured-vinyl-img')?.classList.remove('playing');
     }
     if (event === 'error') {
