@@ -53,3 +53,28 @@
 }
 .friend-sub, .trending-artist, .profile-listening-when, .artist-item-sub, .chat-contact-card-preview { font-size: .8rem; }
 .top-artists-service-badge, .spotlight-rank-crown, .artist-rank-badge { font-size: .75rem; }
+
+/* ─── Escolher música (post, comentário, chat, playlist, desafios) ─── */
+.msearch-bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); color: var(--text-2); flex-shrink: 0; }
+.msearch-bar input { flex: 1; min-width: 0; }
+.msearch-tip { margin-left: 6px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.msearch-play.playing { color: var(--accent); background: var(--tint-2); }
+#search-results .search-result-item { cursor: pointer; }
+#search-results .search-result-item:active { background: var(--tint-2); }
+
+@media (pointer: coarse) {
+  /* No toque, a linha inteira escolhe a música; artistas continuam no carrossel de cima */
+  #search-results .search-result-item .msearch-link { pointer-events: none; }
+  .msearch-play { width: 44px; height: 44px; }
+  #search-results .search-result-item { min-height: 60px; }
+}
+
+/* Celular: tela cheia, como as buscas dos apps de música */
+@media (max-width: 700px) {
+  #search-modal { padding: 0; align-items: stretch; }
+  #search-modal .modal-box { max-width: none; height: 100%; max-height: none; border-radius: 0; box-shadow: none; }
+  #search-modal .modal-header { padding: max(6px, env(safe-area-inset-top)) 6px 6px 16px; }
+  #search-modal .modal-close { width: 44px; height: 44px; display: grid; place-items: center; }
+  #search-modal .modal-body { padding: 8px 12px calc(16px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+  .msearch-bar { padding: 10px 12px; }
+}

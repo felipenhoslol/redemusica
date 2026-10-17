@@ -138,7 +138,7 @@ function resetSearchModal() {
   modalView = null;
   modalLastQuery = '';
   if (input) { input.value = ''; input.focus(); }
-  if (results) results.innerHTML = '';
+  if (results) results.innerHTML = MODAL_HINT;
 }
 
 // ─── Modal music search: songs + artists, and drill into an artist or album ───
@@ -162,11 +162,26 @@ function modalTrackRow(t, { number } = {}) {
           ${t.duration && t.duration !== '--:--' ? ` · ${esc(t.duration)}` : ''}
         </div>
       </div>
-      ${t.previewUrl ? `<button type="button" class="msearch-play" data-preview="${key}" title="Ouvir prévia" aria-label="Ouvir prévia de ${esc(t.title)}">${ICONS.play}</button>` : ''}
+      ${t.previewUrl ? `<button type="button" class="msearch-play${isPreviewing(t) ? ' playing' : ''}" data-preview="${key}" aria-label="${isPreviewing(t) ? 'Pausar' : 'Ouvir'} prévia de ${esc(t.title)}">${isPreviewing(t) ? ICONS.pause : ICONS.play}</button>` : ''}
     </div>`;
 }
 
 const modalMsg = (text, color = 'var(--muted)') => `<div style="padding:20px;text-align:center;color:${color}">${text}</div>`;
+const MODAL_HINT = modalMsg('Digite o nome da música ou do artista.');
+const isTouch = () => matchMedia('(pointer: coarse)').matches;
+
+// The play button of the song previewing now shows pause (the player bar sits behind this window)
+const isPreviewing = (t) => Boolean(t?.previewUrl) && globalAudio.getIsPlaying() && globalAudio.getCurrentTrack()?.previewUrl === t.previewUrl;
+function syncPreviewButtons() {
+  document.querySelectorAll('#search-results [data-preview]').forEach(btn => {
+    const t = modalTracks.get(btn.dataset.preview);
+    const on = isPreviewing(t);
+    if (btn.classList.contains('playing') === on) return;
+    btn.classList.toggle('playing', on);
+    btn.innerHTML = on ? ICONS.pause : ICONS.play;
+    btn.setAttribute('aria-label', `${on ? 'Pausar' : 'Ouvir'} prévia de ${t?.title || 'música'}`);
+  });
+}
 
 function modalBackBar(title) {
   return `
@@ -185,18 +200,28 @@ export function initSearchModal() {
     const q = input.value.trim();
     if (q.length < 2) {
       modalView = null;
-      document.getElementById('search-results').innerHTML = '';
+      document.getElementById('search-results').innerHTML = MODAL_HINT;
       return;
     }
     searchDebounceTimer = setTimeout(() => { modalView = null; performSearch(q); }, 380);
   });
 
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { clearTimeout(searchDebounceTimer); modalView = null; performSearch(input.value.trim()); }
+    if (e.key === 'Enter') {
+      clearTimeout(searchDebounceTimer); modalView = null; performSearch(input.value.trim());
+      if (isTouch()) input.blur(); // "Buscar" on the phone keyboard: hide it so the results show
+    }
     if (e.key === 'Escape') closeDoodleModal('search-modal');
   });
 
   const results = document.getElementById('search-results');
+  // Scrolling the results on a phone closes the keyboard, like any search screen
+  results?.closest('.modal-body')?.addEventListener('touchmove', () => {
+    if (document.activeElement === input) input.blur();
+  }, { passive: true });
+  globalAudio.subscribe((event) => {
+    if (['play', 'pause', 'ended', 'trackchange', 'error'].includes(event)) syncPreviewButtons();
+  });
   results?.addEventListener('click', (e) => {
     const t = e.target.closest('[data-preview], [data-m-artist], [data-m-album], [data-m-back], [data-m-more], [data-pick]');
     if (!t) return;
@@ -249,7 +274,7 @@ async function performSearch(query, limit = 20) {
               <span class="msearch-artist-name">${esc(a.name)}</span>
             </button>`).join('')}
         </div>` : ''}
-      ${tracks.length ? `<div class="msearch-section">Músicas</div>${tracks.map(t => modalTrackRow(t)).join('')}` : ''}
+      ${tracks.length ? `<div class="msearch-section">Músicas <span class="msearch-tip">toque numa música para escolher</span></div>${tracks.map(t => modalTrackRow(t)).join('')}` : ''}
       ${tracks.length >= limit && limit < 50 ? `<button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm msearch-more" data-m-more>Ver mais músicas</button>` : ''}`;
     hydrateModalArtistPhotos(container);
   } catch (e) {
