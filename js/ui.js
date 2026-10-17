@@ -764,8 +764,8 @@ export function renderCompareView(container) {
                 </div>
                 <div style="font-size:0.75rem;color:var(--muted);margin-top:1px;">
                   ${affinityData.sharedArtists.length > 0
-                    ? `Artistas em comum: ${affinityData.sharedArtists.map(a => a.charAt(0).toUpperCase() + a.slice(1)).slice(0, 3).join(', ')}${affinityData.sharedArtists.length > 3 ? '...' : ''}`
-                    : (affinityData.sharedGenres.length > 0 ? `Gêneros compatíveis: ${affinityData.sharedGenres.slice(0, 2).join(', ')}` : 'Calculado por histórico e respostas')}
+                    ? `Artistas em comum: ${esc(affinityData.sharedArtists.map(a => String(a).charAt(0).toUpperCase() + String(a).slice(1)).slice(0, 3).join(', '))}${affinityData.sharedArtists.length > 3 ? '...' : ''}`
+                    : (affinityData.sharedGenres.length > 0 ? `Gêneros compatíveis: ${esc(affinityData.sharedGenres.slice(0, 2).join(', '))}` : 'Calculado por histórico e respostas')}
                 </div>
               ` : `
                 <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;">

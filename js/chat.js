@@ -399,7 +399,7 @@ function renderMessagesListHtml(msgs, activeUserId) {
     const replyBoxHtml = m.replyTo ? `
       <div class="chat-replied-box">
         <div class="chat-replied-author">${esc(m.replyTo.authorName || 'Alguém')}</div>
-        <div class="chat-replied-text">${m.replyTo.text || (m.replyTo.song ? `Música: ${esc(m.replyTo.song.title)}` : (m.replyTo.imageUrl ? 'Foto' : (m.replyTo.gifUrl ? 'GIF' : 'Mensagem')))}</div>
+        <div class="chat-replied-text">${m.replyTo.text ? esc(m.replyTo.text) : (m.replyTo.song ? `Música: ${esc(m.replyTo.song.title)}` : (m.replyTo.imageUrl ? 'Foto' : (m.replyTo.gifUrl ? 'GIF' : 'Mensagem')))}</div>
       </div>` : '';
 
     const songHtml = m.song ? `

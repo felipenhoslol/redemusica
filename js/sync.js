@@ -109,6 +109,22 @@ export function compressImage(file, maxSide = 1280, quality = 0.82) {
 
 const isAccountId = (id) => /^[0-9a-f-]{36}$/i.test(id || '');
 
+// Post and message bodies are JSON written by each person's own browser: anyone can put anything there.
+// Coerce every field to the shape the app expects before it reaches the screen.
+const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
+const str = (v) => (typeof v === 'string' ? v : '');
+const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
+const safeId = (v) => (typeof v === 'string' && SAFE_ID.test(v) ? v : null);
+function cleanPlaylist(value) {
+  const pl = obj(value);
+  if (!pl || !safeId(pl.id)) return null;
+  return {
+    ...pl, id: pl.id, authorId: isAccountId(pl.authorId) ? pl.authorId : null,
+    title: str(pl.title), description: str(pl.description), coverUrl: str(pl.coverUrl),
+    songs: Array.isArray(pl.songs) ? pl.songs.filter(obj).slice(0, 50) : []
+  };
+}
+
 // ─── local ⇄ server shapes ──────────────────────────────────────────────────
 
 function playlistSnapshot(post) {
@@ -142,21 +158,21 @@ function fromRow(row) {
     .map(c => ({
       id: c.id, userId: c.user_id,
       userName: c.author?.name || 'Alguém', userAvatar: c.author?.avatar_url || initialOf(c.author?.name),
-      text: c.body?.text || '', song: c.body?.song || null, imageUrl: c.body?.imageUrl || '', gifUrl: c.body?.gifUrl || '',
-      parentId: c.body?.parentId || null,
+      text: str(c.body?.text), song: obj(c.body?.song), imageUrl: str(c.body?.imageUrl), gifUrl: str(c.body?.gifUrl),
+      parentId: safeId(c.body?.parentId),
       likes: (c.comment_likes || []).map(l => l.user_id),
       ...(c.body?.imageInline ? { imageLazy: true } : {}),
       createdAt: relativeTime(c.created_at), createdAtIso: c.created_at
     }));
   return {
     id: row.id, authorId: row.author_id,
-    text: b.text || '', lyrics: b.lyrics || '', lyricsSong: b.lyricsSong || '', lyricsArt: b.lyricsArt || '',
-    tag: '', rating: Number(b.rating) || 0, song: b.song || null, imageUrl: b.imageUrl || '',
+    text: str(b.text), lyrics: str(b.lyrics), lyricsSong: str(b.lyricsSong), lyricsArt: str(b.lyricsArt),
+    tag: '', rating: Math.min(5, Math.max(0, Number(b.rating) || 0)), song: obj(b.song), imageUrl: str(b.imageUrl),
     images: Array.isArray(b.images) ? b.images.filter(u => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 4) : [],
     mentions: Array.isArray(b.mentions) ? b.mentions.filter(isAccountId) : [],
     ...(b.imageInline ? { imageLazy: true } : {}),
-    playlistId: b.playlistId || null, playlist: b.playlist || null,
-    poll: Array.isArray(b.poll?.options) && b.poll.options.length >= 2 ? { options: b.poll.options.slice(0, 4) } : null,
+    playlistId: safeId(b.playlistId), playlist: cleanPlaylist(b.playlist),
+    poll: Array.isArray(b.poll?.options) && b.poll.options.filter(obj).length >= 2 ? { options: b.poll.options.filter(obj).slice(0, 4) } : null,
     votes: Object.fromEntries((row.post_votes || []).map(v => [v.user_id, v.option])),
     likes: (row.post_likes || []).map(l => l.user_id),
     reposts: (row.post_reposts || []).map(r => r.user_id),
@@ -179,8 +195,8 @@ function fromMessageRow(r) {
   const b = r.body || {};
   return {
     id: r.id, fromUserId: r.from_id, toUserId: r.to_id,
-    text: b.text || '', song: b.song || null, imageUrl: b.imageUrl || '', gifUrl: b.gifUrl || '',
-    link: b.link || null, replyTo: b.replyTo || null,
+    text: str(b.text), song: obj(b.song), imageUrl: str(b.imageUrl), gifUrl: str(b.gifUrl),
+    link: obj(b.link) || (typeof b.link === 'string' ? b.link : null), replyTo: obj(b.replyTo),
     edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at, synced: true,
     readAt: r.read_at || null
   };

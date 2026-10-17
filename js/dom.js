@@ -29,6 +29,18 @@ export function safeUrl(url) {
 }
 
 /**
+ * A URL for CSS url(...) inside a style attribute: only http(s)/blob/image data URLs, with quotes, parens,
+ * backslashes and spaces percent-encoded so the value can't close url() or the attribute.
+ * @param {string} url
+ * @returns {string} '' when the URL isn't allowed
+ */
+export function cssUrl(url) {
+  const clean = String(url || '').trim();
+  if (!/^(https?:|blob:)/i.test(clean) && !/^data:image\/[a-z0-9.+-]+[;,]/i.test(clean)) return '';
+  return esc(clean.replace(/["'()\\\s<>]/g, ch => '%' + ch.charCodeAt(0).toString(16).padStart(2, '0').toUpperCase()));
+}
+
+/**
  * Serialize a value as a JS literal inside an inline handler attribute, e.g. onclick="fn(${jsArg(track)})"
  * @param {*} value
  * @returns {string}

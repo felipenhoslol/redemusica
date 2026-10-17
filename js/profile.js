@@ -1,5 +1,5 @@
 // Profile module — render, edit, follow, pin, showcase, sub-tabs
-import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
+import { esc, safeUrl, cssUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
 import { ICONS, renderRatingStars } from './icons.js';
 import { renderPostCard } from './feed.js';
@@ -22,14 +22,14 @@ export function renderProfileView(container, targetUserId) {
   const followers = Storage.getFollowers(user.id);
   const followingList = Storage.getFollowing(user.id);
 
-  const artworkUrl = user.featuredSong?.artwork
+  const artworkUrl = typeof user.featuredSong?.artwork === 'string'
     ? user.featuredSong.artwork.replace(/100x100bb|60x60bb/, '600x600bb')
     : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
 
   const featuredHtml = user.featuredSong ? `
     <div class="featured-song-box">
       <!-- Blurred Album Art Background -->
-      <div class="featured-bg-blur" style="background-image:url('${artworkUrl}');"></div>
+      <div class="featured-bg-blur" style="background-image:url(${cssUrl(artworkUrl)});"></div>
       <div class="featured-bg-overlay"></div>
 
       <!-- Top Row Header -->
@@ -103,8 +103,8 @@ export function renderProfileView(container, targetUserId) {
     </section>` : '';
 
   // Banner: the user's image, or a neutral wash of the chosen accent color
-  const bannerStyle = user.bannerUrl && safeUrl(user.bannerUrl)
-    ? `background-image:url(&quot;${safeUrl(user.bannerUrl)}&quot;);background-size:cover;background-position:center;`
+  const bannerStyle = user.bannerUrl && cssUrl(user.bannerUrl)
+    ? `background-image:url(${cssUrl(user.bannerUrl)});background-size:cover;background-position:center;`
     : `background:linear-gradient(135deg, var(--accent-soft), var(--surface));`;
 
   const avatarMarkup = avatarInner(user.avatar, user.name);
@@ -696,7 +696,7 @@ function loadProfileTab(tabId, userId) {
                       ${esc(s.title || 'Sem título')}
                     </div>
                     <div style="font-size:0.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                      ${esc(s.artist || 'Artista desconhecido')} ${item.targetUserName ? `· <span style="color:var(--purple-light);">Lista de ${item.targetUserName}</span>` : ''}
+                      ${esc(s.artist || 'Artista desconhecido')} ${item.targetUserName ? `· <span style="color:var(--purple-light);">Lista de ${esc(item.targetUserName)}</span>` : ''}
                     </div>
                   </div>
                   <div class="post-rating-display" style="margin:0;padding:2px 8px;flex-shrink:0;">
@@ -713,7 +713,7 @@ function loadProfileTab(tabId, userId) {
                     "${esc(item.lyrics)}"
                   </div>` : ''}
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:0.78rem;color:var(--purple-muted);">
-                  <span>${item.isChallengeReview ? `<span class="ui-icon" aria-hidden="true">${ICONS.star}</span> Avaliação em Comparar` : (item.createdAt || '')}</span>
+                  <span>${item.isChallengeReview ? `<span class="ui-icon" aria-hidden="true">${ICONS.star}</span> Avaliação em Comparar` : esc(item.createdAt || '')}</span>
                   <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:0.78rem;display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${jsArg(trackObj)})">
                     ${ICONS.play} Ouvir
                   </button>

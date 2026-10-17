@@ -268,6 +268,21 @@ export const PROFILE_EXTRA_KEYS = [
  * @param {Array} profiles rows from public.profiles (extra columns are optional)
  * @param {{ skipId?: string }} [opts] skipId: a profile with local changes still on their way up
  */
+// Extras are written by each person's own browser, so anyone can put anything there:
+// keep only the shapes the app expects (a wrong type would break the profile page for everyone)
+const EXTRA_ARRAY_KEYS = new Set(['songShowcase', 'topArtistsMonth', 'topTracksMonth']);
+const EXTRA_OBJECT_KEYS = new Set(['socials', 'featuredSong', 'challengeAnswers']);
+function cleanExtra(key, value) {
+  if (value === null || value === undefined) return null;
+  const isObject = typeof value === 'object' && !Array.isArray(value);
+  if (EXTRA_ARRAY_KEYS.has(key)) return Array.isArray(value) ? value.filter(x => x && typeof x === 'object').slice(0, 50) : [];
+  if (EXTRA_OBJECT_KEYS.has(key)) return isObject ? value : null;
+  if (key === 'topArtist') return isObject || typeof value === 'string' ? value : null;
+  if (key === 'spotifyConnected') return Boolean(value);
+  if (typeof value === 'number') return value;
+  return typeof value === 'string' ? value.slice(0, 500) : null;
+}
+
 export function mergeRemoteProfiles(profiles, opts = {}) {
   const users = getAllUsers();
   profiles.forEach(p => {
@@ -281,7 +296,7 @@ export function mergeRemoteProfiles(profiles, opts = {}) {
     if (full) {
       Object.assign(fields, { bannerUrl: p.banner_url || '', bio: p.bio || '', status: p.status || '' });
       const extras = p.extras || {};
-      PROFILE_EXTRA_KEYS.forEach(k => { fields[k] = extras[k] ?? (Array.isArray(existing?.[k]) ? [] : null); });
+      PROFILE_EXTRA_KEYS.forEach(k => { fields[k] = cleanExtra(k, extras[k]) ?? (Array.isArray(existing?.[k]) ? [] : null); });
       ['songShowcase', 'topArtistsMonth', 'topTracksMonth'].forEach(k => { if (!Array.isArray(fields[k])) fields[k] = []; });
     }
     if (existing) Object.assign(existing, fields);

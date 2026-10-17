@@ -85,8 +85,38 @@ export async function signUp({ name, handle, email, password }) {
   return { needsConfirmation: !data.session };
 }
 
+// Wrong passwords in a row make the next try wait longer (30s, 1min, 2min… up to 15min).
+// Supabase also limits sign-ins per IP on the server; this keeps one browser from guessing fast.
+const LOGIN_GUARD_KEY = 'rmsn_login_guard_v1';
+const LOGIN_FREE_TRIES = 5;
+const readLoginGuard = () => {
+  try { return JSON.parse(localStorage.getItem(LOGIN_GUARD_KEY)) || { fails: 0, until: 0 }; } catch { return { fails: 0, until: 0 }; }
+};
+const writeLoginGuard = (g) => {
+  try { g ? localStorage.setItem(LOGIN_GUARD_KEY, JSON.stringify(g)) : localStorage.removeItem(LOGIN_GUARD_KEY); } catch { /* optional */ }
+};
+const waitText = (ms) => {
+  const s = Math.ceil(ms / 1000);
+  return s < 60 ? `${s} segundos` : `${Math.ceil(s / 60)} minuto${s > 60 ? 's' : ''}`;
+};
+
 export async function signIn({ email, password }) {
-  return run(getSupabase().auth.signInWithPassword({ email, password }));
+  const guard = readLoginGuard();
+  const left = (Number(guard.until) || 0) - Date.now();
+  if (left > 0) throw new AppError('rate', `Muitas senhas erradas seguidas. Espere ${waitText(left)} e tente de novo.`);
+  try {
+    const data = await run(getSupabase().auth.signInWithPassword({ email, password }));
+    writeLoginGuard(null);
+    return data;
+  } catch (err) {
+    if (err.code === 'auth' && /senha incorretos/.test(err.message)) {
+      const fails = (Number(guard.fails) || 0) + 1;
+      const extra = fails - LOGIN_FREE_TRIES;
+      const until = extra >= 0 ? Date.now() + Math.min(30000 * 2 ** extra, 15 * 60000) : 0;
+      writeLoginGuard({ fails, until });
+    }
+    throw err;
+  }
 }
 
 export async function sendPasswordReset(email) {
@@ -148,6 +178,9 @@ export async function checkIsAdmin() {
 /** Handle availability for the sign-up form (true when free). */
 export async function isHandleAvailable(handle) {
   const value = '@' + handle.replace(/^@/, '').toLowerCase();
+  // Before signing in the profiles table is closed (supabase/013): ask the server just this yes/no
+  try { return Boolean(await run(getSupabase().rpc('handle_available', { p_handle: value }))); }
+  catch (err) { if (err.code !== 'setup') throw err; } // 013 not run yet: old way below
   const rows = await run(getSupabase().from('profiles').select('id').eq('handle', value).limit(1));
   return rows.length === 0;
 }

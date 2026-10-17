@@ -70,7 +70,7 @@ function renderPostPlaylistCard(post) {
   `).join('');
 
   return `
-    <div class="post-attached-playlist" onclick="window._goToSharedPlaylist('${pl.id}')" title="Clique para abrir esta playlist" style="margin:10px 0;background:linear-gradient(135deg, color-mix(in srgb, var(--hover) 85%, transparent), color-mix(in srgb, var(--surface) 95%, transparent));border:1px solid var(--purple-accent);border-radius:var(--radius-md);padding:12px 14px;cursor:pointer;transition:all 0.2s ease;display:flex;gap:14px;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+    <div class="post-attached-playlist" onclick="window._goToSharedPlaylist(${jsArg(pl.id)})" title="Clique para abrir esta playlist" style="margin:10px 0;background:linear-gradient(135deg, color-mix(in srgb, var(--hover) 85%, transparent), color-mix(in srgb, var(--surface) 95%, transparent));border:1px solid var(--purple-accent);border-radius:var(--radius-md);padding:12px 14px;cursor:pointer;transition:all 0.2s ease;display:flex;gap:14px;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
       <div style="width:84px;height:84px;min-width:84px;border-radius:8px;overflow:hidden;background:#000;box-shadow:0 4px 10px rgba(0,0,0,0.6);flex-shrink:0;">
         ${coverHtml}
       </div>
@@ -89,7 +89,7 @@ function renderPostPlaylistCard(post) {
       </div>
       <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;padding-left:4px;" onclick="event.stopPropagation()">
         ${songsCount > 0 ? `
-          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="border-radius:50%;width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);" title="Tocar playlist" onclick="window._playEntirePlaylist('${pl.id}')">
+          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="border-radius:50%;width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);" title="Tocar playlist" onclick="window._playEntirePlaylist(${jsArg(pl.id)})">
             ${ICONS.play}
           </button>
         ` : ''}

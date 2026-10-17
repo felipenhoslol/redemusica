@@ -2,6 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <!-- Segurança: de onde a página pode carregar scripts, estilos, fontes e imagens, e para onde pode mandar dados.
+       Script de fora só do jsDelivr (Supabase) e das buscas de música do iTunes e Deezer; nada de <object>/<embed>.
+       Ao usar um serviço novo, acrescente o endereço dele aqui (connect-src para fetch). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://itunes.apple.com https://api.deezer.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; connect-src 'self' data: blob: https://gdojwfpujfhpjhtgjkmi.supabase.co wss://gdojwfpujfhpjhtgjkmi.supabase.co https://itunes.apple.com https://ws.audioscrobbler.com https://api.deezer.com https://lrclib.net https://api.giphy.com https://api.microlink.io https://api.allorigins.win https://corsproxy.io; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- O endereço oficial é redemusicasemnome.vercel.app: quem chega pelo link antigo (github.io) vai para lá
        antes de carregar qualquer coisa, mantendo o caminho e o #… (tokens dos links de e-mail) -->
   <script>
@@ -601,9 +606,9 @@
   <!-- Tela de entrada (login / cadastro), mostrada antes do app -->
   <div id="auth-screen" class="auth-screen" hidden></div>
 
-  <!-- Supabase (versão fixa) -->
+  <!-- Supabase (versão fixa, arquivo oficial do pacote no npm; integrity barra qualquer arquivo trocado no CDN) -->
   <!-- defer: baixa em paralelo sem travar a página e roda antes do app.js (scripts adiados mantêm a ordem) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
 
   <!-- JS Modules -->
   <script type="module" src="js/app.js"></script>
