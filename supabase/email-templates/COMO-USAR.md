@@ -18,9 +18,9 @@ Salve cada um. O próximo cadastro ou pedido de senha já usa o modelo novo.
 
 ## Antes de testar
 
-- **URL do site**: em *Authentication → URL Configuration*, deixe `https://felipenhoslol.github.io/redemusica/`
+- **URL do site**: em *Authentication → URL Configuration*, deixe `https://redemusicasemnome.vercel.app/`
   como *Site URL* e também em *Redirect URLs*. Sem isso o botão do e-mail leva para `localhost`.
-- **Logo**: os modelos usam `https://felipenhoslol.github.io/redemusica/assets/icon-192.png`, que só existe
+- **Logo**: os modelos usam `https://redemusicasemnome.vercel.app/assets/icon-192.png`, que só existe
   depois que o site é publicado com a pasta `assets/`.
 
 ## Remetente (opcional)

@@ -290,7 +290,7 @@ export function mergeRemoteProfiles(profiles, opts = {}) {
   lsSet(STORAGE_KEYS.USERS, JSON.stringify(users));
 }
 
-// Who is an admin (profile ids, from supabase/010_admin_badge.sql): shown as a gear by the name
+// Who is an admin (profile ids, from supabase/010_admin_badge.sql): shown as a wrench by the name
 const ADMIN_IDS_KEY = 'rmsn_admin_ids_v1';
 export function setAdminIds(ids) {
   lsSet(ADMIN_IDS_KEY, JSON.stringify([...new Set(ids)].slice(0, 200)));

@@ -76,7 +76,7 @@ let appStarted = false;
 function startApp() {
   if (appStarted) return;
   appStarted = true;
-  // You are an admin (checked with is_admin at sign-in): show your gear right away,
+  // You are an admin (checked with is_admin at sign-in): show your wrench right away,
   // even before the server's admin list (supabase/010_admin_badge.sql) arrives
   if (auth.isAdmin && auth.user) addAdminId(auth.user.id);
   renderSidebar();

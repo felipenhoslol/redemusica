@@ -2,8 +2,19 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <!-- O endereço oficial é redemusicasemnome.vercel.app: quem chega pelo link antigo (github.io) vai para lá
+       antes de carregar qualquer coisa, mantendo o caminho e o #… (tokens dos links de e-mail) -->
+  <script>
+    (function () {
+      if (location.hostname === 'felipenhoslol.github.io') {
+        var path = location.pathname.replace(/^\/redemusica/, '') || '/';
+        location.replace('https://redemusicasemnome.vercel.app' + path + location.search + location.hash);
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>rede de música sem nome</title>
+  <link rel="canonical" href="https://redemusicasemnome.vercel.app/">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/icon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/icon-180.png">

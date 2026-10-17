@@ -525,7 +525,7 @@ async function migrateLegacyImages(db) {
   }
 }
 
-// Profile ids of the admins (gear badge). Without supabase/010 the function doesn't exist: keep what we had
+// Profile ids of the admins (wrench badge). Without supabase/010 the function doesn't exist: keep what we had
 let adminIdsOn = true;
 async function refreshAdminIds(db) {
   if (!adminIdsOn) return;
