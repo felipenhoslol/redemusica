@@ -168,11 +168,11 @@ export function renderProfileView(container, targetUserId) {
                 <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._saveStatus()">Ok</button>
                 <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._cancelEditStatus()">X</button>
               </div>
-            ` : `
+            ` : user.status ? `
               <div class="profile-status-pill" style="cursor:default;">
-                ${esc(user.status || '')}
+                ${esc(user.status)}
               </div>
-            `}
+            ` : ''}
           </div>
           ${user.bio ? `<div class="profile-bio" style="${bioFontStyle(user.bioFont)}">${esc(user.bio)}</div>` : ''}
           ${buildSocialsHtml(user, isMe)}

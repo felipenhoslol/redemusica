@@ -96,3 +96,6 @@
 @media (pointer: coarse) {
   .poll-results .poll-row-add { min-height: 56px; }
 }
+
+/* Perfil de outra pessoa sem status: nada de espaço vazio */
+.profile-status-wrap:not(:has(*)) { display: none; }
