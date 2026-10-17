@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /supabase/
+Disallow: /tools/
+
+Sitemap: https://redemusicasemnome.vercel.app/sitemap.xml

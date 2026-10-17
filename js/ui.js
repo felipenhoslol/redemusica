@@ -873,7 +873,7 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
       <div style="display:flex;flex-direction:column;gap:14px;">
         ${ans ? `
           <div style="display:flex;gap:12px;align-items:center;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;">
-            ${ans.artwork ? `<img src="${safeUrl(ans.artwork)}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;">` : ''}
+            ${ans.artwork ? `<img alt="" src="${safeUrl(ans.artwork)}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;">` : ''}
             <div style="flex:1;min-width:0;">
               <div style="font-weight:800;font-size:0.95rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ans.title)}</div>
               <div style="font-size:0.8rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ans.artist)}</div>

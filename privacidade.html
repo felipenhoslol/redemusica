@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <!-- Endereço oficial: quem chega pelo link antigo (github.io) vai para o mesmo caminho no Vercel -->
+  <script>
+    (function () {
+      if (location.hostname === 'felipenhoslol.github.io') {
+        var path = location.pathname.replace(/^\/redemusica/, '') || '/';
+        location.replace('https://redemusicasemnome.vercel.app' + path + location.search + location.hash);
+      }
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Política de privacidade · rede de música sem nome</title>
+  <meta name="description" content="Quais dados a rede de música sem nome guarda, quem vê cada um, com quais serviços eles passam e como pedir para apagar.">
+  <link rel="canonical" href="https://redemusicasemnome.vercel.app/privacidade.html">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="rede de música sem nome">
+  <meta property="og:title" content="Política de privacidade · rede de música sem nome">
+  <meta property="og:description" content="Quais dados a rede de música sem nome guarda, quem vê cada um, com quais serviços eles passam e como pedir para apagar.">
+  <meta property="og:url" content="https://redemusicasemnome.vercel.app/privacidade.html">
+  <meta property="og:image" content="https://redemusicasemnome.vercel.app/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="O gatinho de fones da rede de música sem nome">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/icon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/icon-180.png">
+  <meta name="theme-color" content="#0b0a10">
+  <meta name="color-scheme" content="dark light">
+  <!-- Mesmo tema e cor de destaque escolhidos no app -->
+  <script>
+    (function () {
+      var p = {};
+      try { p = JSON.parse(localStorage.getItem('rmsn_display_v1') || '{}'); } catch (e) {}
+      var t = p.theme || 'dark';
+      if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-accent', p.accent || 'roxo');
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+  <header class="page-head">
+    <a class="page-brand" href="/"><img src="/assets/favicon.svg" alt="" width="40" height="40"><span>rede de música sem nome</span></a>
+  </header>
+  <main class="page-main">
+    <h1>Política de privacidade</h1>
+    <p class="page-updated">Última atualização: 17 de outubro de 2026</p>
+    <p class="page-lead">Esta página explica, sem rodeios, o que a rede de música sem nome guarda sobre você e para quê.</p>
+
+    <h2>Quem cuida dos dados</h2>
+    <p>O criador da rede de música sem nome. Para qualquer pedido sobre os seus dados, escreva para <a href="mailto:dev.luizsoares@gmail.com">dev.luizsoares@gmail.com</a>.</p>
+
+    <h2>O que guardamos</h2>
+    <ul>
+      <li><b>Conta:</b> e-mail, senha (guardada cifrada pelo Supabase; ninguém da rede consegue lê-la), nome e @.</li>
+      <li><b>Perfil:</b> foto, banner, bio, status, links de redes sociais, perfil do Last.fm (se você ligar), músicas em destaque e respostas dos desafios.</li>
+      <li><b>O que você publica:</b> posts, comentários, curtidas, reposts, votos em enquetes, quem você segue e as mensagens do chat (texto, músicas, fotos e GIFs).</li>
+      <li><b>Uso:</b> a última vez que você esteve online, se seu e-mail foi confirmado e se uma mensagem já foi vista.</li>
+      <li><b>Feedback:</b> o texto que você envia pela aba Feedback.</li>
+      <li><b>No seu aparelho:</b> o navegador guarda sua sessão, o tema e a cor escolhidos, buscas recentes e uma cópia dos dados para o app abrir mais rápido. Não usamos cookies de rastreamento.</li>
+    </ul>
+
+    <h2>Para que usamos</h2>
+    <p>Só para a rede funcionar: entrar na conta, mostrar seu perfil e seus posts, entregar mensagens e manter a comunidade segura. Não vendemos dados, não mostramos anúncios e não usamos ferramentas de análise ou rastreamento.</p>
+
+    <h2>Quem vê o quê</h2>
+    <ul>
+      <li><b>Quem tem conta na rede</b> vê seu perfil, posts, comentários, curtidas, quem você segue, votos e se você está online.</li>
+      <li><b>Só você e a outra pessoa</b> veem as mensagens de uma conversa.</li>
+      <li><b>Ninguém além de você</b> vê seu e-mail e sua senha.</li>
+      <li><b>Administradores</b> leem o feedback enviado, podem apagar posts e comentários e suspender contas que quebrem os <a href="/termos.html">termos de uso</a>.</li>
+    </ul>
+    <p>Como em qualquer serviço online, o responsável pela rede tem acesso técnico ao banco de dados. Esse acesso só é usado para manter a rede funcionando, atender pedidos seus ou cumprir a lei.</p>
+
+    <h2>Serviços usados pela rede</h2>
+    <ul>
+      <li><b>Supabase:</b> guarda a conta, os dados e as fotos. Os servidores podem ficar fora do Brasil.</li>
+      <li><b>Vercel e GitHub Pages:</b> hospedam o site e registram acessos (como o endereço IP) por questão técnica.</li>
+      <li><b>Buscas feitas pelo seu navegador:</b> iTunes (músicas e prévias), Deezer (fotos de artistas), Last.fm (se você ligar seu perfil), LRCLIB (letras), Giphy (GIFs), Google Fonts (fontes), jsDelivr (biblioteca do site) e Microlink, AllOrigins e corsproxy.io (prévia de links e busca reserva). Esses serviços recebem seu endereço IP e o termo buscado.</li>
+    </ul>
+
+    <h2>Por quanto tempo</h2>
+    <p>Enquanto sua conta existir. Posts, comentários e mensagens que você apaga saem do banco na hora. Quando a conta é apagada, os dados dela e as fotos enviadas são apagados; as cópias de segurança do provedor podem manter uma cópia por um período curto.</p>
+
+    <h2>Seus direitos (LGPD)</h2>
+    <p>Você pode pedir para ver, corrigir, levar ou apagar seus dados, e saber com quem eles são compartilhados. Boa parte você faz no próprio app (editar o perfil, apagar posts). Para o resto, escreva para <a href="mailto:dev.luizsoares@gmail.com">dev.luizsoares@gmail.com</a> a partir do e-mail da conta.</p>
+
+    <h2>Mudanças</h2>
+    <p>Se esta política mudar, a data no topo muda junto, e mudanças importantes são avisadas no app.</p>
+  </main>
+  <footer class="page-foot">
+    <nav aria-label="Páginas da rede"><a href="/">Entrar na rede</a><a href="/faq.html">Perguntas frequentes</a><a href="/privacidade.html" aria-current="page">Privacidade</a><a href="/termos.html">Termos de uso</a></nav>
+    © 2026 rede de música · feito por <strong>felipenhos</strong>
+  </footer>
+</body>
+</html>

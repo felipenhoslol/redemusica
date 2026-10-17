@@ -16,7 +16,7 @@ import { showAuthScreen } from './authScreen.js';
 import { openFeedbackModal } from './feedback.js';
 import { openDisplaySettings, initDisplay } from './display.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
-import { startSync, stopSync, pullNow } from './sync.js';
+import { startSync, stopSync, pullNow, searchPeople } from './sync.js';
 import { renderSearchPage, openSearch } from './search.js';
 import { mentionedIds } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
@@ -105,8 +105,24 @@ function startApp() {
       onTyping: (from) => { import('./chat.js').then(c => c.showTyping(from)); },
       onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); renderNotifBadge(); showNotificationPopups(); },
       onError: (msg) => showDoodleToast(msg)
-    }).then(() => publishChallengeAnswers()); // answers saved before this version become visible to others
+    }).then(() => {
+      publishChallengeAnswers(); // answers saved before this version become visible to others
+      openProfileFromLink();
+    });
   }
+}
+
+// redemusicasemnome.vercel.app/@nome opens that person's profile (vercel.json sends /@nome to this page)
+async function openProfileFromLink() {
+  const m = location.pathname.match(/^\/@([a-z0-9_.]{2,24})\/?$/i);
+  if (!m) return;
+  history.replaceState(null, '', '/' + location.search + location.hash);
+  const handle = '@' + m[1].toLowerCase();
+  const find = () => getAllUsers().find(u => (u.handle || '').toLowerCase() === handle);
+  if (!find()) await searchPeople(m[1]).catch(() => null);
+  const user = find();
+  if (user) window._goToProfile(user.id);
+  else showDoodleToast(`Não encontramos ${handle} na rede.`);
 }
 
 // New data from the server: redraw what's on screen, unless the person is typing in it
@@ -357,8 +373,12 @@ window._refreshSidebarUser = refreshSidebarUser;
 // TAB SWITCHING
 // ──────────────────────────────────────────
 
+const TAB_TITLES = { feed: 'Feed', search: 'Pesquisar', playlists: 'Playlists', chat: 'Chat', desafios: 'Desafios', comparar: 'Comparar', profile: 'Perfil', admin: 'Admin' };
+const setPageTitle = (name) => { document.title = `${name} · rede de música sem nome`; };
+
 function switchTab(tabName) {
   if (tabName === 'admin' && !auth.isAdmin) tabName = 'feed';
+  setPageTitle(TAB_TITLES[tabName] || 'Feed');
   // A different tab opens at its top, not at the previous tab's scroll position
   if (tabName !== activeTab) window.scrollTo({ top: 0 });
   activeTab = tabName;
@@ -578,6 +598,8 @@ function renderProfileTab(userId) {
 
   const uid = userId || getActiveUser().id;
   currentProfileUserId = uid;
+  const profileUser = getUserById(uid);
+  if (profileUser?.name) setPageTitle(`${profileUser.name}${profileUser.handle ? ` (${profileUser.handle})` : ''}`);
 
   renderProfileView(tab, uid);
   syncMobileNav();
@@ -672,6 +694,13 @@ function bindGlobalHandlers() {
     // The sidebar footer stands for the user's own profile: only keep it highlighted there
     const isOwn = !userId || userId === getActiveUser().id;
     document.getElementById('nav-profile')?.classList.toggle('active', isOwn);
+  };
+
+  // Link that opens the profile directly (see openProfileFromLink)
+  window._copyProfileLink = (handle) => {
+    const url = `${location.origin}/${handle}`;
+    if (!navigator.clipboard) { showDoodleToast(url); return; }
+    navigator.clipboard.writeText(url).then(() => showDoodleToast('Link do perfil copiado!'), () => showDoodleToast(url));
   };
 
   // Follow toggle
@@ -1044,7 +1073,7 @@ function bindGlobalHandlers() {
     el.innerHTML = `
       <div class="creator-attached-song">
         <div style="display:flex;align-items:center;gap:6px;">
-          ${track.artwork ? `<img src="${safeUrl(track.artwork)}" style="width:32px;height:32px;border-radius:5px;object-fit:cover;">` : ''}
+          ${track.artwork ? `<img alt="" src="${safeUrl(track.artwork)}" style="width:32px;height:32px;border-radius:5px;object-fit:cover;">` : ''}
           <div>
             <div style="font-size:0.8rem;font-weight:700;color:var(--white)">${esc(track.title)}</div>
             <div style="font-size:0.78rem;color:var(--muted)">${esc(track.artist)}</div>
@@ -1095,7 +1124,7 @@ function bindGlobalHandlers() {
             return `
               <div class="playlist-picker-item" onclick="window._setCreatorPlaylist('${pl.id}')" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:10px;cursor:pointer;transition:all 0.15s ease;">
                 <div style="width:46px;height:46px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-                  ${coverArt ? `<img src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
+                  ${coverArt ? `<img alt="" src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
                 </div>
                 <div style="flex:1;min-width:0;">
                   <div style="font-size:0.88rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
@@ -1127,7 +1156,7 @@ function bindGlobalHandlers() {
       <div class="creator-attached-playlist" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:linear-gradient(135deg,color-mix(in srgb, var(--hover) 85%, transparent),color-mix(in srgb, var(--surface) 95%, transparent));border:1px solid var(--purple-accent);border-radius:10px;margin-top:10px;">
         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
           <div style="width:40px;height:40px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-            ${coverArt ? `<img src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
+            ${coverArt ? `<img alt="" src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
           </div>
           <div style="min-width:0;">
             <div style="font-size:0.78rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
@@ -1257,7 +1286,7 @@ function bindGlobalHandlers() {
     listEl.innerHTML = tempPickerArtists.map((a, i) => `
       <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);">
         <span style="font-size:0.75rem;font-weight:800;color:var(--purple-light);width:18px;">#${i + 1}</span>
-        <img src="${safeUrl(a.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80')}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
+        <img alt="" src="${safeUrl(a.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80')}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.name)}</div>
           <div style="font-size:0.75rem;color:var(--muted);">${esc(a.genre || 'Artista')}</div>
@@ -1309,7 +1338,7 @@ function bindGlobalHandlers() {
 
       resEl.innerHTML = uniqueArtists.map(a => `
         <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);margin-bottom:4px;">
-          <img src="${safeUrl(a.imageUrl)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+          <img alt="" src="${safeUrl(a.imageUrl)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
           <div style="flex:1;min-width:0;">
             <div style="font-size:0.82rem;font-weight:700;color:var(--white);">${esc(a.name)}</div>
             <div style="font-size:0.75rem;color:var(--muted);">${esc(a.genre)}</div>

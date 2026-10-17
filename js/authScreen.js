@@ -46,7 +46,7 @@ function render(mode) {
   root.innerHTML = `
     <div class="auth-shell">
       <section class="auth-brand" aria-hidden="true">
-        <div class="auth-cat">${catLogoHtml({ mood: mode === 'banned' ? 'alert' : 'idle' })}</div>
+        <div class="auth-cat">${catLogoHtml({ mood: mode === 'banned' ? 'alert' : (mode === 'welcome' || mode === 'confirm-sent') ? 'happy' : 'idle' })}</div>
         <h1 class="auth-title">rede de música <span>sem nome</span></h1>
         <p class="auth-tagline">Compartilhe o que está tocando, responda desafios e descubra o que seus amigos ouvem.</p>
       </section>
@@ -103,9 +103,17 @@ function formHtml(mode, configured) {
 
   if (mode === 'confirm-sent') {
     return `
-      <h2 class="auth-heading">Confira seu e-mail</h2>
-      <p class="auth-sub">Enviamos um link de confirmação. Depois de confirmar, volte aqui e entre com seu e-mail e senha.</p>
+      <h2 class="auth-heading">Conta criada! Confira seu e-mail</h2>
+      <p class="auth-sub">Obrigado por entrar na rede. Enviamos um link de confirmação: depois de confirmar, volte aqui e entre com seu e-mail e senha.</p>
       <button type="button" class="auth-submit" data-go="login">Ir para o login</button>`;
+  }
+
+  // Thank-you screen right after creating the account
+  if (mode === 'welcome') {
+    return `
+      <h2 class="auth-heading">Conta criada. Obrigado por entrar!</h2>
+      <p class="auth-sub">Para começar: siga quem você conhece, poste o que está ouvindo e responda um desafio para ver com quem você tem mais sintonia.</p>
+      <button type="button" class="auth-submit" data-action="start">Começar</button>`;
   }
 
   if (mode === 'forgot') {
@@ -153,9 +161,13 @@ function formHtml(mode, configured) {
       ${isSignup ? `<div class="auth-strength" aria-hidden="true"><i></i><i></i><i></i></div>` : ''}
       ${isSignup ? field({ id: 'auth-password2', label: 'Repita a senha', type: 'password', autocomplete: 'new-password' }) : ''}
       ${!isSignup ? `<div class="auth-row-end"><button type="button" class="auth-link" data-go="forgot">Esqueci a senha</button></div>` : ''}
+      ${isSignup ? `<p class="auth-legal">Ao criar a conta, você concorda com os <a href="termos.html" target="_blank" rel="noopener">Termos de uso</a> e a <a href="privacidade.html" target="_blank" rel="noopener">Política de privacidade</a>.</p>` : ''}
       <div class="auth-alert" role="alert" hidden></div>
-      <button type="submit" class="auth-submit" ${disabled}>${isSignup ? 'Criar conta' : 'Entrar'}</button>
-    </form>`;
+      <button type="submit" class="auth-submit" ${disabled}>${isSignup ? 'Criar conta grátis' : 'Entrar'}</button>
+    </form>
+    <p class="auth-switch">${isSignup
+      ? 'Já tem conta? <button type="button" class="auth-link" data-go="login">Entrar</button>'
+      : 'Ainda não tem conta? <button type="button" class="auth-link" data-go="signup">Criar conta grátis</button>'}</p>`;
 }
 
 // ──────────────────────────────────────────
@@ -228,6 +240,7 @@ function bindForm(mode) {
     onDone?.();
   });
   root.querySelector('[data-action="logout"]')?.addEventListener('click', () => logout());
+  root.querySelector('[data-action="start"]')?.addEventListener('click', () => { hideAuthScreen(); onDone?.(); });
 
   root.querySelectorAll('[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
     const input = root.querySelector(`#${btn.dataset.toggle}`);
@@ -307,8 +320,8 @@ function bindForm(mode) {
         });
         if (needsConfirmation) { render('confirm-sent'); return; }
         const state = await loginWithPassword(v('auth-email').trim(), v('auth-password'));
-        setCat('happy');
-        setTimeout(() => { hideAuthScreen(); if (state.mode === 'signed-in') onDone?.(); }, 450);
+        if (state.mode === 'signed-in') render('welcome');
+        else hideAuthScreen();
       } else if (mode === 'forgot') {
         await sb.sendPasswordReset(v('auth-email').trim());
         form.outerHTML = `<p class="auth-sub">Se existir uma conta com esse e-mail, o link chega em alguns minutos. Confira também o spam.</p>`;

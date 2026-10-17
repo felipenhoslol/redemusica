@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <!-- Endereço oficial: quem chega pelo link antigo (github.io) vai para o mesmo caminho no Vercel -->
+  <script>
+    (function () {
+      if (location.hostname === 'felipenhoslol.github.io') {
+        var path = location.pathname.replace(/^\/redemusica/, '') || '/';
+        location.replace('https://redemusicasemnome.vercel.app' + path + location.search + location.hash);
+      }
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Termos de uso · rede de música sem nome</title>
+  <meta name="description" content="As regras para usar a rede de música sem nome: sua conta, o que pode e o que não pode ser postado, letras de música e moderação.">
+  <link rel="canonical" href="https://redemusicasemnome.vercel.app/termos.html">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="rede de música sem nome">
+  <meta property="og:title" content="Termos de uso · rede de música sem nome">
+  <meta property="og:description" content="As regras para usar a rede de música sem nome: sua conta, o que pode e o que não pode ser postado, letras de música e moderação.">
+  <meta property="og:url" content="https://redemusicasemnome.vercel.app/termos.html">
+  <meta property="og:image" content="https://redemusicasemnome.vercel.app/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="O gatinho de fones da rede de música sem nome">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/icon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/icon-180.png">
+  <meta name="theme-color" content="#0b0a10">
+  <meta name="color-scheme" content="dark light">
+  <!-- Mesmo tema e cor de destaque escolhidos no app -->
+  <script>
+    (function () {
+      var p = {};
+      try { p = JSON.parse(localStorage.getItem('rmsn_display_v1') || '{}'); } catch (e) {}
+      var t = p.theme || 'dark';
+      if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-accent', p.accent || 'roxo');
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+  <header class="page-head">
+    <a class="page-brand" href="/"><img src="/assets/favicon.svg" alt="" width="40" height="40"><span>rede de música sem nome</span></a>
+  </header>
+  <main class="page-main">
+    <h1>Termos de uso</h1>
+    <p class="page-updated">Última atualização: 17 de outubro de 2026</p>
+    <p class="page-lead">Ao criar uma conta, você concorda com estas regras. Elas existem para a rede continuar um lugar bom de estar.</p>
+
+    <h2>Sua conta</h2>
+    <p>Use uma senha que só você conheça. Você responde pelo que é publicado na sua conta.</p>
+
+    <h2>O que não pode</h2>
+    <ul>
+      <li>Conteúdo ilegal, discurso de ódio, ameaças, assédio ou perseguição.</li>
+      <li>Se passar por outra pessoa ou publicar dados pessoais de alguém sem permissão.</li>
+      <li>Spam, golpes ou links maliciosos.</li>
+      <li>Tentar invadir contas, burlar a segurança do site ou sobrecarregar o serviço.</li>
+    </ul>
+
+    <h2>Letras e músicas</h2>
+    <p>Poste só trechos curtos de letras, sempre com o nome da música e do artista; o próprio app limita o tamanho. As músicas tocam pelas prévias oficiais de 30 segundos. Os direitos das letras e músicas são de quem as criou.</p>
+
+    <h2>Moderação</h2>
+    <p>Administradores podem apagar posts e comentários e suspender contas que quebrem estas regras.</p>
+
+    <h2>O serviço</h2>
+    <p>A rede é gratuita e oferecida do jeito que está. Ela pode ficar fora do ar, mudar ou ganhar e perder recursos. Cuidamos dos seus dados como explica a <a href="/privacidade.html">política de privacidade</a>.</p>
+
+    <h2>Sair da rede</h2>
+    <p>Você pode parar de usar quando quiser e pedir que a conta seja apagada escrevendo para <a href="mailto:dev.luizsoares@gmail.com">dev.luizsoares@gmail.com</a>.</p>
+
+    <h2>Mudanças</h2>
+    <p>Se estes termos mudarem, a data no topo muda junto, e mudanças importantes são avisadas no app.</p>
+  </main>
+  <footer class="page-foot">
+    <nav aria-label="Páginas da rede"><a href="/">Entrar na rede</a><a href="/faq.html">Perguntas frequentes</a><a href="/privacidade.html">Privacidade</a><a href="/termos.html" aria-current="page">Termos de uso</a></nav>
+    © 2026 rede de música · feito por <strong>felipenhos</strong>
+  </footer>
+</body>
+</html>

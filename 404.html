@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <!-- Endereço oficial: quem chega pelo link antigo (github.io) vai para o mesmo caminho no Vercel -->
+  <script>
+    (function () {
+      if (location.hostname === 'felipenhoslol.github.io') {
+        var path = location.pathname.replace(/^\/redemusica/, '') || '/';
+        location.replace('https://redemusicasemnome.vercel.app' + path + location.search + location.hash);
+      }
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Página não encontrada · rede de música sem nome</title>
+  <meta name="description" content="Essa página não existe na rede de música sem nome.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="https://redemusicasemnome.vercel.app/404.html">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="rede de música sem nome">
+  <meta property="og:title" content="Página não encontrada · rede de música sem nome">
+  <meta property="og:description" content="Essa página não existe na rede de música sem nome.">
+  <meta property="og:url" content="https://redemusicasemnome.vercel.app/404.html">
+  <meta property="og:image" content="https://redemusicasemnome.vercel.app/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="O gatinho de fones da rede de música sem nome">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/icon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/icon-180.png">
+  <meta name="theme-color" content="#0b0a10">
+  <meta name="color-scheme" content="dark light">
+  <!-- Mesmo tema e cor de destaque escolhidos no app -->
+  <script>
+    (function () {
+      var p = {};
+      try { p = JSON.parse(localStorage.getItem('rmsn_display_v1') || '{}'); } catch (e) {}
+      var t = p.theme || 'dark';
+      if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-accent', p.accent || 'roxo');
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body>
+  <header class="page-head">
+    <a class="page-brand" href="/"><img src="/assets/favicon.svg" alt="" width="40" height="40"><span>rede de música sem nome</span></a>
+  </header>
+  <main class="page-main">
+    <section class="page-404">
+      <img src="/assets/favicon.svg" alt="" width="132" height="132">
+      <h1>Essa página não existe</h1>
+      <p class="page-lead">O link pode estar errado ou a página saiu do ar. A rede continua aqui.</p>
+      <div class="page-actions">
+        <a class="page-btn" href="/">Voltar para a rede</a>
+        <a class="page-btn ghost" href="/faq.html">Perguntas frequentes</a>
+      </div>
+    </section>
+  </main>
+  <footer class="page-foot">
+    <nav aria-label="Páginas da rede"><a href="/">Entrar na rede</a><a href="/faq.html">Perguntas frequentes</a><a href="/privacidade.html">Privacidade</a><a href="/termos.html">Termos de uso</a></nav>
+    © 2026 rede de música · feito por <strong>felipenhos</strong>
+  </footer>
+</body>
+</html>

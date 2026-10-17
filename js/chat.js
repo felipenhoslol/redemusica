@@ -126,7 +126,7 @@ function renderAttachmentItemsHtml(context) {
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
       ${attachedSong ? `
         <div style="display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 22%, transparent);border:1.5px solid var(--purple-accent);border-radius:8px;padding:5px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-          ${attachedSong.artwork ? `<img src="${safeUrl(attachedSong.artwork)}" style="width:${isTab ? '36px' : '26px'};height:${isTab ? '36px' : '26px'};border-radius:4px;object-fit:cover;">` : ''}
+          ${attachedSong.artwork ? `<img alt="" src="${safeUrl(attachedSong.artwork)}" style="width:${isTab ? '36px' : '26px'};height:${isTab ? '36px' : '26px'};border-radius:4px;object-fit:cover;">` : ''}
           <div style="max-width:160px;min-width:0;">
             <div style="font-size:0.8rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> ${esc(attachedSong.title)}</div>
             <div style="font-size:0.78rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(attachedSong.artist)}</div>
@@ -404,7 +404,7 @@ function renderMessagesListHtml(msgs, activeUserId) {
 
     const songHtml = m.song ? `
       <div class="chat-attached-song" style="display:flex;align-items:center;gap:10px;background:var(--tint-2);border:1.5px solid color-mix(in srgb, var(--accent) 40%, transparent);border-radius:10px;padding:8px 12px;margin-top:6px;">
-        ${m.song.artwork ? `<img src="${safeUrl(m.song.artwork)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : ''}
+        ${m.song.artwork ? `<img alt="" src="${safeUrl(m.song.artwork)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : ''}
         <div style="flex:1;min-width:0;">
           <div style="font-size:0.86rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.title)}</div>
           <div style="font-size:0.75rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.artist)}</div>

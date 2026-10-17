@@ -37,7 +37,7 @@ jobs:
       - name: Montar _site otimizado (CSS/JS empacotados) com versão carimbada
         run: |
           mkdir _site
-          cp -r index.html assets css js _site/
+          cp -r index.html 404.html assets css js _site/
           node tools/optimize-build.mjs _site
           node tools/stamp-version.mjs _site "$(git rev-parse --short HEAD)"
 

@@ -130,6 +130,9 @@ export function renderProfileView(container, targetUserId) {
         <div class="profile-top-row">
           ${avatarHtml}
           <div class="profile-action-row">
+            ${user.handle ? `
+              <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._copyProfileLink(${jsArg(user.handle)})"
+                title="Copiar link do perfil" aria-label="Copiar link do perfil">${ICONS.share}</button>` : ''}
             ${!isMe ? `
               <button class="doodle-btn doodle-btn-follow${following ? ' following' : ''}" id="follow-btn-${user.id}" data-follow-id="${user.id}"
                 onclick="window._toggleFollow('${user.id}')">
@@ -577,13 +580,13 @@ function loadProfileTab(tabId, userId) {
           } else if (songsWithArt.length >= 4) {
             coverHtml = `
               <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%;">
-                <img src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">
-                <img src="${safeUrl(songsWithArt[1].artwork)}" style="width:100%;height:100%;object-fit:cover;">
-                <img src="${safeUrl(songsWithArt[2].artwork)}" style="width:100%;height:100%;object-fit:cover;">
-                <img src="${safeUrl(songsWithArt[3].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+                <img alt="" src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+                <img alt="" src="${safeUrl(songsWithArt[1].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+                <img alt="" src="${safeUrl(songsWithArt[2].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+                <img alt="" src="${safeUrl(songsWithArt[3].artwork)}" style="width:100%;height:100%;object-fit:cover;">
               </div>`;
           } else if (songsWithArt.length > 0) {
-            coverHtml = `<img src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">`;
+            coverHtml = `<img alt="" src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">`;
           } else {
             coverHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--hover),var(--surface));color:var(--purple-light);font-size:1.8rem;">${ICONS.playlist}</div>`;
           }

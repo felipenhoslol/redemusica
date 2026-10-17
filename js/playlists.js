@@ -859,7 +859,7 @@ window._sharePlaylistToFeedAction = (playlistId) => {
       <!-- Attached Playlist Mini Preview -->
       <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:linear-gradient(135deg,color-mix(in srgb, var(--hover) 85%, transparent),color-mix(in srgb, var(--surface) 95%, transparent));border:1px solid var(--purple-accent);border-radius:10px;margin-bottom:14px;">
         <div style="width:48px;height:48px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-          ${coverArt ? `<img src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
+          ${coverArt ? `<img alt="" src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
         </div>
         <div style="min-width:0;flex:1;">
           <div style="font-size:0.78rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>

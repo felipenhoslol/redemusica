@@ -48,13 +48,13 @@ function renderPostPlaylistCard(post) {
     if (songsWithArt.length >= 4) {
       coverHtml = `
         <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:100%;height:100%;">
-          <img src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">
-          <img src="${safeUrl(songsWithArt[1].artwork)}" style="width:100%;height:100%;object-fit:cover;">
-          <img src="${safeUrl(songsWithArt[2].artwork)}" style="width:100%;height:100%;object-fit:cover;">
-          <img src="${safeUrl(songsWithArt[3].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+          <img alt="" src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+          <img alt="" src="${safeUrl(songsWithArt[1].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+          <img alt="" src="${safeUrl(songsWithArt[2].artwork)}" style="width:100%;height:100%;object-fit:cover;">
+          <img alt="" src="${safeUrl(songsWithArt[3].artwork)}" style="width:100%;height:100%;object-fit:cover;">
         </div>`;
     } else if (songsWithArt.length > 0) {
-      coverHtml = `<img src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">`;
+      coverHtml = `<img alt="" src="${safeUrl(songsWithArt[0].artwork)}" style="width:100%;height:100%;object-fit:cover;">`;
     } else {
       coverHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--hover),var(--surface));color:var(--purple-light);">${ICONS.playlist}</div>`;
     }
@@ -158,7 +158,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
   const songAttachmentHtml = c.song ? `
     <div class="comment-attached-song" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:color-mix(in srgb, var(--accent) 16%, transparent);border:1px solid var(--purple-accent);padding:6px 10px;border-radius:8px;margin-top:6px;">
       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-        ${c.song.artwork ? `<img src="${safeUrl(c.song.artwork)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;">` : ''}
+        ${c.song.artwork ? `<img alt="" src="${safeUrl(c.song.artwork)}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;">` : ''}
         <div style="min-width:0;">
           <div style="font-size:0.78rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.song.title)}</div>
           <div style="font-size:0.78rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.song.artist)}</div>
@@ -171,15 +171,15 @@ export function renderCommentRow(c, postId, isMaximized = false) {
 
   const imageAttachmentHtml = !c.imageUrl && c.imageLazy ? `
     <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
-      <img class="lazy-picture" data-lazy-img="post_comments:${esc(c.id)}" alt="Anexo" style="width:100%;max-height:220px;object-fit:cover;display:block;" decoding="async">
+      <img class="lazy-picture" data-lazy-img="post_comments:${esc(c.id)}" alt="Foto enviada por ${esc(c.userName)}" style="width:100%;max-height:220px;object-fit:cover;display:block;" decoding="async">
     </div>` : c.imageUrl ? `
     <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
-      <img src="${safeUrl(c.imageUrl)}" alt="Anexo" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy" decoding="async">
+      <img src="${safeUrl(c.imageUrl)}" alt="Foto enviada por ${esc(c.userName)}" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy" decoding="async">
     </div>` : '';
 
   const gifAttachmentHtml = c.gifUrl ? `
     <div class="comment-attached-media" style="margin-top:6px;border-radius:8px;overflow:hidden;max-width:280px;border:1px solid var(--tint-2);">
-      <img src="${safeUrl(c.gifUrl)}" alt="GIF" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy" decoding="async">
+      <img src="${safeUrl(c.gifUrl)}" alt="GIF enviado por ${esc(c.userName)}" style="width:100%;max-height:220px;object-fit:cover;display:block;" loading="lazy" decoding="async">
     </div>` : '';
 
   const deleteBtnHtml = canDelete ? `
@@ -325,8 +325,8 @@ export function renderPostCard(post, options = {}) {
           <img src="${safeUrl(u)}" alt="" loading="lazy" decoding="async">
         </button>`).join('')}</div>`
     : post.imageUrl
-    ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="post image" loading="lazy" decoding="async" onclick="event.stopPropagation();window._openPhotoViewer(${jsArg([post.imageUrl])}, 0)">`
-    : post.imageLazy ? `<img class="post-attached-image lazy-picture" data-lazy-img="posts:${esc(post.id)}" alt="post image" decoding="async">` : '';
+    ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="Foto do post de ${esc(author.name)}" loading="lazy" decoding="async" onclick="event.stopPropagation();window._openPhotoViewer(${jsArg([post.imageUrl])}, 0)">`
+    : post.imageLazy ? `<img class="post-attached-image lazy-picture" data-lazy-img="posts:${esc(post.id)}" alt="Foto do post de ${esc(author.name)}" decoding="async">` : '';
   const detectedPostUrl = extractFirstUrl(post.text);
   const linkHtml = post.link ? renderRichLinkCard(post.link) : (detectedPostUrl ? renderRichLinkCard(detectedPostUrl) : '');
 
@@ -557,7 +557,7 @@ export function renderPostCreator(containerEl) {
     const songInfo = document.getElementById('creator-lyrics-song-info');
     if (songInfo) {
       songInfo.innerHTML = `
-        <img id="creator-lyrics-preview-img" src="${safeUrl(track.artwork)}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid var(--purple-accent);">
+        <img alt="" id="creator-lyrics-preview-img" src="${safeUrl(track.artwork)}" style="width:42px;height:42px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid var(--purple-accent);">
         <div style="min-width:0;flex:1;">
           <div id="creator-lyrics-preview-title" style="font-size:0.9rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(creatorState.lyricsSong)}</div>
           <div style="font-size:0.78rem;color:var(--purple-light);">Música vinculada à letra</div>
@@ -801,7 +801,7 @@ function updateCommentPendingBox(postId) {
     ${data.song ? `
       <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb, var(--accent) 18%, transparent);border:1.5px solid var(--purple-accent);border-radius:10px;padding:10px 14px;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
         <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-          ${data.song.artwork ? `<img src="${safeUrl(data.song.artwork)}" style="width:54px;height:54px;border-radius:8px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.3);flex-shrink:0;">` : ''}
+          ${data.song.artwork ? `<img alt="" src="${safeUrl(data.song.artwork)}" style="width:54px;height:54px;border-radius:8px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.3);flex-shrink:0;">` : ''}
           <div style="min-width:0;">
             <div style="font-size:0.78rem;color:var(--purple-light);font-weight:800;letter-spacing:0.5px;margin-bottom:2px;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> Música anexada</div>
             <div style="font-size:0.94rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(data.song.title)}</div>

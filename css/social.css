@@ -794,8 +794,12 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 /* Crédito do autor */
 .site-credit { margin: 0; padding: 4px 16px 24px; font-size: .8rem; line-height: 1.5; color: var(--text-2); }
 .site-credit strong { color: var(--text); font-weight: 700; }
+.site-links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.site-links a { color: var(--text-2); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+.site-links a:hover { color: var(--text); }
 .me-sheet-credit { padding: 10px 20px 4px; border-top: 1px solid var(--line); }
 .auth-credit { grid-column: 1 / -1; padding: 0; text-align: center; }
+.auth-credit .site-links { justify-content: center; }
 
 /* Coluna da direita fixa: cabe acima do player (72px) e rola por dentro se for maior que a tela */
 .right-sidebar { max-height: calc(100dvh - 12px - 84px); overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain; }

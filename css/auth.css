@@ -113,6 +113,9 @@ body.auth-open .app-sidebar { visibility: hidden; }
 }
 .auth-link:hover { text-decoration: underline; text-underline-offset: 4px; }
 .auth-switch { margin: 14px 0 0; text-align: center; }
+.auth-switch { color: var(--dust); font-size: .88rem; }
+.auth-legal { margin: 4px 0 14px; color: var(--dust); font-size: .8rem; line-height: 1.5; }
+.auth-legal a { color: var(--neon); text-underline-offset: 3px; }
 
 .auth-alert {
   padding: 10px 12px;
