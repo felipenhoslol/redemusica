@@ -17,8 +17,12 @@ export const dedupeTracks = (tracks) => dedupe(tracks, keyOf);
 export function relevantArtists(artists, query) {
   const q = normalize(query);
   const words = q.split(' ').filter(Boolean);
-  const matches = (name) => words.every(w => name.includes(w)) || (name && q.includes(name));
-  return dedupe(artists.filter(a => matches(normalize(a.name))), a => normalize(a.name));
+  const squash = (text) => text.replace(/[^\p{L}\p{N}]/gu, ''); // "ac/dc" and "acdc", "jay-z" and "jayz"
+  const matches = (name) => words.every(w => name.includes(w)) || (name && q.includes(name))
+    || (squash(q).length > 1 && squash(name).includes(squash(q)));
+  const found = artists.filter(a => matches(normalize(a.name)));
+  // A misspelled query ("the weekend") matches no name: keep iTunes's own first guess
+  return dedupe(found.length ? found : artists.slice(0, 1), a => normalize(a.name));
 }
 
 /** iTunes marks singles and EPs only in the title: "Name - Single", "Name - EP". */

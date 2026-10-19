@@ -37,3 +37,12 @@ test('organizeAlbums splits, dedupes and sorts newest first', () => {
   assert.deepEqual(albums.map(a => a.title), ['Random Access Memories', 'Discovery']);
   assert.deepEqual(singles.map(a => a.title), ['One More Time', 'Revolution 909']);
 });
+
+test('relevantArtists matches names written without spaces or punctuation', () => {
+  assert.deepEqual(relevantArtists([{ id: 1, name: 'AC/DC' }, { id: 2, name: 'Other' }], 'acdc').map(a => a.name), ['AC/DC']);
+  assert.deepEqual(relevantArtists([{ id: 1, name: 'JAY-Z' }], 'jayz').map(a => a.name), ['JAY-Z']);
+});
+
+test('relevantArtists keeps iTunes first guess when nothing matches (misspelled query)', () => {
+  assert.deepEqual(relevantArtists([{ id: 1, name: 'The Weeknd' }, { id: 2, name: 'Drake' }], 'the weekend').map(a => a.name), ['The Weeknd']);
+});
