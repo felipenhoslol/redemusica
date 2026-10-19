@@ -327,3 +327,14 @@ html, body { max-width: 100%; overflow-x: clip; }
   .chat-main-messages { gap: 3px; }
   .chat-main-messages .dm-bubble:has(.dm-time) { margin-bottom: 9px; }
 }
+
+/* Tela do post no celular: caixa de comentário fixa embaixo, como no X; os anexos aparecem ao digitar */
+@media (max-width: 700px) {
+  #post-view .comment-composer-box {
+    position: fixed; left: 0; right: 0; bottom: var(--kb, 0px); z-index: 3;
+    margin: 0 !important; border-radius: 0 !important; border-width: 1px 0 0 !important;
+    padding: 8px 12px calc(8px + var(--safe-b)) !important; background: var(--bg) !important;
+  }
+  #post-view .comment-composer-box:not(:focus-within) .comment-attach-bar { display: none !important; }
+  #post-view .post-view-body { padding-bottom: 140px; } /* o último comentário não fica por baixo da caixa */
+}

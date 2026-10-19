@@ -265,7 +265,7 @@ export function renderCommentsSectionHtml(post) {
         </div>
         
         <!-- Attachment Toolbar -->
-        <div style="display:flex;align-items:center;gap:6px;border-top:1px solid var(--tint-1);padding-top:6px;">
+        <div class="comment-attach-bar" style="display:flex;align-items:center;gap:6px;border-top:1px solid var(--tint-1);padding-top:6px;">
           <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.78rem;padding:3px 8px;gap:4px;color:var(--purple-light);" onclick="window._openCommentMusicSearch('${post.id}')" title="Anexar música">
             ${ICONS.music} <span>Música</span>
           </button>
@@ -1462,7 +1462,14 @@ window._openPostView = async (postId, opts = {}) => {
       <div class="post-view-body"><div class="post-view-empty">Carregando…</div></div>
     </div>`;
   document.body.appendChild(root);
+  // Phone: the comment box is pinned to the bottom; --kb lifts it above the keyboard (iPhone keeps the page height)
+  const vv = isPhoneLayout() ? window.visualViewport : null;
+  const onViewport = () => root.style.setProperty('--kb', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
+  vv?.addEventListener('resize', onViewport);
+  vv?.addEventListener('scroll', onViewport);
   const close = () => {
+    vv?.removeEventListener('resize', onViewport);
+    vv?.removeEventListener('scroll', onViewport);
     document.removeEventListener('keydown', onKey);
     root.classList.remove('open');
     setTimeout(() => root.remove(), 200);
