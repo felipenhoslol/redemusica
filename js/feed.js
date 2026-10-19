@@ -305,7 +305,7 @@ export function renderPostCard(post, options = {}) {
         <img class="post-song-cover" src="${safeUrl(post.song.artwork || '')}" alt="" onerror="this.style.display='none'">
         <div>
           <div class="post-song-title">${esc(post.song.title)}</div>
-          <div class="post-song-artist">${esc(post.song.artist)}${Number(post.song.startAt) > 0 ? ` · a partir de 0:${String(Math.round(post.song.startAt)).padStart(2, '0')}` : ''}</div>
+          <div class="post-song-artist">${esc(post.song.artist)}</div>
         </div>
       </div>
       <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" ${playAttr(post.song)} onclick="window._playTrack(${jsArg(post.song)})" aria-label="Tocar ${esc(post.song.title)}">${playIcon(post.song)}</button>

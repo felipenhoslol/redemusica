@@ -119,7 +119,7 @@ class AudioController {
         this.audio.pause();
       } else {
         if (this.audio.ended || (this.audio.duration && this.audio.currentTime >= this.audio.duration - 0.5)) {
-          this.audio.currentTime = this._startOf(this.currentTrack);
+          this.audio.currentTime = 0;
         }
         const playPromise = this.audio.play();
         if (playPromise !== undefined) {
@@ -137,10 +137,6 @@ class AudioController {
     this.currentTrack = trackData;
     this.audio.src = trackData.previewUrl;
     this.audio.currentTime = 0;
-    // A post can pick where its preview starts (song.startAt, in seconds)
-    if (this._startOf(trackData)) {
-      this.audio.addEventListener('loadedmetadata', () => { this.audio.currentTime = this._startOf(trackData); }, { once: true });
-    }
     this._emit('trackchange', trackData);
 
     const playPromise = this.audio.play();
@@ -159,7 +155,7 @@ class AudioController {
       this.audio.pause();
     } else {
       if (this.audio.ended || (this.audio.duration && this.audio.currentTime >= this.audio.duration - 0.5)) {
-        this.audio.currentTime = this._startOf(this.currentTrack);
+        this.audio.currentTime = 0;
       }
       const playPromise = this.audio.play();
       if (playPromise !== undefined) {
@@ -170,22 +166,6 @@ class AudioController {
         });
       }
     }
-  }
-
-  /** Second the preview starts at: song.startAt, kept inside the 30s preview (a few seconds left to hear) */
-  _startOf(track) {
-    const start = Math.max(0, Number(track?.startAt) || 0);
-    const room = (this.audio.duration || 30) - 3;
-    return Math.min(start, Math.max(0, room));
-  }
-
-  /** Play this song from where it starts (used by the "start at" picker while choosing) */
-  playFromStart(track) {
-    const same = this.currentTrack && track?.previewUrl && this.currentTrack.previewUrl === track.previewUrl;
-    if (!same) { this.playTrack(track); return; }
-    this.currentTrack = track;
-    this.audio.currentTime = this._startOf(track);
-    if (!this.isPlaying) this.audio.play().catch(() => {});
   }
 
   pause() {

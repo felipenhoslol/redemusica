@@ -113,13 +113,6 @@
 .profile-match-btn[hidden] { display: none; }
 .profile-match:not(:has(.profile-match-score)) { display: block; border: 0; padding: 0; }
 
-/* Escolher de onde a prévia da música começa no post */
-.song-start { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "play label" "play range"; align-items: center; column-gap: 10px; margin-top: 8px; }
-.song-start-play { grid-area: play; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--accent); color: var(--on-accent); cursor: pointer; }
-.song-start-play svg { width: 16px; height: 16px; }
-.song-start label { grid-area: label; font-size: var(--fs-detail); color: var(--text-2); }
-.song-start output { color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; }
-.song-start input { grid-area: range; width: 100%; accent-color: var(--accent); min-height: 28px; }
 
 /* ─── Perfil (opção A): cabeçalho que respira, Top 5 em fileira ─── */
 @media (min-width: 701px) { .profile-banner { max-height: 220px; } }
@@ -158,3 +151,6 @@ strong, b { font-weight: 800; }
 .tab-view-content svg[stroke="currentColor"], #post-view svg[stroke="currentColor"] { width: 20px; height: 20px; }
 .tab-view-content .empty-icon svg, .tab-view-content .empty-state svg { width: 32px; height: 32px; } /* ilustração de tela vazia, não é ação */
 .post-attached-song, .search-chip { border: 0 !important; background: var(--surface); }
+
+/* Vitrine no perfil: mesmo cabeçalho do Top 5, capas com tamanho limitado no PC */
+.profile-showcase .song-showcase-grid { grid-template-columns: repeat(5, minmax(0, 104px)); gap: 10px; padding: 0 0 8px; border-top: 0; }
