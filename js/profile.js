@@ -45,7 +45,7 @@ export function renderProfileView(container, targetUserId) {
           <span>Música em Destaque</span>
         </div>
         ${isMe ? `
-          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:0.75rem;padding:3px 10px;background:rgba(0,0,0,0.45);border:1px solid var(--tint-3);color:#fff;" onclick="window._editFeaturedSong()" title="Alterar música de destaque">
+          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="font-size:var(--fs-detail);padding:3px 10px;background:rgba(0,0,0,0.45);border:1px solid var(--tint-3);color:#fff;" onclick="window._editFeaturedSong()" title="Alterar música de destaque">
             Alterar
           </button>
         ` : ''}
@@ -93,7 +93,7 @@ export function renderProfileView(container, targetUserId) {
       </div>
     </div>` : (isMe ? `
     <div class="featured-song-box empty" role="button" tabindex="0" style="cursor:pointer;justify-content:center;padding:18px 20px;" onclick="window._editFeaturedSong()" onkeydown="if(event.key==='Enter')window._editFeaturedSong()">
-      <span style="font-size:0.86rem;color:var(--purple-light);font-weight:700;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:var(--fs-detail);color:var(--purple-light);font-weight:800;display:flex;align-items:center;gap:8px;">
         ${ICONS.disc || ICONS.music} Escolher música em destaque
       </span>
     </div>` : '');
@@ -400,8 +400,8 @@ function loadProfileTab(tabId, userId) {
       el.innerHTML = `
         <div class="empty-state" style="padding:40px 20px;text-align:center;">
           <div style="font-size:2rem;color:var(--purple-light);margin-bottom:8px;display:flex;justify-content:center;">${ICONS.playlist}</div>
-          <div class="empty-state-title" style="font-size:1rem;margin-bottom:6px;">Nenhuma playlist criada</div>
-          <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">${isMe ? 'Crie suas próprias playlists de músicas e compartilhe com a comunidade.' : 'Este usuário ainda não criou nenhuma playlist.'}</p>
+          <div class="empty-state-title" style="font-size:var(--fs-name);margin-bottom:6px;">Nenhuma playlist criada</div>
+          <p style="font-size:var(--fs-detail);color:var(--muted);margin-bottom:14px;">${isMe ? 'Crie suas próprias playlists de músicas e compartilhe com a comunidade.' : 'Este usuário ainda não criou nenhuma playlist.'}</p>
           ${isMe ? `
             <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window.switchTab('playlists');window._openCreatePlaylistModal();">
               ${ICONS.plus} Criar Playlist
@@ -443,10 +443,10 @@ function loadProfileTab(tabId, userId) {
               </div>
               <div style="padding:10px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
                 <div>
-                  <div style="font-size:0.88rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
-                  ${pl.description ? `<div style="font-size:0.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${esc(pl.description)}</div>` : ''}
+                  <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
+                  ${pl.description ? `<div style="font-size:var(--fs-detail);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${esc(pl.description)}</div>` : ''}
                 </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:0.78rem;color:var(--purple-light);font-weight:600;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:var(--fs-detail);color:var(--purple-light);font-weight:800;">
                   <span>${songs.length} ${songs.length === 1 ? 'música' : 'músicas'}</span>
                   <span style="color:var(--muted);font-weight:normal;">${esc(pl.createdAt || '')}</span>
                 </div>
@@ -509,7 +509,7 @@ function loadProfileTab(tabId, userId) {
       el.innerHTML = `
         <div class="empty-state" style="padding:24px 14px;text-align:center;">
           <div class="empty-state-title">Sem avaliações ainda</div>
-          <div class="empty-state-sub" style="font-size:0.78rem;color:var(--muted);margin-top:4px;">
+          <div class="empty-state-sub" style="font-size:var(--fs-detail);color:var(--muted);margin-top:4px;">
             Ao dar uma nota (estrelas) para uma música em um post ou na aba de comparar, ela aparecerá aqui.
           </div>
         </div>`;
@@ -536,29 +536,29 @@ function loadProfileTab(tabId, userId) {
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
                   <div style="min-width:0;flex:1;">
-                    <div style="font-size:0.9rem;font-weight:800;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" onclick="window._playTrack(${jsArg(trackObj)})" title="Clique para ouvir">
+                    <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" onclick="window._playTrack(${jsArg(trackObj)})" title="Clique para ouvir">
                       ${esc(s.title || 'Sem título')}
                     </div>
-                    <div style="font-size:0.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    <div style="font-size:var(--fs-detail);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                       ${esc(s.artist || 'Artista desconhecido')} ${item.targetUserName ? `· <span style="color:var(--purple-light);">Lista de ${esc(item.targetUserName)}</span>` : ''}
                     </div>
                   </div>
                   <div class="post-rating-display" style="margin:0;padding:2px 8px;flex-shrink:0;">
                     ${renderRatingStars(item.rating, 14)}
-                    <span style="font-size:0.8rem;font-weight:800;">${item.rating.toFixed(1)}</span>
+                    <span style="font-size:var(--fs-detail);font-weight:800;">${item.rating.toFixed(1)}</span>
                   </div>
                 </div>
                 ${item.comment ? `
-                  <div style="font-size:0.82rem;color:var(--white);background:var(--bg-surface);border-radius:6px;padding:6px 10px;margin-top:6px;border-left:2.5px solid var(--purple-accent);">
+                  <div style="font-size:var(--fs-detail);color:var(--white);background:var(--bg-surface);border-radius:6px;padding:6px 10px;margin-top:6px;border-left:2.5px solid var(--purple-accent);">
                     "${esc(item.comment)}"
                   </div>` : ''}
                 ${item.lyrics ? `
-                  <div style="font-size:0.75rem;color:var(--purple-light);font-style:italic;margin-top:4px;">
+                  <div style="font-size:var(--fs-detail);color:var(--purple-light);font-style:italic;margin-top:4px;">
                     "${esc(item.lyrics)}"
                   </div>` : ''}
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:0.78rem;color:var(--purple-muted);">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:var(--fs-detail);color:var(--purple-muted);">
                   <span>${item.isChallengeReview ? `<span class="ui-icon" aria-hidden="true">${ICONS.star}</span> Avaliação em Comparar` : esc(item.createdAt || '')}</span>
-                  <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:0.78rem;display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${jsArg(trackObj)})">
+                  <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:var(--fs-detail);display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${jsArg(trackObj)})">
                     ${ICONS.play} Ouvir
                   </button>
                 </div>
@@ -632,27 +632,27 @@ export function renderProfileEditModal() {
 
       <!-- REDES SOCIAIS -->
       <div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
-        <div style="font-size:0.85rem;font-weight:800;color:var(--white);display:flex;align-items:center;gap:6px;">
+        <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);display:flex;align-items:center;gap:6px;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--purple-light);"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
           <span>Redes Sociais & Perfis de Música</span>
         </div>
 
         <div>
-          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
+          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:var(--fs-detail);">
             Instagram (usuário ou link)
           </label>
           <input id="edit-instagram" class="doodle-input" value="${esc(user.instagram || user.socials?.instagram || '')}" placeholder="@usuario ou https://instagram.com/usuario">
         </div>
 
         <div>
-          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
+          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:var(--fs-detail);">
             X / Twitter (usuário ou link)
           </label>
           <input id="edit-twitter" class="doodle-input" value="${esc(user.twitter || user.x || user.socials?.twitter || '')}" placeholder="@usuario ou https://x.com/usuario">
         </div>
 
         <div>
-          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;">
+          <label class="form-label" style="display:flex;align-items:center;gap:6px;font-size:var(--fs-detail);">
             Last.fm (usuário ou link)
           </label>
           <input id="edit-lastfm" class="doodle-input" value="${esc(user.lastfm || user.socials?.lastfm || (user.musicService === 'lastfm' ? user.spotifyUsername : '') || '')}" placeholder="usuario_lastfm">
@@ -739,8 +739,8 @@ export function renderPeopleListModal(title, ids, emptyText = 'Ninguém aqui ain
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:var(--border);cursor:pointer;" onclick="closeModal('follow-list-modal');window._goToProfile('${u.id}')">
       <div class="post-author-avatar" style="overflow:hidden;">${avatarInner(u.avatar, u.name)}</div>
       <div>
-        <div style="font-size:0.88rem;font-weight:700;color:var(--white)">${esc(u.name)}${adminBadge(u.id)}</div>
-        <div style="font-size:0.78rem;color:var(--muted)">${esc(u.handle || '')}</div>
+        <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white)">${esc(u.name)}${adminBadge(u.id)}</div>
+        <div style="font-size:var(--fs-detail);color:var(--muted)">${esc(u.handle || '')}</div>
       </div>
       ${u.id !== Storage.getActiveUserId() ? `
         <button class="doodle-btn doodle-btn-follow doodle-btn-sm${Storage.isFollowing(u.id) ? ' following' : ''}" data-follow-id="${u.id}" style="margin-left:auto;" onclick="event.stopPropagation();window._toggleFollow('${u.id}')">

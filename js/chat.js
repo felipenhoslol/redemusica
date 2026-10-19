@@ -128,8 +128,8 @@ function renderAttachmentItemsHtml(context) {
         <div style="display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 22%, transparent);border:1.5px solid var(--purple-accent);border-radius:8px;padding:5px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
           ${attachedSong.artwork ? `<img alt="" src="${safeUrl(attachedSong.artwork)}" style="width:${isTab ? '36px' : '26px'};height:${isTab ? '36px' : '26px'};border-radius:4px;object-fit:cover;">` : ''}
           <div style="max-width:160px;min-width:0;">
-            <div style="font-size:0.8rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> ${esc(attachedSong.title)}</div>
-            <div style="font-size:0.78rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(attachedSong.artist)}</div>
+            <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> ${esc(attachedSong.title)}</div>
+            <div style="font-size:var(--fs-detail);color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(attachedSong.artist)}</div>
           </div>
           <button type="button" onclick="window._clearChatAttachment('song')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover música" aria-label="Remover música"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>` : ''}
@@ -137,14 +137,14 @@ function renderAttachmentItemsHtml(context) {
       ${attachedImage ? `
         <div style="position:relative;display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 15%, transparent);border:1.5px solid var(--accent);border-radius:8px;padding:4px 8px;">
           <img src="${safeUrl(attachedImage)}" alt="Prévia" style="width:${isTab ? '50px' : '32px'};height:${isTab ? '50px' : '32px'};border-radius:4px;object-fit:cover;">
-          <span style="font-size:0.75rem;font-weight:800;color:var(--accent);"><span class="ui-icon" aria-hidden="true">${ICONS.image}</span> Imagem</span>
+          <span style="font-size:var(--fs-detail);font-weight:800;color:var(--accent);"><span class="ui-icon" aria-hidden="true">${ICONS.image}</span> Imagem</span>
           <button type="button" onclick="window._clearChatAttachment('image')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover imagem" aria-label="Remover imagem"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>` : ''}
 
       ${attachedGif ? `
         <div style="position:relative;display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--star) 18%, transparent);border:1.5px solid var(--star);border-radius:8px;padding:4px 8px;">
           <img src="${safeUrl(attachedGif)}" alt="GIF" style="width:${isTab ? '50px' : '32px'};height:${isTab ? '50px' : '32px'};border-radius:4px;object-fit:cover;">
-          <span style="font-size:0.75rem;font-weight:800;color:var(--star);">GIF</span>
+          <span style="font-size:var(--fs-detail);font-weight:800;color:var(--star);">GIF</span>
           <button type="button" onclick="window._clearChatAttachment('gif')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover GIF" aria-label="Remover GIF"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
         </div>` : ''}
     </div>`;
@@ -205,7 +205,7 @@ export function renderChatTab(container = document.getElementById('tab-chat')) {
         <!-- Sidebar Contacts Column -->
         <div class="chat-tab-sidebar">
           <div class="chat-tab-search-box">
-            <input class="doodle-input" id="chat-contact-search-input" placeholder="Buscar pessoas" style="width:100%;font-size:0.84rem;padding:7px 12px;" oninput="window._filterChatContacts(this.value)">
+            <input class="doodle-input" id="chat-contact-search-input" placeholder="Buscar pessoas" style="width:100%;font-size:var(--fs-detail);padding:7px 12px;" oninput="window._filterChatContacts(this.value)">
           </div>
           <div class="chat-tab-contacts-list" id="chat-tab-contacts-list"></div>
         </div>
@@ -249,7 +249,7 @@ function renderChatTabContacts() {
 
   if (!contacts.length) {
     const msg = contactsSearchTerm ? 'Nenhum usuário encontrado.' : 'Siga alguém para poder mandar mensagem.';
-    container.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:0.84rem;">${msg}</div>`;
+    container.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:var(--fs-detail);">${msg}</div>`;
     return;
   }
 
@@ -275,7 +275,7 @@ function renderChatTabContacts() {
         <div class="chat-contact-card-info">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div class="chat-contact-card-name">${esc(u.name)}${adminBadge(u.id)}</div>
-            ${last ? `<span style="font-size:0.75rem;color:var(--muted);">${esc(last.createdAt || '')}</span>` : ''}
+            ${last ? `<span style="font-size:var(--fs-detail);color:var(--muted);">${esc(last.createdAt || '')}</span>` : ''}
             ${unread && activeContactId !== u.id ? `<span class="chat-unread-badge" aria-label="${unread} não lidas">${unread > 9 ? '9+' : unread}</span>` : ''}
           </div>
           <div class="chat-contact-card-preview">${esc(previewText)}</div>
@@ -294,8 +294,8 @@ function renderChatTabMain(contactId) {
         <div style="width:72px;height:72px;border-radius:50%;background:color-mix(in srgb, var(--accent) 15%, transparent);border:2px solid var(--purple-accent);display:flex;align-items:center;justify-content:center;color:var(--purple-light);">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
         </div>
-        <h3 style="font-size:1.25rem;font-weight:800;color:var(--white);">Selecione uma conversa</h3>
-        <p style="color:var(--muted);font-size:0.9rem;max-width:400px;line-height:1.5;">
+        <h3 style="font-size:var(--fs-title);font-weight:800;color:var(--white);">Selecione uma conversa</h3>
+        <p style="color:var(--muted);font-size:var(--fs-detail);max-width:400px;line-height:1.5;">
           Escolha alguém na lista para conversar e trocar músicas, fotos e GIFs.
         </p>
       </div>`;
@@ -325,8 +325,8 @@ function renderChatTabMain(contactId) {
           ${cAvatarHtml}
         </div>
         <div>
-          <div style="font-size:1rem;font-weight:800;color:var(--white);">${esc(contact.name)}${adminBadge(contact.id)}</div>
-          <div style="font-size:0.8rem;color:var(--text-2);">${esc(contact.handle || '')}</div>
+          <div style="font-size:var(--fs-name);font-weight:800;color:var(--white);">${esc(contact.name)}${adminBadge(contact.id)}</div>
+          <div style="font-size:var(--fs-detail);color:var(--text-2);">${esc(contact.handle || '')}</div>
         </div>
       </div>
       <div class="chat-profile-btn">
@@ -365,7 +365,7 @@ function renderChatTabMain(contactId) {
         </button>
       </div>
       <div class="chat-composer-row">
-        <input class="doodle-input" id="chat-tab-text-input" placeholder="Digite uma mensagem para ${esc(contact.name)}..." style="flex:1;font-size:0.9rem;padding:9px 14px;border-radius:24px;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._sendChatTabMessage();}" oninput="window._chatTyping()">
+        <input class="doodle-input" id="chat-tab-text-input" placeholder="Digite uma mensagem para ${esc(contact.name)}..." style="flex:1;font-size:var(--fs-detail);padding:9px 14px;border-radius:24px;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._sendChatTabMessage();}" oninput="window._chatTyping()">
         <button class="doodle-btn doodle-btn-primary" id="chat-tab-send-btn" style="padding:9px 20px;border-radius:24px;display:flex;align-items:center;gap:6px;" onclick="window._sendChatTabMessage()" aria-label="Enviar">
           <span>Enviar</span>
           ${ICONS.send || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>'}
@@ -388,7 +388,7 @@ function renderMessagesListHtml(msgs, activeUserId) {
   const lastIsTheirs = msgs.length && msgs[msgs.length - 1].fromUserId !== activeUserId;
   if (!msgs.length) {
     return `
-      <div style="text-align:center;padding:40px 10px;color:var(--muted);font-size:0.88rem;">
+      <div style="text-align:center;padding:40px 10px;color:var(--muted);font-size:var(--fs-detail);">
         Nenhuma mensagem ainda. Envie uma mensagem, música, foto ou GIF para quebrar o gelo.
       </div>`;
   }
@@ -410,8 +410,8 @@ function renderMessagesListHtml(msgs, activeUserId) {
       <div class="chat-attached-song" style="display:flex;align-items:center;gap:10px;background:var(--tint-2);border:1.5px solid color-mix(in srgb, var(--accent) 40%, transparent);border-radius:10px;padding:8px 12px;margin-top:6px;">
         ${m.song.artwork ? `<img alt="" src="${safeUrl(m.song.artwork)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : ''}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:0.86rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.title)}</div>
-          <div style="font-size:0.75rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.artist)}</div>
+          <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.title)}</div>
+          <div style="font-size:var(--fs-detail);color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.artist)}</div>
         </div>
         <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:32px;height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${jsArg(m.song)})" title="Tocar música" ${playAttr(m.song)}>${playIcon(m.song)}</button>
       </div>` : '';
@@ -499,7 +499,7 @@ function renderContacts() {
   const users = getSortedContacts();
 
   if (!users.length) {
-    container.innerHTML = `<div style="padding:8px 12px;font-size:0.78rem;color:var(--muted)">Nenhum contato disponível.</div>`;
+    container.innerHTML = `<div style="padding:8px 12px;font-size:var(--fs-detail);color:var(--muted)">Nenhum contato disponível.</div>`;
     return;
   }
 
@@ -704,16 +704,16 @@ window._openChatImagePicker = () => {
   body.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div>
-        <label class="form-label" style="font-weight:700;color:var(--white);margin-bottom:6px;display:block;">URL da Imagem:</label>
+        <label class="form-label" style="font-weight:800;color:var(--white);margin-bottom:6px;display:block;">URL da Imagem:</label>
         <div style="display:flex;gap:6px;">
-          <input class="doodle-input" id="chat-img-url-input" placeholder="https://exemplo.com/foto.jpg" style="flex:1;font-size:0.86rem;">
+          <input class="doodle-input" id="chat-img-url-input" placeholder="https://exemplo.com/foto.jpg" style="flex:1;font-size:var(--fs-detail);">
           <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="const u=document.getElementById('chat-img-url-input').value.trim();if(u){window._setChatImage(u);}">Anexar</button>
         </div>
       </div>
 
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="flex:1;height:1px;background:var(--tint-2);"></div>
-        <span style="font-size:0.75rem;color:var(--muted);">OU CARREGAR ARQUIVO</span>
+        <span style="font-size:var(--fs-detail);color:var(--muted);">OU CARREGAR ARQUIVO</span>
         <div style="flex:1;height:1px;background:var(--tint-2);"></div>
       </div>
 
@@ -765,7 +765,7 @@ window._openChatGifPicker = () => {
 
   const renderGrid = (gifs) => {
     if (!gifs || !gifs.length) {
-      return `<div style="grid-column:1/-1;text-align:center;padding:26px 10px;color:var(--muted);font-size:0.85rem;">Nenhum GIF encontrado. Tente outro termo ou cole o link abaixo.</div>`;
+      return `<div style="grid-column:1/-1;text-align:center;padding:26px 10px;color:var(--muted);font-size:var(--fs-detail);">Nenhum GIF encontrado. Tente outro termo ou cole o link abaixo.</div>`;
     }
     return gifs.map(g => `
       <div class="gif-picker-item" onclick="window._setChatGif(${jsArg(g.url)})" title="Clique para enviar no chat">
@@ -778,14 +778,14 @@ window._openChatGifPicker = () => {
     <div style="display:flex;flex-direction:column;gap:12px;">
       <!-- Search Input -->
       <div style="position:relative;">
-        <input class="doodle-input" id="chat-gif-search-input" placeholder="Buscar GIF ao vivo (ex: dança, rock, cat, beyonce...)" style="width:100%;font-size:0.88rem;padding-right:34px;" oninput="window._handleChatGifSearch(this.value)">
-        <div id="chat-gif-spinner" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);display:none;font-size:12px;color:var(--purple-light);">⏳</div>
+        <input class="doodle-input" id="chat-gif-search-input" placeholder="Buscar GIF ao vivo (ex: dança, rock, cat, beyonce...)" style="width:100%;font-size:var(--fs-detail);padding-right:34px;" oninput="window._handleChatGifSearch(this.value)">
+        <div id="chat-gif-spinner" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);display:none;font-size:var(--fs-detail);color:var(--purple-light);">⏳</div>
       </div>
 
       <!-- Categories Chips -->
       <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;" class="hide-scrollbar">
         ${categories.map(cat => `
-          <button type="button" class="doodle-btn doodle-btn-sm ${cat.id === 'all' ? 'doodle-btn-primary' : 'doodle-btn-secondary'} chat-gif-cat-btn" data-cat="${cat.id}" style="padding:4px 12px;font-size:0.75rem;white-space:nowrap;border-radius:16px;" onclick="window._setChatGifCategory('${cat.id}')">
+          <button type="button" class="doodle-btn doodle-btn-sm ${cat.id === 'all' ? 'doodle-btn-primary' : 'doodle-btn-secondary'} chat-gif-cat-btn" data-cat="${cat.id}" style="padding:4px 12px;font-size:var(--fs-detail);white-space:nowrap;border-radius:16px;" onclick="window._setChatGifCategory('${cat.id}')">
             ${esc(cat.label)}
           </button>
         `).join('')}
@@ -793,13 +793,13 @@ window._openChatGifPicker = () => {
       
       <!-- Direct Custom URL option -->
       <div style="display:flex;gap:6px;">
-        <input class="doodle-input" id="chat-custom-gif-url" placeholder="Ou cole a URL direta de qualquer GIF (.gif)..." style="flex:1;font-size:0.8rem;">
+        <input class="doodle-input" id="chat-custom-gif-url" placeholder="Ou cole a URL direta de qualquer GIF (.gif)..." style="flex:1;font-size:var(--fs-detail);">
         <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="const u=document.getElementById('chat-custom-gif-url').value.trim();if(u)window._setChatGif(u)">Anexar</button>
       </div>
 
       <!-- Grid Container -->
       <div id="chat-gif-grid" class="gif-picker-grid">
-        <div style="grid-column:1/-1;text-align:center;padding:26px 10px;color:var(--purple-light);font-size:0.85rem;">Carregando GIFs...</div>
+        <div style="grid-column:1/-1;text-align:center;padding:26px 10px;color:var(--purple-light);font-size:var(--fs-detail);">Carregando GIFs...</div>
       </div>
     </div>
   `;
@@ -835,7 +835,7 @@ window._openChatGifPicker = () => {
     if (input) input.value = '';
 
     const grid = document.getElementById('chat-gif-grid');
-    if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:26px 10px;color:var(--purple-light);font-size:0.85rem;">Carregando...</div>';
+    if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:26px 10px;color:var(--purple-light);font-size:var(--fs-detail);">Carregando...</div>';
 
     const gifs = await queryChatGifApi('', catId);
     if (grid) grid.innerHTML = renderGrid(gifs);
@@ -933,8 +933,8 @@ export function initChatBindings() {
 
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;">
-        <label class="form-label" style="font-weight:700;color:var(--white);margin:0;">Edite o texto da sua mensagem:</label>
-        <textarea id="edit-chat-msg-input" class="doodle-input" rows="4" style="resize:none !important;width:100% !important;box-sizing:border-box !important;min-height:90px !important;max-height:120px !important;font-size:0.9rem;border-radius:8px;padding:10px;line-height:1.4;">${esc(msg.text || '')}</textarea>
+        <label class="form-label" style="font-weight:800;color:var(--white);margin:0;">Edite o texto da sua mensagem:</label>
+        <textarea id="edit-chat-msg-input" class="doodle-input" rows="4" style="resize:none !important;width:100% !important;box-sizing:border-box !important;min-height:90px !important;max-height:120px !important;font-size:var(--fs-detail);border-radius:8px;padding:10px;line-height:1.4;">${esc(msg.text || '')}</textarea>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
           <button type="button" class="doodle-btn doodle-btn-secondary" onclick="closeDoodleModal('chat-edit-modal')">Cancelar</button>
           <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._saveEditChatMessage('${msg.id}')">Salvar</button>

@@ -407,8 +407,8 @@ export function renderMusicAskGrid(container, challengeId, userId) {
         <div class="q-card-info">
           <div class="q-number">${q.id}.</div>
           <div class="q-title">${esc(q.title)}</div>
-          ${hasAns ? `<div style="font-size:0.78rem;color:var(--white);font-weight:700">${esc(ans.title)}</div>
-                      <div style="font-size:0.75rem;color:var(--muted)">${esc(ans.artist)}</div>` : ''}
+          ${hasAns ? `<div style="font-size:var(--fs-detail);color:var(--white);font-weight:800">${esc(ans.title)}</div>
+                      <div style="font-size:var(--fs-detail);color:var(--muted)">${esc(ans.artist)}</div>` : ''}
         </div>
         ${hasAns ? `
           <div class="q-card-actions">
@@ -521,7 +521,7 @@ export function renderCompareView(container) {
 
       const affinityMarkup = affinityData.hasEnoughData
         ? `<span class="compare-user-affinity-badge" title="${affinityData.sharedArtists.length} artistas em comum">${ICONS.sparkles} ${affinityData.percentage}% sintonia</span>`
-        : `<span style="font-size:0.75rem;color:var(--muted);">Calculando sintonia...</span>`;
+        : `<span style="font-size:var(--fs-detail);color:var(--muted);">Calculando sintonia...</span>`;
 
       return `
         <div class="compare-user-card${isSelected ? ' selected' : ''}" onclick="window._setCompareUser('${u.id}')">
@@ -626,11 +626,11 @@ export function renderCompareView(container) {
               <div class="compare-review-pill-btn" onclick="window._openReview('${activeUser.id}','${selectedChallengeId}','${q.id}')" title="Editar sua nota / comentário">
                 <div style="display:flex;align-items:center;gap:5px;">
                   <span style="color:var(--star);display:inline-flex;align-items:center;">${ICONS.star}</span>
-                  <span style="font-weight:800;color:var(--star);font-size:0.82rem;">${mySelfReview.rating.toFixed(1)}</span>
-                  <span style="font-size:0.75rem;color:var(--muted);">(Sua nota)</span>
-                  ${mySelfReview.comment ? `<span style="font-size:0.78rem;color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${esc(mySelfReview.comment)}"</span>` : ''}
+                  <span style="font-weight:800;color:var(--star);font-size:var(--fs-detail);">${mySelfReview.rating.toFixed(1)}</span>
+                  <span style="font-size:var(--fs-detail);color:var(--muted);">(Sua nota)</span>
+                  ${mySelfReview.comment ? `<span style="font-size:var(--fs-detail);color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${esc(mySelfReview.comment)}"</span>` : ''}
                 </div>
-                <span style="font-size:0.75rem;color:var(--muted);display:flex;align-items:center;">${ICONS.edit}</span>
+                <span style="font-size:var(--fs-detail);color:var(--muted);display:flex;align-items:center;">${ICONS.edit}</span>
               </div>
             ` : `
               <button type="button" class="compare-rate-now-btn" style="border-style:dashed;color:var(--purple-light);border-color:var(--border);background:transparent;" onclick="window._openReview('${activeUser.id}','${selectedChallengeId}','${q.id}')">
@@ -643,7 +643,7 @@ export function renderCompareView(container) {
               <div class="compare-received-badge-pill" title="${esc(compareUser.name)}: \"${esc(theirReview.comment || '')}\"">
                 <span>Nota de ${esc(compareUser.name.split(' ')[0])}:</span>
                 <span style="font-weight:800;color:var(--star);display:inline-flex;align-items:center;gap:2px;">${ICONS.star} ${theirReview.rating.toFixed(1)}</span>
-                ${theirReview.comment ? `<span style="font-size:0.75rem;opacity:0.8;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${esc(theirReview.comment)}"</span>` : ''}
+                ${theirReview.comment ? `<span style="font-size:var(--fs-detail);opacity:0.8;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">"${esc(theirReview.comment)}"</span>` : ''}
               </div>
             ` : ''}
           </div>
@@ -651,7 +651,7 @@ export function renderCompareView(container) {
       } else {
         mySideHtml = `
           <div class="compare-choice-box empty">
-            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Você ainda não respondeu este item</div>
+            <div style="font-size:var(--fs-detail);color:var(--muted);margin-bottom:6px;">Você ainda não respondeu este item</div>
             <button type="button" class="compare-add-song-btn" onclick="window._openQuestion('${selectedChallengeId}','${q.id}')">
               ${ICONS.plus} <span>Escolher Música</span>
             </button>
@@ -682,10 +682,10 @@ export function renderCompareView(container) {
               <div class="compare-review-pill-btn" onclick="window._openReview('${compareUserId}','${selectedChallengeId}','${q.id}')" title="Editar sua avaliação">
                 <div style="display:flex;align-items:center;gap:5px;">
                   <span style="color:var(--star);display:inline-flex;align-items:center;">${ICONS.star}</span>
-                  <span style="font-weight:800;color:var(--star);font-size:0.82rem;">${myReview.rating.toFixed(1)}</span>
-                  ${myReview.comment ? `<span style="font-size:0.78rem;color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">"${esc(myReview.comment)}"</span>` : ''}
+                  <span style="font-weight:800;color:var(--star);font-size:var(--fs-detail);">${myReview.rating.toFixed(1)}</span>
+                  ${myReview.comment ? `<span style="font-size:var(--fs-detail);color:var(--white);font-style:italic;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;">"${esc(myReview.comment)}"</span>` : ''}
                 </div>
-                <span style="font-size:0.75rem;color:var(--muted);display:flex;align-items:center;">${ICONS.edit}</span>
+                <span style="font-size:var(--fs-detail);color:var(--muted);display:flex;align-items:center;">${ICONS.edit}</span>
               </div>
             ` : `
               <button type="button" class="compare-rate-now-btn" onclick="window._openReview('${compareUserId}','${selectedChallengeId}','${q.id}')">
@@ -697,7 +697,7 @@ export function renderCompareView(container) {
       } else {
         theirSideHtml = `
           <div class="compare-choice-box empty">
-            <div style="font-size:0.75rem;color:var(--muted);">${esc(compareUser.name)} ainda não respondeu este item</div>
+            <div style="font-size:var(--fs-detail);color:var(--muted);">${esc(compareUser.name)} ainda não respondeu este item</div>
           </div>
         `;
       }
@@ -736,13 +736,13 @@ export function renderCompareView(container) {
 
         <!-- Challenge Selection Pills -->
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <label class="form-label" style="font-size:0.78rem;color:var(--muted);">Desafio</label>
+          <label class="form-label" style="font-size:var(--fs-detail);color:var(--muted);">Desafio</label>
           <div class="compare-challenges-bar">${challengesPillsHtml}</div>
         </div>
 
         <!-- Friends Selection Grid -->
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <label class="form-label" style="font-size:0.78rem;color:var(--muted);">Comparar com</label>
+          <label class="form-label" style="font-size:var(--fs-detail);color:var(--muted);">Comparar com</label>
           <div class="compare-selector">${selectorHtml}</div>
         </div>
 
@@ -758,23 +758,23 @@ export function renderCompareView(container) {
               </div>
             </div>
             <div>
-              <div style="font-size:0.9rem;font-weight:700;color:var(--white);display:flex;align-items:center;gap:6px;">
+              <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);display:flex;align-items:center;gap:6px;">
                 <span>Você</span>
                 <span style="color:var(--purple-light);">${ICONS.compare}</span>
                 <span>${esc(compareUser.name)}</span>
               </div>
               ${affinityData.hasEnoughData ? `
-                <div style="font-size:0.78rem;color:var(--purple-light);font-weight:600;display:flex;align-items:center;gap:5px;margin-top:2px;">
+                <div style="font-size:var(--fs-detail);color:var(--purple-light);font-weight:800;display:flex;align-items:center;gap:5px;margin-top:2px;">
                   ${ICONS.fire}
                   <span>${affinityData.percentage}% de Sintonia Musical</span>
                 </div>
-                <div style="font-size:0.75rem;color:var(--muted);margin-top:1px;">
+                <div style="font-size:var(--fs-detail);color:var(--muted);margin-top:1px;">
                   ${affinityData.sharedArtists.length > 0
                     ? `Artistas em comum: ${esc(affinityData.sharedArtists.map(a => String(a).charAt(0).toUpperCase() + String(a).slice(1)).slice(0, 3).join(', '))}${affinityData.sharedArtists.length > 3 ? '...' : ''}`
                     : (affinityData.sharedGenres.length > 0 ? `Gêneros compatíveis: ${esc(affinityData.sharedGenres.slice(0, 2).join(', '))}` : 'Calculado por histórico e respostas')}
                 </div>
               ` : `
-                <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;">
+                <div style="font-size:var(--fs-detail);color:var(--muted);margin-top:2px;">
                   <span>Respondam mais músicas para calcular a sintonia</span>
                 </div>
               `}
@@ -881,9 +881,9 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
           <div style="display:flex;gap:12px;align-items:center;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;">
             ${ans.artwork ? `<img alt="" src="${safeUrl(ans.artwork)}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;">` : ''}
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:800;font-size:0.95rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ans.title)}</div>
-              <div style="font-size:0.8rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ans.artist)}</div>
-              <div style="font-size:0.78rem;color:var(--muted);margin-top:2px;">
+              <div style="font-weight:800;font-size:var(--fs-text);color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ans.title)}</div>
+              <div style="font-size:var(--fs-detail);color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ans.artist)}</div>
+              <div style="font-size:var(--fs-detail);color:var(--muted);margin-top:2px;">
                 ${isSelf ? `Sua escolha para: <strong>${esc(qObj?.title || 'este item')}</strong>` : `Resposta de <strong>${esc(targetUser?.name || 'Usuário')}</strong>`}
               </div>
             </div>
@@ -895,8 +895,8 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
         <!-- Rating Box -->
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <label class="form-label" style="font-weight:700;color:var(--white);margin:0;font-size:0.88rem;">${isSelf ? 'Sua Nota Pessoal:' : 'Sua Nota para a Música:'}</label>
-            <span style="font-size:0.88rem;font-weight:800;color:var(--star);background:color-mix(in srgb, var(--star) 12%, transparent);border:1px solid color-mix(in srgb, var(--star) 30%, transparent);padding:2px 10px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
+            <label class="form-label" style="font-weight:800;color:var(--white);margin:0;font-size:var(--fs-detail);">${isSelf ? 'Sua Nota Pessoal:' : 'Sua Nota para a Música:'}</label>
+            <span style="font-size:var(--fs-detail);font-weight:800;color:var(--star);background:color-mix(in srgb, var(--star) 12%, transparent);border:1px solid color-mix(in srgb, var(--star) 30%, transparent);padding:2px 10px;border-radius:12px;display:inline-flex;align-items:center;gap:4px;">
               ${ICONS.star} ${currentReviewRating.toFixed(1)}
             </span>
           </div>
@@ -917,7 +917,7 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
           <!-- Quick Rating Presets -->
           <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:8px;">
             ${[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0].map(p => `
-              <button type="button" onclick="window._setReviewRating(${p})" style="padding:3px 8px;font-size:0.78rem;font-weight:700;background:${currentReviewRating === p ? 'color-mix(in srgb, var(--star) 25%, transparent)' : 'var(--bg-input)'};border:1.5px solid ${currentReviewRating === p ? 'var(--star)' : 'var(--border)'};color:${currentReviewRating === p ? 'var(--star)' : 'var(--muted)'};border-radius:6px;cursor:pointer;transition:all 0.15s ease;">
+              <button type="button" onclick="window._setReviewRating(${p})" style="padding:3px 8px;font-size:var(--fs-detail);font-weight:800;background:${currentReviewRating === p ? 'color-mix(in srgb, var(--star) 25%, transparent)' : 'var(--bg-input)'};border:1.5px solid ${currentReviewRating === p ? 'var(--star)' : 'var(--border)'};color:${currentReviewRating === p ? 'var(--star)' : 'var(--muted)'};border-radius:6px;cursor:pointer;transition:all 0.15s ease;">
                 ${p.toFixed(1)}
               </button>
             `).join('')}
@@ -926,8 +926,8 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
 
         <!-- Non-resizable Fixed Textarea -->
         <div>
-          <label class="form-label" style="font-weight:700;color:var(--white);margin-bottom:6px;display:block;">Opinião / Comentário (opcional):</label>
-          <textarea id="review-comment" class="doodle-input" rows="3" placeholder="O que você achou da escolha desta música..." style="resize:none !important;width:100% !important;box-sizing:border-box !important;min-height:80px !important;max-height:80px !important;font-size:0.86rem;padding:8px 12px;border-radius:8px;line-height:1.4;">${esc(existingReview?.comment || '')}</textarea>
+          <label class="form-label" style="font-weight:800;color:var(--white);margin-bottom:6px;display:block;">Opinião / Comentário (opcional):</label>
+          <textarea id="review-comment" class="doodle-input" rows="3" placeholder="O que você achou da escolha desta música..." style="resize:none !important;width:100% !important;box-sizing:border-box !important;min-height:80px !important;max-height:80px !important;font-size:var(--fs-detail);padding:8px 12px;border-radius:8px;line-height:1.4;">${esc(existingReview?.comment || '')}</textarea>
         </div>
 
         <!-- Action Buttons -->

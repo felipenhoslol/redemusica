@@ -43,3 +43,16 @@ export function auditScreen(root = document.querySelector('.tab-view-content.act
     accentOnStatic: uniq(texts.filter(el => getComputedStyle(el).color === accent && !el.closest(interactive)).map(firstClass))
   };
 }
+
+/** Runs auditScreen on feed, search, chat, desafios, your profile and a post screen (uses the app's globals). */
+export async function auditAll() {
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const Storage = await import('/js/storage.js');
+  const out = {};
+  for (const tab of ['feed', 'search', 'chat', 'desafios']) { window.switchTab(tab); await wait(1300); window.scrollTo(0, 0); out[tab] = auditScreen(); }
+  window._goToProfile(Storage.getActiveUserId()); await wait(1800); out.profile = auditScreen();
+  window.switchTab('feed'); await wait(800);
+  const postId = document.querySelector('#feed-posts .post-card')?.dataset.postId;
+  if (postId) { window._openPostView(postId); await wait(1200); out.post = auditScreen(document.getElementById('post-view')); document.querySelector('#post-view [data-close]')?.click(); }
+  return out;
+}

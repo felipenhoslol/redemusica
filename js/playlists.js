@@ -106,7 +106,7 @@ export function renderPlaylistsTab(containerEl) {
             </div>
             <div class="page-sub">Monte listas com as suas músicas e compartilhe no feed.</div>
           </div>
-          <button class="doodle-btn doodle-btn-primary" onclick="window._openCreatePlaylistModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;font-weight:700;">
+          <button class="doodle-btn doodle-btn-primary" onclick="window._openCreatePlaylistModal()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;font-weight:800;">
             ${ICONS.plus}
             <span>Nova playlist</span>
           </button>
@@ -291,7 +291,7 @@ export function renderPlaylistDetails(containerEl, playlistId) {
             <div class="playlist-hero-author" onclick="window._goToProfile('${pl.authorId}')" title="Ver perfil de ${esc(author.name)}">
               ${avatarHeroHtml}
               <strong>${esc(author.name)}</strong>
-              <span style="color:var(--muted);font-size:0.8rem;">${esc(author.handle || '')}</span>
+              <span style="color:var(--muted);font-size:var(--fs-detail);">${esc(author.handle || '')}</span>
             </div>
             <span class="playlist-hero-divider">•</span>
             <span>${songsCount} ${songsCount === 1 ? 'música' : 'músicas'}</span>
@@ -339,7 +339,7 @@ export function renderPlaylistDetails(containerEl, playlistId) {
       <div class="playlist-tracks-section">
         <div class="playlist-tracks-header">
           <div style="display:flex;align-items:center;gap:10px;">
-            <h2 style="font-size:1.1rem;font-weight:800;color:var(--white);margin:0;">Faixas da Playlist</h2>
+            <h2 style="font-size:var(--fs-name);font-weight:800;color:var(--white);margin:0;">Faixas da Playlist</h2>
             <span class="playlist-tracks-count-badge">${songsCount}</span>
           </div>
           ${isOwner && songsCount > 0 ? `
@@ -360,7 +360,7 @@ export function renderPlaylistDetails(containerEl, playlistId) {
         <section class="playlist-tracks-section playlist-recs" aria-labelledby="pl-recs-title">
           <div class="playlist-tracks-header">
             <div>
-              <h2 id="pl-recs-title" style="font-size:1.1rem;font-weight:800;color:var(--white);margin:0;">Recomendadas</h2>
+              <h2 id="pl-recs-title" style="font-size:var(--fs-name);font-weight:800;color:var(--white);margin:0;">Recomendadas</h2>
               <p class="playlist-recs-sub">Com base nas músicas desta playlist</p>
             </div>
             <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._refreshPlaylistRecs('${pl.id}')">${ICONS.refresh} Outras</button>
@@ -583,7 +583,7 @@ export function openCreatePlaylistModal(playlistId = null) {
     <form id="playlist-form" onsubmit="event.preventDefault();window._submitPlaylistForm('${playlistId || ''}')">
       <div style="margin-bottom:14px;">
         <label class="form-label">Nome da Playlist *</label>
-        <input type="text" id="playlist-form-title" class="doodle-input" required placeholder="Ex: Madrugadas & Melancolia" value="${esc(pl?.title || '')}" style="font-weight:700;">
+        <input type="text" id="playlist-form-title" class="doodle-input" required placeholder="Ex: Madrugadas & Melancolia" value="${esc(pl?.title || '')}" style="font-weight:800;">
       </div>
 
       <div style="margin-bottom:14px;">
@@ -594,7 +594,7 @@ export function openCreatePlaylistModal(playlistId = null) {
       <div style="margin-bottom:18px;">
         <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
           <span>Capa Customizada (opcional)</span>
-          <span style="font-size:0.78rem;color:var(--muted);font-weight:normal;">URL ou Arquivo</span>
+          <span style="font-size:var(--fs-detail);color:var(--muted);font-weight:normal;">URL ou Arquivo</span>
         </label>
         <div style="display:flex;gap:8px;">
           <input type="text" id="playlist-form-cover" class="doodle-input" placeholder="https://exemplo.com/capa.jpg ou arquivo" value="${esc(pl?.coverUrl || '')}">
@@ -604,7 +604,7 @@ export function openCreatePlaylistModal(playlistId = null) {
             <input type="file" id="playlist-form-file" accept="image/*" style="display:none;" onchange="window._handlePlaylistCoverUpload(event)">
           </label>
         </div>
-        <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">
+        <div style="font-size:var(--fs-detail);color:var(--muted);margin-top:4px;">
           Se deixar em branco, geramos uma capa automática com a colagem dos álbuns adicionados!
         </div>
       </div>
@@ -785,8 +785,8 @@ export function openPlaylistShareModal(playlistId) {
           ${renderPlaylistCoverHtml(pl, 'card')}
         </div>
         <div style="min-width:0;flex:1;">
-          <h4 style="margin:0;font-size:1rem;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(pl.title)}</h4>
-          <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--purple-light);margin-top:4px;cursor:pointer;" onclick="closeDoodleModal('playlist-share-modal');window._goToProfile('${pl.authorId}')" title="Ver perfil de ${esc(author.name)}">
+          <h4 style="margin:0;font-size:var(--fs-name);color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(pl.title)}</h4>
+          <div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-detail);color:var(--purple-light);margin-top:4px;cursor:pointer;" onclick="closeDoodleModal('playlist-share-modal');window._goToProfile('${pl.authorId}')" title="Ver perfil de ${esc(author.name)}">
             ${avatarShareHtml}
             <span>${(pl.songs || []).length} músicas &bull; Curadoria de <strong style="text-decoration:underline;">${esc(author.name)}</strong></span>
           </div>
@@ -862,21 +862,21 @@ window._sharePlaylistToFeedAction = (playlistId) => {
           ${coverArt ? `<img alt="" src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
         </div>
         <div style="min-width:0;flex:1;">
-          <div style="font-size:0.78rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
-          <div style="font-size:0.9rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
-          <div style="font-size:0.75rem;color:var(--muted);">${songs.length} músicas</div>
+          <div style="font-size:var(--fs-detail);font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
+          <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
+          <div style="font-size:var(--fs-detail);color:var(--muted);">${songs.length} músicas</div>
         </div>
       </div>
 
       <!-- Textarea for post text -->
       <div style="margin-bottom:14px;">
-        <label class="form-label" style="font-weight:700;color:var(--white);margin-bottom:6px;display:block;">Mensagem da publicação:</label>
+        <label class="form-label" style="font-weight:800;color:var(--white);margin-bottom:6px;display:block;">Mensagem da publicação:</label>
         <textarea id="playlist-post-custom-text" class="doodle-input" rows="4" style="width:100%;resize:vertical;font-family:var(--font);" placeholder="O que você quer dizer sobre essa playlist?">${esc(defaultText)}</textarea>
       </div>
 
       <!-- Tag Selector -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-        <label class="form-label" style="margin:0;font-weight:700;">Tag:</label>
+        <label class="form-label" style="margin:0;font-weight:800;">Tag:</label>
         <select id="playlist-post-custom-tag" class="doodle-input" style="width:auto;padding:6px 12px;">
           <option value="#recomendo" selected>#recomendo</option>
           <option value="#música">#música</option>

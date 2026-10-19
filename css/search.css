@@ -21,7 +21,7 @@
 .search-bar > svg { width: 18px; height: 18px; flex-shrink: 0; }
 .search-bar input {
   flex: 1; min-width: 0; border: 0; outline: 0; background: none; box-shadow: none; padding: 0;
-  font: 400 .95rem var(--f-ui); color: var(--text);
+  font: 400 var(--fs-text) var(--f-ui); color: var(--text);
 }
 .search-bar input::placeholder { color: var(--text-2); }
 .search-bar input::-webkit-search-cancel-button { display: none; }
@@ -34,20 +34,20 @@
 .search-tabs::-webkit-scrollbar { display: none; }
 .search-tabs button {
   flex: 1 0 auto; min-height: 48px; padding: 0 16px; border: 0; background: none; cursor: pointer;
-  font: 500 .92rem var(--f-ui); color: var(--text-2); white-space: nowrap;
+  font: 400 var(--fs-text) var(--f-ui); color: var(--text-2); white-space: nowrap;
 }
 .search-tabs button:hover { background: var(--hover); }
-.search-tabs button.active { color: var(--text); font-weight: 700; }
+.search-tabs button.active { color: var(--text); font-weight: 800; }
 .search-tabs[hidden], .search-back[hidden], .search-clear[hidden] { display: none; }
 
 .search-section { padding: 4px 0 8px; border-bottom: 1px solid var(--line); }
 .search-section:last-child { border-bottom: 0; }
 .search-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 8px; }
-.search-section-head h2 { margin: 0; font: 800 1.15rem var(--f-ui); color: var(--text); }
-.search-see-all { border: 0; background: none; padding: 4px 0; font: 500 .88rem var(--f-ui); color: var(--accent); cursor: pointer; }
+.search-section-head h2 { margin: 0; font: 800 var(--fs-name) var(--f-ui); color: var(--text); }
+.search-see-all { border: 0; background: none; padding: 4px 0; font: 400 var(--fs-detail) var(--f-ui); color: var(--accent); cursor: pointer; }
 .search-see-all:hover { text-decoration: underline; }
-.search-count { padding: 12px 16px 4px; font-size: .85rem; color: var(--text-2); }
-.search-loading { padding: 16px; font-size: .9rem; color: var(--text-2); }
+.search-count { padding: 12px 16px 4px; font-size: var(--fs-detail); color: var(--text-2); }
+.search-loading { padding: 16px; font-size: var(--fs-detail); color: var(--text-2); }
 
 .search-row {
   display: flex; align-items: center; gap: 12px; padding: 10px 16px; cursor: pointer;
@@ -55,18 +55,18 @@
 }
 .search-row:hover, .search-row:focus-visible { background: var(--hover); outline: 0; }
 .search-row-text { flex: 1; min-width: 0; }
-.search-row-title { font-weight: 700; font-size: .95rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.search-row-sub { font-size: .85rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-row-title { font-weight: 800; font-size: var(--fs-text); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-row-sub { font-size: var(--fs-detail); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .search-row-bio { opacity: .8; }
 .search-row mark, .search-artist mark, .search-album mark { background: none; color: var(--accent); font-weight: inherit; }
-.search-avatar { width: 44px; height: 44px; font-size: 18px; flex-shrink: 0; }
+.search-avatar { width: 44px; height: 44px; font-size: var(--fs-name); flex-shrink: 0; }
 .search-link { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
 .search-link:hover { color: var(--text); text-decoration: underline; }
 
 .search-cover { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--surface); }
 .search-cover-empty { display: block; min-width: 48px; min-height: 48px; background: var(--surface); border-radius: 6px; }
-.search-track-no { width: 22px; text-align: right; flex-shrink: 0; font-size: .85rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.search-duration { font-size: .82rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.search-track-no { width: 22px; text-align: right; flex-shrink: 0; font-size: var(--fs-detail); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.search-duration { font-size: var(--fs-detail); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .search-icon-btn {
   width: 36px; height: 36px; display: grid; place-items: center; flex-shrink: 0;
   border: 0; border-radius: 50%; background: none; color: var(--text-2); cursor: pointer;
@@ -80,7 +80,7 @@
 .search-follow-btn {
   flex-shrink: 0; min-height: 34px; padding: 0 16px; border-radius: var(--pill);
   border: 1px solid var(--text); background: var(--text); color: var(--bg);
-  font: 700 .85rem var(--f-ui); cursor: pointer;
+  font: 800 var(--fs-detail) var(--f-ui); cursor: pointer;
 }
 .search-follow-btn.following { background: none; color: var(--text); border-color: var(--line); }
 .search-follow-btn.following:hover { color: var(--danger); border-color: var(--danger); }
@@ -88,14 +88,14 @@
 .search-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 16px 10px; }
 .search-chip {
   display: inline-flex; align-items: center; border-radius: var(--pill);
-  border: 1px solid var(--line); background: none; color: var(--text); font: 500 .88rem var(--f-ui);
+  border: 1px solid var(--line); background: none; color: var(--text); font: 400 var(--fs-detail) var(--f-ui);
 }
 .search-chip > button { border: 0; background: none; color: inherit; font: inherit; padding: 7px 4px 7px 14px; cursor: pointer; }
 .search-chip .search-chip-x { padding: 7px 10px 7px 4px; color: var(--text-2); display: grid; place-items: center; }
 .search-chip .search-chip-x svg { width: 13px; height: 13px; }
 .search-chip:hover { background: var(--hover); }
 .search-chip-plain { padding: 7px 14px; gap: 6px; cursor: pointer; }
-.search-chip-plain span { color: var(--text-2); font-size: .8rem; }
+.search-chip-plain span { color: var(--text-2); font-size: var(--fs-detail); }
 
 .search-artist-row { display: flex; gap: 4px; overflow-x: auto; padding: 0 10px 8px; scrollbar-width: thin; }
 .search-artist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 4px; padding: 12px 10px; }
@@ -109,8 +109,8 @@
   background: var(--accent-soft); color: var(--accent); font: 800 2rem var(--f-ui); margin-bottom: 4px;
 }
 .search-artist-photo img { width: 100%; height: 100%; object-fit: cover; }
-.search-artist-name { font-weight: 700; font-size: .9rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.search-artist-genre { font-size: .78rem; color: var(--text-2); }
+.search-artist-name { font-weight: 800; font-size: var(--fs-detail); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-artist-genre { font-size: var(--fs-detail); color: var(--text-2); }
 
 .search-album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; padding: 4px 10px 12px; }
 .search-album {
@@ -119,8 +119,8 @@
 }
 .search-album:hover { background: var(--hover); }
 .search-album img, .search-album .search-cover-empty { width: 100%; aspect-ratio: 1; border-radius: 8px; object-fit: cover; margin-bottom: 6px; }
-.search-album-title { font-weight: 700; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.search-album-sub { font-size: .8rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-album-title { font-weight: 800; font-size: var(--fs-detail); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-album-sub { font-size: var(--fs-detail); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .search-playlist-cover { width: 48px; height: 48px; flex-shrink: 0; border-radius: 6px; overflow: hidden; display: grid; background: var(--surface); }
 .search-playlist-cover.mosaic { grid-template-columns: 1fr 1fr; }
@@ -130,22 +130,22 @@
 .search-more {
   display: block; width: calc(100% - 32px); margin: 8px 16px 6px; min-height: 42px;
   border: 1px solid var(--line); border-radius: var(--pill); background: none;
-  font: 700 .9rem var(--f-ui); color: var(--accent); cursor: pointer;
+  font: 800 var(--fs-detail) var(--f-ui); color: var(--accent); cursor: pointer;
 }
 .search-more:hover { background: var(--accent-soft); }
 
 .search-section .search-posts .post-card:last-child { border-bottom: 0; }
 
 .search-empty { padding: 48px 24px; text-align: center; }
-.search-empty-title { font: 800 1.2rem var(--f-ui); color: var(--text); margin-bottom: 6px; word-break: break-word; }
-.search-empty-sub { font-size: .92rem; color: var(--text-2); max-width: 340px; margin: 0 auto; }
+.search-empty-title { font: 800 var(--fs-title) var(--f-ui); color: var(--text); margin-bottom: 6px; word-break: break-word; }
+.search-empty-sub { font-size: var(--fs-text); color: var(--text-2); max-width: 340px; margin: 0 auto; }
 
 .search-detail-head { display: flex; align-items: center; gap: 20px; padding: 20px 16px; border-bottom: 1px solid var(--line); }
 .search-detail-photo { width: 120px; height: 120px; margin: 0; font-size: 2.6rem; }
 .search-detail-cover { width: 140px; height: 140px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
-.search-detail-kind { font-size: .82rem; color: var(--text-2); }
+.search-detail-kind { font-size: var(--fs-detail); color: var(--text-2); }
 .search-detail-title { margin: 2px 0 6px; font: 800 1.7rem/1.15 var(--f-ui); color: var(--text); word-break: break-word; }
-.search-detail-sub { font-size: .9rem; color: var(--text-2); }
+.search-detail-sub { font-size: var(--fs-detail); color: var(--text-2); }
 .search-detail-play { margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }
 .search-detail-play svg { width: 16px; height: 16px; }
 

@@ -30,8 +30,8 @@
   border-bottom: 2px solid transparent;
   color: var(--muted);
   font-family: var(--font);
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   cursor: pointer;
   text-align: center;
   transition: all 0.15s;
@@ -66,8 +66,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-name);
+  font-weight: 800;
   border: 1px solid var(--purple-mid);
   overflow: hidden !important;
   flex-shrink: 0 !important;
@@ -93,7 +93,7 @@
   background: transparent;
   border: none;
   font-family: var(--font);
-  font-size: 1.02rem;
+  font-size: var(--fs-name);
   line-height: 1.5;
   color: var(--white);
   outline: none;
@@ -125,7 +125,7 @@
   border: 1px solid var(--tint-2);
   border-radius: var(--radius-md);
   font-family: var(--font);
-  font-size: 1.02rem;
+  font-size: var(--fs-name);
   line-height: 1.5;
   color: var(--white);
   outline: none;
@@ -186,7 +186,7 @@
 
 .star-pick-btn:hover { transform: scale(1.2); }
 
-.rating-value-badge { font-size: 0.78rem; color: var(--muted); }
+.rating-value-badge { font-size: var(--fs-detail); color: var(--muted); }
 
 /* Creator action bar (toolbar) */
 .creator-action-bar {
@@ -216,8 +216,8 @@
   border-radius: var(--radius-md);
   color: var(--muted);
   font-family: var(--font);
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -260,9 +260,9 @@
 }
 
 .pinned-label {
-  font-size: 0.76rem;
+  font-size: var(--fs-detail);
   color: var(--purple-light);
-  font-weight: 700;
+  font-weight: 800;
   margin-bottom: 8px;
   display: flex;
   align-items: center;
@@ -295,8 +295,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-name);
+  font-weight: 800;
   border: 1px solid var(--purple-mid);
   overflow: hidden !important;
   flex-shrink: 0 !important;
@@ -312,25 +312,25 @@
 }
 
 .post-author-name {
-  font-size: 0.98rem;
-  font-weight: 700;
+  font-size: var(--fs-name);
+  font-weight: 800;
   color: var(--white);
 }
 
 .post-author-handle {
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--muted);
 }
 
-.post-meta { font-size: 0.76rem; color: var(--dimmed); }
+.post-meta { font-size: var(--fs-detail); color: var(--dimmed); }
 
 /* Repost banner on top of post */
 .repost-header-banner {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   color: var(--muted);
   padding: 2px 0 8px;
   border-bottom: 1px solid var(--tint-1);
@@ -354,7 +354,7 @@
   height: 28px;
   min-width: 28px;
   border-radius: 50%;
-  font-size: 1rem;
+  font-size: var(--fs-name);
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -395,8 +395,8 @@
   border: none;
   color: var(--white);
   font-family: var(--font);
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   cursor: pointer;
   text-align: left;
   transition: background 0.1s;
@@ -407,7 +407,7 @@
 
 /* Post body */
 .post-text {
-  font-size: 1.02rem;
+  font-size: var(--fs-name);
   line-height: 1.55;
   color: var(--white);
   margin-bottom: 12px;
@@ -436,7 +436,7 @@
 }
 
 .post-rating-display span {
-  font-size: 0.8rem;
+  font-size: var(--fs-detail);
   font-weight: 800;
   color: var(--star);
   letter-spacing: -0.2px;
@@ -457,8 +457,8 @@
 
 .post-song-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 .post-song-cover { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
-.post-song-title { font-size: 0.92rem; font-weight: 700; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.post-song-artist { font-size: 0.8rem; color: var(--muted); }
+.post-song-title { font-size: var(--fs-text); font-weight: 800; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.post-song-artist { font-size: var(--fs-detail); color: var(--muted); }
 
 /* Post image */
 .post-attached-image {
@@ -491,8 +491,8 @@
   border-radius: var(--radius-md);
   color: var(--muted);
   font-family: var(--font);
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.15s;
   flex: 1;
@@ -536,8 +536,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   border: 1px solid var(--purple-mid);
   overflow: hidden !important;
   flex-shrink: 0 !important;
@@ -553,8 +553,8 @@
 }
 
 .comment-content { flex: 1; min-width: 0; background: var(--bg-surface); border-radius: var(--radius-md); padding: 8px 12px; border: 1px solid var(--tint-1); }
-.comment-name { font-size: 0.78rem; font-weight: 700; color: var(--purple-light); }
-.comment-text { font-size: 0.84rem; color: var(--white); margin-top: 2px; }
+.comment-name { font-size: var(--fs-detail); font-weight: 800; color: var(--purple-light); }
+.comment-text { font-size: var(--fs-detail); color: var(--white); margin-top: 2px; }
 .comment-input-row { display: flex; gap: 6px; }
 
 /* ─── Rich Comment Attachments & Media ─── */
@@ -581,7 +581,7 @@
 }
 
 /* Tag pill */
-.post-tag { font-size: 0.75rem; color: var(--purple-light); margin-left: 6px; font-weight: 700; }
+.post-tag { font-size: var(--fs-detail); color: var(--purple-light); margin-left: 6px; font-weight: 800; }
 
 /* ─── Right Sidebar Widgets ─── */
 .sidebar-widget {
@@ -592,8 +592,8 @@
 }
 
 .widget-header {
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   color: var(--muted);
   padding: 10px 14px 8px;
   border-bottom: var(--border);
@@ -636,8 +636,8 @@
 }
 
 .friend-name {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   color: var(--white);
   white-space: nowrap;
   overflow: hidden;
@@ -645,7 +645,7 @@
 }
 
 .friend-status {
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;

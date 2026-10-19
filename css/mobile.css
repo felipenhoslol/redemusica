@@ -41,7 +41,7 @@
   }
   .mobile-brand-cat { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; }
   .mobile-brand-cat .cat, .mobile-brand-cat svg { width: 100%; height: 100%; }
-  .mobile-brand-name { font: 800 1.08rem var(--f-ui); letter-spacing: -.01em; white-space: nowrap; }
+  .mobile-brand-name { font: 800 var(--fs-name) var(--f-ui); letter-spacing: -.01em; white-space: nowrap; }
   /* Mais específico que .mobile-tab (flex: 1), que esticaria o sino até o meio */
   .mobile-header .mobile-header-btn { flex: 0 0 44px; width: 44px; height: 44px; margin-left: auto; border-radius: 50%; }
   /* O título "Página inicial" repetiria o topo */
@@ -67,7 +67,7 @@
   .mobile-tab.active svg { stroke-width: 2.7; }
   .mobile-tab:active { background: var(--hover); }
   .mobile-tab-me .post-author-avatar {
-    position: static; width: 30px; height: 30px; min-width: 0; font-size: 13px; margin: 0;
+    position: static; width: 30px; height: 30px; min-width: 0; font-size: var(--fs-detail); margin: 0;
     transition: box-shadow .15s;
   }
   .mobile-tab-me.active .post-author-avatar { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
@@ -75,7 +75,7 @@
     position: absolute; top: 7px; left: calc(50% + 3px);
     min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
     background: var(--accent); color: var(--on-accent);
-    font: 700 .75rem/18px var(--f-ui); text-align: center; box-shadow: 0 0 0 2px var(--bg);
+    font: 800 var(--fs-detail)/18px var(--f-ui); text-align: center; box-shadow: 0 0 0 2px var(--bg);
   }
 
   /* Player: só aparece tocando, logo acima das abas */
@@ -102,13 +102,13 @@
     display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 20px 16px;
     border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer; color: var(--text);
   }
-  .me-sheet-user .post-author-avatar { position: static; width: 44px; height: 44px; min-width: 0; font-size: 18px; margin: 0; }
-  .me-sheet-user strong { display: block; font-size: 1rem; }
-  .me-sheet-user small { display: block; color: var(--text-2); font-size: .85rem; }
+  .me-sheet-user .post-author-avatar { position: static; width: 44px; height: 44px; min-width: 0; font-size: var(--fs-name); margin: 0; }
+  .me-sheet-user strong { display: block; font-size: var(--fs-name); }
+  .me-sheet-user small { display: block; color: var(--text-2); font-size: var(--fs-detail); }
   .me-sheet-list { padding: 6px 0; }
   .me-sheet-item {
     display: flex; align-items: center; gap: 16px; width: 100%; min-height: 52px; padding: 0 20px;
-    border: 0; background: none; color: var(--text); font: 600 1rem var(--f-ui); cursor: pointer; text-align: left;
+    border: 0; background: none; color: var(--text); font: 800 var(--fs-name) var(--f-ui); cursor: pointer; text-align: left;
   }
   .me-sheet-item svg { width: 22px; height: 22px; color: var(--text-2); }
   .me-sheet-item.active { color: var(--accent); }
@@ -122,12 +122,12 @@
     background: var(--bg); border: 0; box-shadow: none; transform: none; animation: none;
   }
   .notif-panel-header { padding: 14px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
-  .notif-panel-header h3 { font: 800 1.15rem var(--f-ui); }
+  .notif-panel-header h3 { font: 800 var(--fs-name) var(--f-ui); }
   .notif-panel-header .dm-header-btn { width: 40px; height: 40px; }
   .notif-item { padding: 14px 16px; }
 
   /* Feed */
-  .timeline-title { font-size: 1.15rem; padding: 12px 16px 2px; }
+  .timeline-title { font-size: var(--fs-name); padding: 12px 16px 2px; }
   .post-card { padding-right: 12px; }
 
   /* Perfil: abas roláveis, sem estouro */
@@ -181,10 +181,10 @@
     display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "cover info" "cover actions";
     column-gap: 12px; align-items: center; padding: 10px; border-radius: 12px;
   }
-  .q-card-cover { grid-area: cover; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; font-size: 1.2rem; }
+  .q-card-cover { grid-area: cover; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; font-size: var(--fs-title); }
   .q-card-cover svg { width: 22px; height: 22px; }
   .q-card-info { grid-area: info; padding: 0 28px 0 0; }
-  .q-title { font-size: .92rem; }
+  .q-title { font-size: var(--fs-text); }
   .q-card-actions { grid-area: actions; padding: 2px 0 0; }
   .q-card-answered-badge { top: 10px; right: 10px; }
   .pill-btn { white-space: nowrap; flex: 0 0 auto; }
@@ -214,7 +214,7 @@
 @media (max-width: 700px) {
   /* No iPhone, campos com texto menor que 16px dão zoom ao tocar e a página fica deslocada */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-  textarea, select { font-size: 16px !important; }
+  textarea, select { font-size: var(--fs-name) !important; }
 }
 /* Nada arrasta a página para os lados no toque */
 html, body { max-width: 100%; overflow-x: clip; }
@@ -227,7 +227,7 @@ html, body { max-width: 100%; overflow-x: clip; }
   .featured-vinyl-stage:hover .featured-vinyl-disk, .featured-vinyl-disk.playing { left: 36px; }
   .featured-content-row { gap: 12px; }
   .featured-info { min-width: 0; flex: 1; }
-  .featured-title { font-size: 1rem; }
+  .featured-title { font-size: var(--fs-name); }
 }
 
 /* Campo de postar no celular: os 6 ícones numa linha só, ao lado do "Postar" */
@@ -286,7 +286,7 @@ html, body { max-width: 100%; overflow-x: clip; }
   }
   .compose-close svg { width: 22px; height: 22px; }
   .compose-post { padding: 8px 20px; border-radius: 999px; }
-  body.composing .create-post-textarea { min-height: 160px; font-size: 1.1rem !important; }
+  body.composing .create-post-textarea { min-height: 160px; font-size: var(--fs-name) !important; }
   body.composing .creator-action-bar > :last-child { display: none !important; } /* o "Postar" fica no topo (o botão tem display inline) */
   @keyframes compose-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 

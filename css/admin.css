@@ -9,7 +9,7 @@
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px 12px; min-height: 44px;
   background: none; border: 0; cursor: pointer;
-  font: 600 .95rem var(--f-ui); color: var(--dust);
+  font: 800 var(--fs-text) var(--f-ui); color: var(--dust);
 }
 .admin-tabs button:hover { color: var(--chalk); }
 .admin-tabs button[aria-selected="true"] {
@@ -17,7 +17,7 @@
 }
 .admin-tab-count:not(:empty) {
   min-width: 20px; padding: 1px 6px; border-radius: 10px;
-  background: var(--volt); color: var(--on-accent); font: 600 .78rem/1.5 var(--f-ui); text-align: center;
+  background: var(--volt); color: var(--on-accent); font: 800 var(--fs-detail)/1.5 var(--f-ui); text-align: center;
 }
 
 /* Respiro entre a barra de filtros e o conteúdo de cada seção */
@@ -28,7 +28,7 @@
 .admin-toolbar label,
 .admin-form label,
 .admin-card-actions label,
-.admin-user label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; font-weight: 600; color: var(--dust); }
+.admin-user label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-detail); font-weight: 800; color: var(--dust); }
 .admin-toolbar select { width: auto; min-width: 140px; min-height: 40px; }
 .admin-grow { flex: 1; min-width: 200px; }
 
@@ -45,29 +45,29 @@
 .admin-card-actions select { width: auto; }
 .admin-note { flex: 1; min-width: 180px; }
 
-.admin-meta { font-size: .8rem; color: var(--dust); }
+.admin-meta { font-size: var(--fs-detail); color: var(--dust); }
 .admin-meta span { opacity: .8; }
-.admin-help { margin: 0; font-size: .84rem; color: var(--dust); line-height: 1.5; }
-.admin-subtitle { margin: 6px 0 0; font: 800 1rem var(--f-display); }
+.admin-help { margin: 0; font-size: var(--fs-detail); color: var(--dust); line-height: 1.5; }
+.admin-subtitle { margin: 6px 0 0; font: 800 var(--fs-name) var(--f-display); }
 .admin-empty { padding: 28px 16px; text-align: center; color: var(--dust); border: 1.5px dashed var(--line); border-radius: 16px; }
 .admin-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 .admin-danger { color: var(--danger) !important; }
 .admin-danger[data-armed="true"] { background: color-mix(in srgb, var(--danger) 15%, transparent) !important; border-color: var(--danger) !important; }
 
-.admin-chip { font: 600 .78rem var(--f-ui); padding: 2px 9px; border-radius: 20px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--neon); }
+.admin-chip { font: 800 var(--fs-detail) var(--f-ui); padding: 2px 9px; border-radius: 20px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--neon); }
 .admin-chip-bug { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
 .admin-chip-elogio { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
 .admin-chip-outro { background: var(--tint-2); color: var(--dust); }
 
 .admin-form { display: flex; flex-direction: column; gap: 12px; }
-.admin-form h3 { margin: 0; font: 800 1.1rem var(--f-display); }
+.admin-form h3 { margin: 0; font: 800 var(--fs-name) var(--f-display); }
 .admin-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
 .admin-row > label { flex: 1; min-width: 160px; }
 
 .admin-lyric { padding: 12px 14px; border-radius: 14px; background: var(--paper); border: 1px solid var(--hair); }
 .admin-lyric.is-today { border-color: var(--ultra); }
-.admin-lyric-date { font: 600 .78rem var(--f-ui); color: var(--neon); text-transform: capitalize; margin-bottom: 6px; }
-.admin-lyric blockquote { margin: 0 0 6px; padding-left: 10px; border-left: 3px solid var(--neon); font: 600 .95rem/1.45 var(--f-display); white-space: pre-line; }
+.admin-lyric-date { font: 800 var(--fs-detail) var(--f-ui); color: var(--neon); text-transform: capitalize; margin-bottom: 6px; }
+.admin-lyric blockquote { margin: 0 0 6px; padding-left: 10px; border-left: 3px solid var(--neon); font: 800 var(--fs-text)/1.45 var(--f-display); white-space: pre-line; }
 
 .admin-user {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -76,7 +76,7 @@
 .admin-user.is-banned { opacity: .75; }
 .admin-user.editing { flex-direction: column; align-items: stretch; }
 .admin-user-main { min-width: 0; }
-.admin-user-main b { font-weight: 600; }
+.admin-user-main b { font-weight: 800; }
 
 .admin-admins { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .admin-admins li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--raised); overflow-wrap: anywhere; }

@@ -69,12 +69,17 @@
   --f-ui: "M PLUS Rounded 1c", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --f-display: var(--f-ui);
   /* Escala de texto */
-  --fs-xs: .78rem;   /* metadados, contadores */
-  --fs-sm: .875rem;  /* textos secundários */
-  --fs-base: .95rem; /* texto corrido */
-  --fs-md: 1.06rem;  /* títulos de seção */
-  --fs-lg: 1.3rem;   /* títulos de página */
-  --fs-xl: 1.7rem;   /* títulos grandes (perfil, álbum) */
+  /* Os 4 tamanhos do site (docs/superpowers/specs/2026-10-19-visual-refresh-design.md) */
+  --fs-detail: .8125rem; /* 13px: @, horários, contagens, legendas */
+  --fs-text: .9375rem;   /* 15px: posts, comentários, bio */
+  --fs-name: 1rem;       /* 16px: nomes, títulos de item */
+  --fs-title: 1.375rem;  /* 22px: nome no perfil, título de página */
+  --fs-xs: var(--fs-detail);
+  --fs-sm: var(--fs-detail);
+  --fs-base: var(--fs-text);
+  --fs-md: var(--fs-name);
+  --fs-lg: var(--fs-title);
+  --fs-xl: var(--fs-title);
   --f-mono: ui-monospace, "SF Mono", Consolas, monospace;
 
   /* Forma */

@@ -45,19 +45,19 @@
 }
 
 /* ─── Desafios: o número da pergunta legível e alinhado ao título ─── */
-.q-number { font-size: .75rem; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.q-number { font-size: var(--fs-detail); font-weight: 800; color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 /* ─── Metadados: tamanho mínimo e números de largura fixa ─── */
 .post-meta, .friend-sub, .chat-seen, .notif-time, .player-time, .player-vol-pct, .trending-count {
   font-variant-numeric: tabular-nums;
 }
-.friend-sub, .trending-artist, .profile-listening-when, .artist-item-sub, .chat-contact-card-preview { font-size: .8rem; }
-.top-artists-service-badge, .spotlight-rank-crown, .artist-rank-badge { font-size: .75rem; }
+.friend-sub, .trending-artist, .profile-listening-when, .artist-item-sub, .chat-contact-card-preview { font-size: var(--fs-detail); }
+.top-artists-service-badge, .spotlight-rank-crown, .artist-rank-badge { font-size: var(--fs-detail); }
 
 /* ─── Escolher música (post, comentário, chat, playlist, desafios) ─── */
 .msearch-bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); color: var(--text-2); flex-shrink: 0; }
 .msearch-bar input { flex: 1; min-width: 0; }
-.msearch-tip { margin-left: 6px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.msearch-tip { margin-left: 6px; font-weight: 400; text-transform: none; letter-spacing: 0; }
 .msearch-play.playing { color: var(--accent); background: var(--tint-2); }
 #search-results .search-result-item { cursor: pointer; }
 #search-results .search-result-item:active { background: var(--tint-2); }
@@ -106,9 +106,9 @@
   margin: 0 16px 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px;
 }
 .profile-match-score { grid-row: span 2; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
-.profile-match-score strong { font-size: 1.6rem; font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; }
-.profile-match-score span { font-size: .72rem; color: var(--text-2); text-align: center; max-width: 9ch; }
-.profile-match-why { font-size: .88rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-match-score strong { font-size: var(--fs-title); font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; }
+.profile-match-score span { font-size: var(--fs-detail); color: var(--text-2); text-align: center; max-width: 9ch; }
+.profile-match-why { font-size: var(--fs-detail); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-match-btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
 .profile-match-btn[hidden] { display: none; }
 .profile-match:not(:has(.profile-match-score)) { display: block; border: 0; padding: 0; }
@@ -117,26 +117,26 @@
 .song-start { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "play label" "play range"; align-items: center; column-gap: 10px; margin-top: 8px; }
 .song-start-play { grid-area: play; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--accent); color: var(--on-accent); cursor: pointer; }
 .song-start-play svg { width: 16px; height: 16px; }
-.song-start label { grid-area: label; font-size: .8rem; color: var(--text-2); }
-.song-start output { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.song-start label { grid-area: label; font-size: var(--fs-detail); color: var(--text-2); }
+.song-start output { color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; }
 .song-start input { grid-area: range; width: 100%; accent-color: var(--accent); min-height: 28px; }
 
 /* ─── Perfil (opção A): cabeçalho que respira, Top 5 em fileira ─── */
 @media (min-width: 701px) { .profile-banner { max-height: 220px; } }
 .profile-details .profile-stats-row { margin: 10px 0 0; padding: 0; border: 0; gap: 16px; }
-.profile-match-line { margin-top: 4px; font-size: .8125rem; color: var(--text-2); }
+.profile-match-line { margin-top: 4px; font-size: var(--fs-detail); color: var(--text-2); }
 .profile-details .profile-bio { margin-top: 12px; }
 .profile-compare-btn { display: inline-flex; align-items: center; gap: 6px; }
 .top5 { padding: 16px 16px 4px; }
 .top5-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.top5-head h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text); }
-.top5-edit { border: 0; background: none; color: var(--accent); font: 700 .8125rem var(--f-ui); cursor: pointer; padding: 6px 0; }
+.top5-head h3 { margin: 0; font-size: var(--fs-name); font-weight: 800; color: var(--text); }
+.top5-edit { border: 0; background: none; color: var(--accent); font: 800 var(--fs-detail) var(--f-ui); cursor: pointer; padding: 6px 0; }
 .top5-row { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; padding-bottom: 6px; }
 .top5-row::-webkit-scrollbar { display: none; }
 .top5-item { flex: none; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: none; padding: 0; cursor: pointer; color: var(--text-2); }
 .top5-photo { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: var(--surface); color: var(--text); font-weight: 800; }
-.top5-name { width: 100%; font-size: .8125rem; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.top5-empty p { margin: 0 0 10px; font-size: .8125rem; color: var(--text-2); }
+.top5-name { width: 100%; font-size: var(--fs-detail); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top5-empty p { margin: 0 0 10px; font-size: var(--fs-detail); color: var(--text-2); }
 @media (max-width: 700px) { .profile-compare-btn span { display: none; } } /* só o ícone no celular: a fileira de ações cabe numa linha */
 
 /* ─── Feed: fileira "ouvindo agora" e letras com barra em vez de caixa ─── */
@@ -146,5 +146,8 @@
 .listening-item { flex: none; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--text-2); }
 .listening-photo { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--surface); color: var(--text); font-weight: 800; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
 .listening-photo img { width: 100%; height: 100%; object-fit: cover; }
-.listening-name { width: 100%; font-size: .8125rem; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.listening-name { width: 100%; font-size: var(--fs-detail); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lyric-quote { border: 0; border-left: 3px solid var(--accent); border-radius: 0; padding: 2px 0 2px 12px; background: none; }
+
+/* Negrito do navegador (700) segue o peso de destaque do site */
+strong, b { font-weight: 800; }

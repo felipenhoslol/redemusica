@@ -46,8 +46,8 @@
   gap: 8px;
 }
 
-.dm-header-title { font-size: 0.9rem; font-weight: 700; color: var(--white); }
-.dm-header-sub   { font-size: 0.78rem; color: var(--purple-light); }
+.dm-header-title { font-size: var(--fs-detail); font-weight: 800; color: var(--white); }
+.dm-header-sub   { font-size: var(--fs-detail); color: var(--purple-light); }
 
 .dm-header-actions { display: flex; align-items: center; gap: 4px; }
 
@@ -58,7 +58,7 @@
   cursor: pointer;
   padding: 3px 6px;
   border-radius: var(--radius-md);
-  font-size: 0.85rem;
+  font-size: var(--fs-detail);
   display: flex;
   align-items: center;
 }
@@ -98,12 +98,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
 }
 
-.dm-contact-name { font-size: 0.8rem; font-weight: 700; color: var(--white); }
-.dm-contact-preview { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-contact-name { font-size: var(--fs-detail); font-weight: 800; color: var(--white); }
+.dm-contact-preview { font-size: var(--fs-detail); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Messages area */
 .dm-messages {
@@ -133,14 +133,14 @@
 .dm-bubble-content {
   padding: 7px 11px;
   border-radius: var(--radius-md);
-  font-size: 0.85rem;
+  font-size: var(--fs-detail);
   line-height: 1.3;
 }
 
 .dm-bubble.sent  .dm-bubble-content { background: var(--purple-accent); color: var(--on-accent); border-radius: var(--radius-md) var(--radius-md) 4px var(--radius-md); }
 .dm-bubble.recv  .dm-bubble-content { background: var(--bg-card);        color: var(--white); border: var(--border); border-radius: var(--radius-md) var(--radius-md) var(--radius-md) 4px; }
 
-.dm-time { font-size: 0.75rem; color: var(--dimmed); align-self: flex-end; }
+.dm-time { font-size: var(--fs-detail); color: var(--dimmed); align-self: flex-end; }
 
 /* Attached song in DM */
 .dm-attached-song {
@@ -155,8 +155,8 @@
 }
 
 .dm-song-cover { width: 30px; height: 30px; border-radius: 4px; object-fit: cover; }
-.dm-song-title { font-size: 0.75rem; font-weight: 700; color: var(--white); }
-.dm-song-artist { font-size: 0.75rem; color: var(--muted); }
+.dm-song-title { font-size: var(--fs-detail); font-weight: 800; color: var(--white); }
+.dm-song-artist { font-size: var(--fs-detail); color: var(--muted); }
 
 /* Attached song bar above input */
 .dm-attached-bar {
@@ -166,7 +166,7 @@
   padding: 5px 12px;
   background: color-mix(in srgb, var(--accent) 20%, transparent);
   border-top: var(--border);
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--white);
 }
 
@@ -191,7 +191,7 @@
   border-radius: var(--radius-pill);
   padding: 7px 12px;
   font-family: var(--font);
-  font-size: 0.82rem;
+  font-size: var(--fs-detail);
   color: var(--white);
   outline: none;
   box-sizing: border-box;
@@ -265,7 +265,7 @@
 }
 
 .chat-tab-header-title {
-  font-size: 1.15rem;
+  font-size: var(--fs-name);
   font-weight: 800;
   color: var(--white);
   display: flex;
@@ -274,7 +274,7 @@
 }
 
 .chat-tab-header-sub {
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--muted);
 }
 
@@ -287,8 +287,8 @@
   border: 1px solid var(--border);
   color: var(--white);
   border-radius: var(--radius-pill);
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.18s ease;
 }
@@ -355,7 +355,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--fs-name);
   font-weight: 800;
   border: 1.5px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
@@ -366,7 +366,7 @@
 }
 
 .chat-contact-card-name {
-  font-size: 0.92rem;
+  font-size: var(--fs-text);
   font-weight: 800;
   color: var(--white);
   white-space: nowrap;
@@ -375,7 +375,7 @@
 }
 
 .chat-contact-card-preview {
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -462,8 +462,8 @@
   color: var(--purple-light);
   padding: 5px 12px;
   border-radius: var(--radius-pill);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -556,7 +556,7 @@
   padding: 5px 8px;
   border-radius: 4px;
   margin-bottom: 6px;
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   max-width: 100%;
   overflow: hidden;
 }
@@ -564,7 +564,7 @@
 .chat-replied-author {
   font-weight: 800;
   color: var(--purple-light);
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   margin-bottom: 1px;
 }
 
@@ -573,7 +573,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
 }
 
 /* Reply Banner above Composer */
@@ -604,13 +604,13 @@
 }
 
 .chat-reply-banner-title {
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   font-weight: 800;
   color: var(--purple-light);
 }
 
 .chat-reply-banner-text {
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--white);
   white-space: nowrap;
   overflow: hidden;
@@ -621,7 +621,7 @@
   background: transparent;
   border: none;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-detail);
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 50%;
@@ -635,22 +635,22 @@
 
 /* Edited Tag */
 .chat-edited-tag {
-  font-size: 0.75rem;
+  font-size: var(--fs-detail);
   color: rgba(255, 255, 255, 0.5);
   margin-left: 4px;
   font-style: italic;
 }
 
 /* Mensagens não lidas na lista de conversas */
-.chat-unread-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font: 700 .75rem/18px var(--f-ui, inherit); text-align: center; margin-left: 6px; }
+.chat-unread-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font: 800 var(--fs-detail)/18px var(--f-ui, inherit); text-align: center; margin-left: 6px; }
 
 /* "Enviada" / "Visto" embaixo da sua última mensagem */
-.chat-seen { align-self: flex-end; margin: -2px 6px 6px 0; font-size: 0.78rem; color: var(--text-2, var(--muted)); display: inline-flex; align-items: center; gap: 3px; }
-.chat-seen.seen { color: var(--accent); font-weight: 600; }
+.chat-seen { align-self: flex-end; margin: -2px 6px 6px 0; font-size: var(--fs-detail); color: var(--text-2, var(--muted)); display: inline-flex; align-items: center; gap: 3px; }
+.chat-seen.seen { color: var(--accent); font-weight: 800; }
 .chat-seen svg { width: 12px; height: 12px; }
 
 /* "Fulano está digitando…" */
-.chat-typing { display: flex; align-items: center; gap: 8px; padding: 4px 18px 8px; font-size: .8rem; color: var(--text-2, var(--muted)); }
+.chat-typing { display: flex; align-items: center; gap: 8px; padding: 4px 18px 8px; font-size: var(--fs-detail); color: var(--text-2, var(--muted)); }
 .chat-typing[hidden] { display: none; }
 .chat-typing-dots { display: inline-flex; gap: 3px; padding: 7px 9px; border-radius: 12px; background: var(--surface, var(--bg-card)); }
 .chat-typing-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-2, var(--muted)); animation: typing-dot 1.2s ease-in-out infinite; }

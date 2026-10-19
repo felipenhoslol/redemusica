@@ -1150,8 +1150,8 @@ function bindGlobalHandlers() {
     el.innerHTML = `
       <div class="creator-attached-song creator-attached-poll">
         <div>
-          <div style="font-size:.85rem;font-weight:700;color:var(--text)">${ICONS.poll} Votação com ${options.length} músicas</div>
-          <div style="font-size:.78rem;color:var(--text-2)">${options.map(o => esc(o.title)).join(' · ')}</div>
+          <div style="font-size:var(--fs-detail);font-weight:800;color:var(--text)">${ICONS.poll} Votação com ${options.length} músicas</div>
+          <div style="font-size:var(--fs-detail);color:var(--text-2)">${options.map(o => esc(o.title)).join(' · ')}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
           <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._creatorOpenPoll()">Editar</button>
@@ -1176,8 +1176,8 @@ function bindGlobalHandlers() {
         <div style="display:flex;align-items:center;gap:6px;">
           ${track.artwork ? `<img alt="" src="${safeUrl(track.artwork)}" style="width:32px;height:32px;border-radius:5px;object-fit:cover;">` : ''}
           <div>
-            <div style="font-size:0.8rem;font-weight:700;color:var(--white)">${esc(track.title)}</div>
-            <div style="font-size:0.78rem;color:var(--muted)">${esc(track.artist)}</div>
+            <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white)">${esc(track.title)}</div>
+            <div style="font-size:var(--fs-detail);color:var(--muted)">${esc(track.artist)}</div>
           </div>
         </div>
         <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCreatorSong()">Remover</button>
@@ -1226,14 +1226,14 @@ function bindGlobalHandlers() {
       body.innerHTML = `
         <div style="text-align:center;padding:30px 10px;color:var(--muted);">
           <div style="font-size:2rem;color:var(--purple-light);margin-bottom:8px;">${ICONS.playlist}</div>
-          <p style="margin-bottom:14px;font-size:0.88rem;">Nenhuma playlist encontrada.</p>
+          <p style="margin-bottom:14px;font-size:var(--fs-detail);">Nenhuma playlist encontrada.</p>
           <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="closeDoodleModal('playlist-picker-modal');switchTab('playlists');window._openCreatePlaylistModal();">
             Criar Nova Playlist
           </button>
         </div>`;
     } else {
       body.innerHTML = `
-        <div style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;">
+        <div style="font-size:var(--fs-detail);color:var(--muted);margin-bottom:12px;">
           Selecione uma playlist para anexar ao seu post:
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding-right:4px;">
@@ -1247,8 +1247,8 @@ function bindGlobalHandlers() {
                   ${coverArt ? `<img alt="" src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
                 </div>
                 <div style="flex:1;min-width:0;">
-                  <div style="font-size:0.88rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
-                  <div style="font-size:0.75rem;color:var(--purple-light);">${isMine ? 'Sua playlist' : 'Da comunidade'} &bull; ${songs.length} faixas</div>
+                  <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
+                  <div style="font-size:var(--fs-detail);color:var(--purple-light);">${isMine ? 'Sua playlist' : 'Da comunidade'} &bull; ${songs.length} faixas</div>
                 </div>
                 <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" style="flex-shrink:0;">
                   Selecionar
@@ -1279,8 +1279,8 @@ function bindGlobalHandlers() {
             ${coverArt ? `<img alt="" src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
           </div>
           <div style="min-width:0;">
-            <div style="font-size:0.78rem;font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
-            <div style="font-size:0.86rem;font-weight:700;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
+            <div style="font-size:var(--fs-detail);font-weight:800;color:var(--purple-light);">Playlist Anexada</div>
+            <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(pl.title)}</div>
           </div>
         </div>
         <button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="color:var(--danger);" onclick="window._removeCreatorPlaylist()">Remover</button>
@@ -1399,17 +1399,17 @@ function bindGlobalHandlers() {
     if (!listEl) return;
 
     if (!tempPickerArtists.length) {
-      listEl.innerHTML = `<div style="font-size:0.75rem;color:var(--muted);padding:6px;">Nenhum artista selecionado ainda. Pesquise acima!</div>`;
+      listEl.innerHTML = `<div style="font-size:var(--fs-detail);color:var(--muted);padding:6px;">Nenhum artista selecionado ainda. Pesquise acima!</div>`;
       return;
     }
 
     listEl.innerHTML = tempPickerArtists.map((a, i) => `
       <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);">
-        <span style="font-size:0.75rem;font-weight:800;color:var(--purple-light);width:18px;">#${i + 1}</span>
+        <span style="font-size:var(--fs-detail);font-weight:800;color:var(--purple-light);width:18px;">#${i + 1}</span>
         <img alt="" src="${safeUrl(a.imageUrl || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80')}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:0.82rem;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.name)}</div>
-          <div style="font-size:0.75rem;color:var(--muted);">${esc(a.genre || 'Artista')}</div>
+          <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.name)}</div>
+          <div style="font-size:var(--fs-detail);color:var(--muted);">${esc(a.genre || 'Artista')}</div>
         </div>
         <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 6px;color:var(--danger);" onclick="window._removeArtistFromPicker(${i})">&times;</button>
       </div>
@@ -1428,12 +1428,12 @@ function bindGlobalHandlers() {
     const resEl = document.getElementById('picker-search-results');
     if (!q || !resEl) return;
 
-    resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--purple-light);padding:8px;">Buscando "${esc(q)}" no catálogo...</div>`;
+    resEl.innerHTML = `<div style="font-size:var(--fs-detail);color:var(--purple-light);padding:8px;">Buscando "${esc(q)}" no catálogo...</div>`;
 
     try {
       const tracks = await searchTracks(q, 8);
       if (!tracks.length) {
-        resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--muted);padding:8px;">Nenhum artista encontrado para "${esc(q)}".</div>`;
+        resEl.innerHTML = `<div style="font-size:var(--fs-detail);color:var(--muted);padding:8px;">Nenhum artista encontrado para "${esc(q)}".</div>`;
         return;
       }
 
@@ -1460,14 +1460,14 @@ function bindGlobalHandlers() {
         <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-card);border:var(--border);border-radius:var(--radius-md);margin-bottom:4px;">
           <img alt="" src="${safeUrl(a.imageUrl)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
           <div style="flex:1;min-width:0;">
-            <div style="font-size:0.82rem;font-weight:700;color:var(--white);">${esc(a.name)}</div>
-            <div style="font-size:0.75rem;color:var(--muted);">${esc(a.genre)}</div>
+            <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);">${esc(a.name)}</div>
+            <div style="font-size:var(--fs-detail);color:var(--muted);">${esc(a.genre)}</div>
           </div>
           <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._addArtistToPicker(${jsArg(a)})">+ Adicionar</button>
         </div>
       `).join('');
     } catch (err) {
-      resEl.innerHTML = `<div style="font-size:0.75rem;color:var(--danger);padding:8px;">Erro na busca: ${esc(err.message)}</div>`;
+      resEl.innerHTML = `<div style="font-size:var(--fs-detail);color:var(--danger);padding:8px;">Erro na busca: ${esc(err.message)}</div>`;
     }
   };
 

@@ -30,7 +30,7 @@ export function openFeedbackModal(page = '') {
   const canSend = auth.mode === 'signed-in';
   body.innerHTML = `
     <form class="feedback-form" novalidate>
-      <p style="margin:0;color:var(--muted);font-size:.9rem;line-height:1.5;">
+      <p style="margin:0;color:var(--muted);font-size:var(--fs-detail);line-height:1.5;">
         Encontrou um problema ou teve uma ideia? Sua mensagem vai direto para a equipe.
       </p>
       <fieldset class="feedback-cats">

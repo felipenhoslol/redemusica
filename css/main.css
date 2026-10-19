@@ -148,8 +148,8 @@ body {
 }
 
 .sidebar-logo-text h1 {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: var(--fs-text);
+  font-weight: 800;
   color: var(--white);
   white-space: nowrap;
   overflow: hidden;
@@ -157,7 +157,7 @@ body {
 }
 
 .sidebar-logo-text span {
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--muted);
 }
 
@@ -180,8 +180,8 @@ body {
   gap: 12px;
   padding: 12px 16px;
   color: var(--muted);
-  font-size: 0.96rem;
-  font-weight: 700;
+  font-size: var(--fs-text);
+  font-weight: 800;
   cursor: pointer;
   border-radius: var(--radius-md);
   border: none;
@@ -217,7 +217,7 @@ body {
   margin-left: auto;
   background: var(--purple-accent);
   color: var(--on-accent);
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 10px;
@@ -259,8 +259,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   border: 1px solid var(--purple-mid);
 }
 
@@ -270,8 +270,8 @@ body {
 }
 
 .sidebar-user-name {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   color: var(--white);
   white-space: nowrap;
   overflow: hidden;
@@ -279,7 +279,7 @@ body {
 }
 
 .sidebar-user-handle {
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--muted);
 }
 
@@ -317,7 +317,7 @@ body {
   right: -2px;
   background: #ff007f;
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: var(--fs-detail);
   font-weight: 900;
   padding: 2px 6px;
   border-radius: 12px;
@@ -391,8 +391,8 @@ body {
 }
 
 .card-section-title {
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   color: var(--muted);
   padding: 10px 14px 6px;
   border-bottom: var(--border);
@@ -412,8 +412,8 @@ body {
   gap: 6px;
   padding: 7px 14px;
   font-family: var(--font);
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: var(--fs-detail);
+  font-weight: 800;
   border: var(--border-accent);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -433,7 +433,7 @@ body {
 .doodle-btn-danger    { background: var(--surface);               color: #ffb0b0;      border-color: #6b2030; }
 .doodle-btn-follow    { background: var(--white);          color: #000;         border-color: var(--white); }
 .doodle-btn-follow.following { background: transparent; color: var(--white); border-color: var(--purple-mid); }
-.doodle-btn-sm        { padding: 4px 10px; font-size: 0.78rem; }
+.doodle-btn-sm        { padding: 4px 10px; font-size: var(--fs-detail); }
 
 /* ═══════════════════════════════════════
    INPUTS
@@ -446,7 +446,7 @@ body {
   border-radius: var(--radius-md);
   padding: 8px 12px;
   font-family: var(--font);
-  font-size: 0.88rem;
+  font-size: var(--fs-detail);
   color: var(--white);
   outline: none;
   transition: border-color 0.15s;
@@ -456,7 +456,7 @@ body {
 
 .form-label {
   display: block;
-  font-size: 0.78rem;
+  font-size: var(--fs-detail);
   color: var(--muted);
   margin-bottom: 4px;
 }
@@ -505,13 +505,13 @@ body {
   flex-shrink: 0;
 }
 
-.modal-header h3 { font-size: 1rem; color: var(--white); }
+.modal-header h3 { font-size: var(--fs-name); color: var(--white); }
 
 .modal-close {
   background: transparent;
   border: none;
   color: var(--muted);
-  font-size: 1.1rem;
+  font-size: var(--fs-name);
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
@@ -547,7 +547,7 @@ body {
   border-radius: var(--radius-md);
   padding: 8px 14px;
   color: var(--white);
-  font-size: 0.82rem;
+  font-size: var(--fs-detail);
   box-shadow: var(--shadow);
   animation: slideInToast 0.2s ease-out;
   pointer-events: all;
@@ -635,8 +635,8 @@ body {
   margin-bottom: 16px;
 }
 
-.page-title { font-size: 1.2rem; font-weight: 700; color: var(--white); }
-.page-sub   { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+.page-title { font-size: var(--fs-title); font-weight: 800; color: var(--white); }
+.page-sub   { font-size: var(--fs-detail); color: var(--muted); margin-top: 2px; }
 
 /* ═══════════════════════════════════════
    RESPONSIVE
