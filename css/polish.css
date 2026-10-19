@@ -120,3 +120,21 @@
 .song-start label { grid-area: label; font-size: .8rem; color: var(--text-2); }
 .song-start output { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 .song-start input { grid-area: range; width: 100%; accent-color: var(--accent); min-height: 28px; }
+
+/* ─── Perfil (opção A): cabeçalho que respira, Top 5 em fileira ─── */
+@media (min-width: 701px) { .profile-banner { max-height: 220px; } }
+.profile-details .profile-stats-row { margin: 10px 0 0; padding: 0; border: 0; gap: 16px; }
+.profile-match-line { margin-top: 4px; font-size: .8125rem; color: var(--text-2); }
+.profile-details .profile-bio { margin-top: 12px; }
+.profile-compare-btn { display: inline-flex; align-items: center; gap: 6px; }
+.top5 { padding: 16px 16px 4px; }
+.top5-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.top5-head h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text); }
+.top5-edit { border: 0; background: none; color: var(--accent); font: 700 .8125rem var(--f-ui); cursor: pointer; padding: 6px 0; }
+.top5-row { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; padding-bottom: 6px; }
+.top5-row::-webkit-scrollbar { display: none; }
+.top5-item { flex: none; width: 64px; display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: none; padding: 0; cursor: pointer; color: var(--text-2); }
+.top5-photo { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: var(--surface); color: var(--text); font-weight: 800; }
+.top5-name { width: 100%; font-size: .8125rem; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top5-empty p { margin: 0 0 10px; font-size: .8125rem; color: var(--text-2); }
+@media (max-width: 700px) { .profile-compare-btn span { display: none; } } /* só o ícone no celular: a fileira de ações cabe numa linha */

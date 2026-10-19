@@ -4,8 +4,8 @@ import * as Storage from './storage.js';
 import { ICONS, renderRatingStars } from './icons.js';
 import { renderPostCard } from './feed.js';
 import { openSearchModalForFeaturedSong } from './ui.js';
-import { getArtistImage, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.js';
-import { presenceOf, relativeTime } from './sync.js';
+import { getArtistImage } from './lastfm.js';
+import { presenceOf } from './sync.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { BIO_FONTS, bioFont, bioFontStyle } from './bioFonts.js';
 import { adminBadge } from './badges.js';
@@ -14,23 +14,10 @@ import { adminBadge } from './badges.js';
 // PROFILE RENDER
 // ──────────────────────────────────────────
 
-// Music match with someone else's profile: one number, why, and the way into the challenges.
-// Comparing challenges is only for people you follow (the button shows once you follow).
-function matchHtml(user, following) {
+// Music match with someone else's profile: one line under the follower counts, only when there is enough data
+function matchLineHtml(user) {
   const match = Storage.calculateMusicalAffinity(Storage.getActiveUserId(), user.id);
-  const shared = (match.sharedArtists || []).map(a => String(a).replace(/(^|\s)\S/g, c => c.toUpperCase()));
-  const why = shared.length
-    ? `${shared.slice(0, 2).join(', ')}${shared.length > 2 ? ` e mais ${shared.length - 2}` : ''} em comum`
-    : 'Nenhum artista em comum ainda';
-  const button = `<button type="button" class="doodle-btn doodle-btn-secondary doodle-btn-sm profile-match-btn" data-compare-id="${user.id}"
-    onclick="window._compareWith('${user.id}')"${following ? '' : ' hidden'}>${ICONS.compare} Comparar desafios</button>`;
-  if (!match.hasEnoughData) return following ? `<div class="profile-match">${button}</div>` : '';
-  return `
-    <div class="profile-match">
-      <div class="profile-match-score"><strong>${Number(match.percentage) || 0}%</strong><span>de sintonia musical</span></div>
-      <div class="profile-match-why">${esc(why)}</div>
-      ${button}
-    </div>`;
+  return match.hasEnoughData ? `<div class="profile-match-line">${Number(match.percentage) || 0}% de sintonia musical</div>` : '';
 }
 
 export function renderProfileView(container, targetUserId) {
@@ -111,15 +98,8 @@ export function renderProfileView(container, targetUserId) {
       </span>
     </div>` : '');
 
-  const showcaseHtml = buildShowcaseHtml(user, isMe);
   const topArtistsHtml = buildTopArtistsMonthHtml(user, isMe);
   const presence = isMe ? { online: true, known: true, label: 'online' } : presenceOf(user);
-  const lfmUser = lastFmUserOf(user);
-  const listeningHtml = lfmUser ? `
-    <section class="profile-listening" id="profile-listening" data-lfm="${esc(lfmUser)}" aria-label="O que ${esc(user.name)} anda ouvindo">
-      <div class="profile-listening-head">${ICONS.headphones}<span>Ouvindo no Last.fm</span></div>
-      <div class="profile-listening-body"><div class="profile-listening-empty">Carregando…</div></div>
-    </section>` : '';
 
   // Banner: the user's image, or a neutral wash of the chosen accent color
   const bannerStyle = user.bannerUrl && cssUrl(user.bannerUrl)
@@ -161,6 +141,8 @@ export function renderProfileView(container, targetUserId) {
                 title="Mandar mensagem" aria-label="Mandar mensagem"${following ? '' : ' hidden'}>
                 ${ICONS.chat}
               </button>
+              <button class="doodle-btn doodle-btn-ghost doodle-btn-sm profile-compare-btn" onclick="window._compareFromProfile('${user.id}')"
+                title="Comparar desafios" aria-label="Comparar desafios">${ICONS.compare}<span>Comparar</span></button>
             ` : `
               <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="window._openProfileEdit()">
                 ${ICONS.edit} Editar
@@ -177,40 +159,20 @@ export function renderProfileView(container, targetUserId) {
               ${presence.known ? `<span class="profile-presence${presence.online ? ' online' : ''}"><i aria-hidden="true"></i>${esc(presence.online ? 'Online' : presence.label.replace(/^visto/, 'Visto'))}</span>` : ''}
             </div>
           </div>
-          <!-- Inline editable status (shown above actions) -->
-          <div class="profile-status-wrap">
-            ${isMe ? `
-              <div id="status-display" class="profile-status-pill" onclick="window._startEditStatus()">
-                <span id="status-text">${esc(user.status || 'Adicionar status...')}</span>
-                ${ICONS.edit}
-              </div>
-              <div id="status-form" class="inline-status-form" style="display:none;">
-                <input id="status-input" class="inline-status-input" value="${esc(user.status || '')}" placeholder="Status..." maxlength="60">
-                <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._saveStatus()">Ok</button>
-                <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._cancelEditStatus()">X</button>
-              </div>
-            ` : user.status ? `
-              <div class="profile-status-pill" style="cursor:default;">
-                ${esc(user.status)}
-              </div>
-            ` : ''}
+          <div class="profile-stats-row" data-stats-user="${user.id}">
+            <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'following')">
+              <strong data-stat="following">${followingList.length}</strong><span>seguindo</span>
+            </div>
+            <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'followers')">
+              <strong data-stat="followers">${followers.length}</strong><span>seguidores</span>
+            </div>
           </div>
+          ${isMe ? '' : matchLineHtml(user)}
           ${user.bio ? `<div class="profile-bio" style="${bioFontStyle(user.bioFont)}">${esc(user.bio)}</div>` : ''}
           ${buildSocialsHtml(user, isMe)}
         </div>
-        <div class="profile-stats-row" data-stats-user="${user.id}">
-          <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'following')">
-            <strong data-stat="following">${followingList.length}</strong><span>seguindo</span>
-          </div>
-          <div class="profile-stat" onclick="window._showFollowList('${user.id}', 'followers')">
-            <strong data-stat="followers">${followers.length}</strong><span>seguidores</span>
-          </div>
-        </div>
-        ${isMe ? '' : matchHtml(user, following)}
         ${featuredHtml}
-        ${listeningHtml}
         ${topArtistsHtml}
-        ${showcaseHtml}
         <div class="profile-subtabs">
           <button class="profile-subtab-btn active" data-profile-tab="posts" onclick="window._switchProfileTab('posts', this)">Posts</button>
           <button class="profile-subtab-btn" data-profile-tab="playlists" onclick="window._switchProfileTab('playlists', this)">Playlists</button>
@@ -233,27 +195,8 @@ export function renderProfileView(container, targetUserId) {
 
   // Load default tab
   loadProfileTab('posts', user.id);
-  if (lfmUser) loadListening(container.querySelector('#profile-listening'), lfmUser);
 
 
-  // Inline status editing
-  window._startEditStatus = () => {
-    document.getElementById('status-display').style.display = 'none';
-    document.getElementById('status-form').style.display = 'flex';
-    document.getElementById('status-input').focus();
-  };
-
-  window._cancelEditStatus = () => {
-    document.getElementById('status-display').style.display = '';
-    document.getElementById('status-form').style.display = 'none';
-  };
-
-  window._saveStatus = () => {
-    const val = document.getElementById('status-input')?.value?.trim() || '';
-    Storage.updateUser(activeUser.id, { status: val });
-    document.getElementById('status-text').textContent = val || 'Adicionar status...';
-    window._cancelEditStatus();
-  };
 
   window._switchProfileTab = (tabId, btn) => {
     const buttons = [...document.querySelectorAll('.profile-subtab-btn')];
@@ -269,36 +212,6 @@ export function renderProfileView(container, targetUserId) {
 }
 
 // What the person is playing now and the last few songs, straight from Last.fm
-async function loadListening(section, username) {
-  const body = section?.querySelector('.profile-listening-body');
-  if (!body) return;
-  try {
-    const { nowPlaying, recent } = await fetchLastFmRecentTracks(username, 5);
-    if (!section.isConnected) return;
-    const row = (t, now) => `
-      <div class="profile-listening-row${now ? ' now' : ''}" role="button" tabindex="0"
-        onclick="window._playTrack(${jsArg({ title: t.title, artist: t.artist, artwork: t.artwork })})" title="Tocar prévia">
-        ${now
-          ? `<span class="np-disc" aria-hidden="true">${t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" decoding="async">` : `<span class="profile-listening-cover">${ICONS.music}</span>`}</span>`
-          : t.artwork ? `<img src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async">` : `<span class="profile-listening-cover">${ICONS.music}</span>`}
-        <div class="profile-listening-text">
-          <strong>${esc(t.title)}</strong>
-          <span>${esc(t.artist)}</span>
-          ${now ? `<span class="np-wave" aria-hidden="true">${'<i></i>'.repeat(28)}</span>` : ''}
-        </div>
-        <span class="profile-listening-when">${now ? '<span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span> agora' : esc(t.playedAt ? relativeTime(t.playedAt) : '')}</span>
-      </div>`;
-    if (!nowPlaying && !recent.length) {
-      body.innerHTML = `<div class="profile-listening-empty">Nada registrado no Last.fm ainda.</div>`;
-      return;
-    }
-    section.querySelector('.profile-listening-head span').textContent = nowPlaying ? 'Ouvindo agora' : 'Ouviu por último';
-    section.classList.toggle('is-playing', Boolean(nowPlaying));
-    body.innerHTML = `${nowPlaying ? row(nowPlaying, true) : ''}${recent.slice(0, nowPlaying ? 4 : 5).map(t => row(t, false)).join('')}`;
-  } catch (err) {
-    if (section.isConnected) body.innerHTML = `<div class="profile-listening-empty">${esc(err?.code === 17 ? 'O histórico desse perfil é privado no Last.fm.' : 'Não foi possível ver o Last.fm agora.')}</div>`;
-  }
-}
 
 function buildSocialsHtml(user, isMe) {
   const insta = user.instagram || user.socials?.instagram || '';
@@ -370,106 +283,38 @@ window._artistPhotoFailed = (img) => {
   img.replaceWith(span);
 };
 
-function formatScrobbles(n) {
-  return `${Number(n).toLocaleString('pt-BR')} ${Number(n) === 1 ? 'scrobble' : 'scrobbles'}`;
-}
 
 function buildTopArtistsMonthHtml(user, isMe) {
-  const topArtists = user.topArtistsMonth || (user.topArtist ? [user.topArtist] : []);
-  const service = user.musicService || 'lastfm';
-  const isLastFm = service === 'lastfm';
-  const periodLabel = isLastFm ? (user.musicPeriodLabel || 'do mês') : '';
-  const lastfmUser = isLastFm ? (user.spotifyUsername || '') : '';
+  const topArtists = (user.topArtistsMonth || (user.topArtist ? [user.topArtist] : [])).slice(0, 5);
+  const isLastFm = (user.musicService || 'lastfm') === 'lastfm';
 
   if (!topArtists.length) {
     if (!isMe) return '';
     return `
-      <div class="top-artists-section top-artists-empty">
-        <div class="top-artists-title">${ICONS.trophy} Seus artistas mais ouvidos</div>
-        <p>Conecte seu Last.fm para mostrar seus Top 5 artistas e músicas, com fotos, aqui no perfil.</p>
+      <section class="top5 top5-empty">
+        <div class="top5-head"><h3>Top 5 artistas</h3></div>
+        <p>Conecte seu Last.fm para mostrar seus artistas mais ouvidos aqui.</p>
         <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="window._openSpotifyModal()">Conectar Last.fm</button>
-      </div>`;
+      </section>`;
   }
 
-  const top1 = topArtists[0];
-  const others = topArtists.slice(1, 5);
-  const sub = (a) => a.playcount ? formatScrobbles(a.playcount) : (a.genre || 'Top artista');
-  const profileUrl = user.musicProfileUrl || `https://www.last.fm/user/${encodeURIComponent(lastfmUser)}`;
-
   return `
-    <div class="top-artists-section">
-      <div class="top-artists-header">
-        <div class="top-artists-title">
-          <span style="display:inline-flex;align-items:center;gap:6px;">${ICONS.trophy} Top 5 Artistas ${esc(periodLabel)}</span>
-          ${isLastFm && lastfmUser
-            ? `<a class="top-artists-service-badge lastfm" href="${safeUrl(profileUrl)}" target="_blank" rel="noopener noreferrer" title="Abrir perfil no Last.fm">Last.fm · ${esc(lastfmUser)}</a>`
-            : `<span class="top-artists-service-badge custom">Escolhidos</span>`}
-        </div>
-        ${isMe ? `
-          <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._openSpotifyModal()" style="font-size:0.78rem;padding:3px 8px;" title="Atualizar com o Last.fm ou escolher artistas">
-            ${isLastFm ? 'Atualizar' : 'Editar'}
-          </button>
-        ` : ''}
+    <section class="top5" aria-label="Top 5 artistas">
+      <div class="top5-head">
+        <h3>Top 5 artistas</h3>
+        ${isMe ? `<button type="button" class="top5-edit" onclick="window._openSpotifyModal()">${isLastFm ? 'Atualizar' : 'Editar'}</button>` : ''}
       </div>
-
-      ${top1 ? `
-        <div class="top-artist-spotlight" onclick="window._searchArtistInCatalog(${jsArg(top1.name)})" title="Ver músicas de ${esc(top1.name)}">
-          ${artistPhotoHtml(top1, 'spotlight-avatar')}
-          <div class="spotlight-info">
-            <div class="spotlight-rank-crown">${ICONS.trophy} #1 mais ouvido</div>
-            <div class="spotlight-title">${esc(top1.name)}</div>
-            <div class="spotlight-scrobbles"><span>${esc(sub(top1))}</span></div>
-          </div>
-          <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="event.stopPropagation();window._searchArtistInCatalog(${jsArg(top1.name)})" title="Buscar músicas deste artista">
-            Músicas
-          </button>
-        </div>
-      ` : ''}
-
-      ${others.length ? `
-        <div class="top-artists-grid">
-          ${others.map((a, i) => `
-            <div class="top-artist-item" onclick="window._searchArtistInCatalog(${jsArg(a.name)})" title="Ver músicas de ${esc(a.name)}">
-              <div class="artist-rank-badge">#${a.rank || i + 2}</div>
-              ${artistPhotoHtml(a, 'artist-avatar-thumb')}
-              <div class="artist-item-info">
-                <div class="artist-item-name">${esc(a.name)}</div>
-                <div class="artist-item-sub">${esc(sub(a))}</div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-
-      ${buildTopTracksHtml(user, periodLabel)}
-    </div>`;
+      <div class="top5-row">
+        ${topArtists.map(a => `
+          <button type="button" class="top5-item" onclick="window._searchArtistInCatalog(${jsArg(a.name)})" title="Ver músicas de ${esc(a.name)}">
+            ${artistPhotoHtml(a, 'top5-photo')}
+            <span class="top5-name">${esc(a.name)}</span>
+          </button>`).join('')}
+      </div>
+    </section>`;
 }
 
 // Top tracks synced from Last.fm (cover + 30s preview when found on iTunes)
-function buildTopTracksHtml(user, periodLabel) {
-  const tracks = user.topTracksMonth || [];
-  if (!tracks.length) return '';
-  return `
-    <div class="top-tracks">
-      <div class="top-tracks-title">Músicas mais ouvidas ${esc(periodLabel)}</div>
-      <ol class="top-tracks-list">
-        ${tracks.slice(0, 5).map((t, i) => `
-          <li class="top-track-row">
-            <span class="top-track-rank">${t.rank || i + 1}</span>
-            ${t.artwork
-              ? `<img class="top-track-cover" src="${safeUrl(t.artwork)}" alt="" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">`
-              : `<span class="top-track-cover artist-photo-fallback" aria-hidden="true">${esc((t.title || '?')[0])}</span>`}
-            <div class="top-track-meta">
-              <div class="top-track-title">${esc(t.title)}</div>
-              <div class="top-track-artist">${esc(t.artist)}${t.playcount ? ` · ${esc(formatScrobbles(t.playcount))}` : ''}</div>
-            </div>
-            <button class="top-track-play" onclick="window._playTrack(${jsArg({ id: t.id, title: t.title, artist: t.artist, artwork: t.artwork, previewUrl: t.previewUrl, duration: t.duration })})" aria-label="Tocar ${esc(t.title)}">
-              ${ICONS.play}
-            </button>
-          </li>`).join('')}
-      </ol>
-    </div>`;
-}
 
 /**
  * Replace initial placeholders with real artist photos and remember them on the user,
@@ -505,32 +350,6 @@ export async function hydrateArtistImages(root, userId) {
   Storage.updateUser(userId, { topArtistsMonth, topArtist: topArtistsMonth[0] });
 }
 
-function buildShowcaseHtml(user, isMe) {
-  const showcase = user.songShowcase || [];
-  // Other people's profiles only show the songs they picked (empty "+" slots did nothing there)
-  if (!isMe && !showcase.length) return '';
-  const slots = isMe ? Array.from({ length: 5 }, (_, i) => showcase[i] || null) : showcase.slice(0, 5);
-
-  const html = slots.map((song, i) => {
-    if (song) {
-      return `
-        <div class="showcase-slot" title="${esc(song.title)} — ${esc(song.artist)}"
-          onclick="window._playTrack(${jsArg(song)})">
-          ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy" decoding="async">` : `<div class="showcase-slot-add" style="display:flex;align-items:center;justify-content:center;">${ICONS.music}</div>`}
-          ${isMe ? `<button type="button" class="showcase-remove" onclick="event.stopPropagation();window._removeShowcase(${jsArg(song.id)})" aria-label="Tirar ${esc(song.title)} da vitrine" title="Tirar da vitrine">${ICONS.close}</button>` : ''}
-        </div>`;
-    }
-    return `<button type="button" class="showcase-slot showcase-slot-empty" onclick="window._addToShowcase()" aria-label="Adicionar música à vitrine">
-      <span class="showcase-slot-add">+</span>
-    </button>`;
-  }).join('');
-
-  return `
-    <div style="padding:6px 14px 4px;border-top:var(--border);">
-      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:5px;">Vitrine de Músicas</div>
-      <div class="song-showcase-grid">${html}</div>
-    </div>`;
-}
 
 function loadProfileTab(tabId, userId) {
   const el = document.getElementById(`profile-tab-${tabId}`);
@@ -950,7 +769,7 @@ export function refreshProfileFollowState() {
     btn.textContent = isFollowing ? 'Seguindo' : 'Seguir';
     btn.classList.toggle('following', isFollowing);
   });
-  document.querySelectorAll(`[data-dm-id="${userId}"], [data-compare-id="${userId}"]`).forEach(btn => { btn.hidden = !isFollowing; });
+  document.querySelectorAll(`[data-dm-id="${userId}"]`).forEach(btn => { btn.hidden = !isFollowing; });
 }
 
 // helpers re-exported for app.js

@@ -785,6 +785,11 @@ function bindGlobalHandlers() {
 
   // "Comparar desafios" on a profile: the comparison opens already on that person
   window._compareWith = (userId) => { openCompareWith(userId); switchTab('comparar'); };
+  // Comparar on a profile: challenges are compared only with people you follow
+  window._compareFromProfile = (userId) => {
+    if (!isFollowing(userId)) { showToast('Siga para comparar desafios'); return; }
+    window._compareWith(userId);
+  };
 
   // Link that opens the profile directly (see openProfileFromLink)
   window._copyProfileLink = (handle) => {

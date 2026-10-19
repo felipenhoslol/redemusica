@@ -28,7 +28,7 @@ export function auditScreen(root = document.querySelector('.tab-view-content.act
   const notFrame = 'input, textarea, select, button, a, [role="button"], .featured-song-box, .comment-composer-box, .app-dialog-panel, img, [class*="avatar"], [class*="photo"]';
   const framed = (el) => {
     const cs = getComputedStyle(el);
-    return el.getBoundingClientRect().width > 60 && !el.matches(notFrame)
+    return el.getBoundingClientRect().width > 60 && !el.matches(notFrame) && !el.closest('.featured-song-box')
       && ['Top', 'Right', 'Bottom', 'Left'].every(s => parseFloat(cs[`border${s}Width`]) > 0 && cs[`border${s}Style`] !== 'none');
   };
   const uniq = (xs) => [...new Set(xs)];
