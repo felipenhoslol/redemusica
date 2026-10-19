@@ -173,6 +173,7 @@ export function renderProfileView(container, targetUserId) {
         </div>
         ${featuredHtml}
         ${topArtistsHtml}
+        ${buildShowcaseHtml(user, isMe)}
         <div class="profile-subtabs">
           <button class="profile-subtab-btn active" data-profile-tab="posts" onclick="window._switchProfileTab('posts', this)">Posts</button>
           <button class="profile-subtab-btn" data-profile-tab="playlists" onclick="window._switchProfileTab('playlists', this)">Playlists</button>
@@ -283,6 +284,25 @@ window._artistPhotoFailed = (img) => {
   img.replaceWith(span);
 };
 
+// Vitrine: up to 5 songs the person picked; other profiles only show what was picked
+function buildShowcaseHtml(user, isMe) {
+  const showcase = user.songShowcase || [];
+  if (!isMe && !showcase.length) return '';
+  const slots = isMe ? Array.from({ length: 5 }, (_, i) => showcase[i] || null) : showcase.slice(0, 5);
+  const html = slots.map(song => song ? `
+    <div class="showcase-slot" role="button" tabindex="0" title="${esc(song.title)} — ${esc(song.artist)}" onclick="window._playTrack(${jsArg(song)})">
+      ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy" decoding="async">` : `<span class="showcase-slot-add">${ICONS.music}</span>`}
+      ${isMe ? `<button type="button" class="showcase-remove" onclick="event.stopPropagation();window._removeShowcase(${jsArg(song.id)})" aria-label="Tirar ${esc(song.title)} da vitrine" title="Tirar da vitrine">${ICONS.close}</button>` : ''}
+    </div>` : `
+    <button type="button" class="showcase-slot showcase-slot-empty" onclick="window._addToShowcase()" aria-label="Adicionar música à vitrine">
+      <span class="showcase-slot-add">+</span>
+    </button>`).join('');
+  return `
+    <section class="top5 showcase" aria-label="Vitrine de músicas">
+      <div class="top5-head"><h3>Vitrine</h3></div>
+      <div class="song-showcase-grid">${html}</div>
+    </section>`;
+}
 
 function buildTopArtistsMonthHtml(user, isMe) {
   const topArtists = (user.topArtistsMonth || (user.topArtist ? [user.topArtist] : [])).slice(0, 5);

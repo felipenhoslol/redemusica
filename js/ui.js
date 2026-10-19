@@ -948,8 +948,8 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
     storage.saveSongReview(tUserId, cId, qId, currentReviewRating, comment, ans);
     closeDoodleModal('review-modal');
     showToast(`Avaliação salva: ${currentReviewRating.toFixed(1)} estrelas`);
-    const compareContainer = document.getElementById('compare-view-content');
-    if (compareContainer) renderCompareView(compareContainer);
+    // Redraw in place: re-rendering from scratch would jump back to the first person in the list
+    if (document.getElementById('compare-view-content')) window._refreshCompareView?.();
     const challengeGrid = document.getElementById('musicask-grid');
     if (challengeGrid) renderMusicAskGrid(challengeGrid, cId, tUserId);
   };

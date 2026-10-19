@@ -179,15 +179,6 @@ class AudioController {
     return Math.min(start, Math.max(0, room));
   }
 
-  /** Play this song from where it starts (used by the "start at" picker while choosing) */
-  playFromStart(track) {
-    const same = this.currentTrack && track?.previewUrl && this.currentTrack.previewUrl === track.previewUrl;
-    if (!same) { this.playTrack(track); return; }
-    this.currentTrack = track;
-    this.audio.currentTime = this._startOf(track);
-    if (!this.isPlaying) this.audio.play().catch(() => {});
-  }
-
   pause() {
     if (this.isPlaying) {
       this.audio.pause();

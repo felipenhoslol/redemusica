@@ -1188,27 +1188,8 @@ function bindGlobalHandlers() {
           </div>
         </div>
         <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCreatorSong()">Remover</button>
-      </div>
-      ${track.previewUrl ? `
-        <div class="song-start">
-          <button type="button" class="song-start-play" aria-label="Ouvir a partir daqui">${ICONS.play}</button>
-          <label for="song-start-range">Começar em <output>${fmtSeconds(track.startAt || 0)}</output></label>
-          <input id="song-start-range" type="range" min="0" max="25" step="1" value="${Number(track.startAt) || 0}">
-        </div>` : ''}`;
-    // Pick the part of the 30s preview that plays on the post; moving the slider while it plays jumps there
-    const range = el.querySelector('#song-start-range');
-    if (range) {
-      const out = el.querySelector('.song-start output');
-      const play = () => globalAudio.playFromStart(track);
-      range.addEventListener('input', () => {
-        track.startAt = Number(range.value);
-        out.textContent = fmtSeconds(track.startAt);
-        if (globalAudio.getIsPlaying() && globalAudio.getCurrentTrack()?.previewUrl === track.previewUrl) play();
-      });
-      el.querySelector('.song-start-play').addEventListener('click', play);
-    }
+      </div>`;
   };
-  const fmtSeconds = (sec) => `0:${String(Math.round(sec)).padStart(2, '0')}`;
 
   window._removeCreatorSong = () => {
     window._pendingCreatorSong = null;
