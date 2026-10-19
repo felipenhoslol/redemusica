@@ -102,6 +102,7 @@ function startApp() {
   if (window._pendingTab) { switchTab(window._pendingTab); window._pendingTab = null; }
   else { switchTab('feed'); }
   restoringHistory = false;
+  syncBackButton(); // the header was drawn before this reset, with the old page's depth
 
   if (auth.mode === 'signed-in') {
     startSync(auth.user.id, {
@@ -314,7 +315,8 @@ function renderMobileNav() {
     if (!b) return;
     // Notifications open as a page on phones: any other destination closes it
     const notifOpen = document.getElementById('notif-overlay')?.classList.contains('active');
-    if (notifOpen && b.dataset.tab !== 'notif') toggleNotifPanel();
+    // (the back arrow is left to popstate, which closes it: closing here too would go back two steps)
+    if (notifOpen && b.dataset.tab !== 'notif' && b.dataset.action !== 'back') toggleNotifPanel();
     if (b.dataset.action === 'post') window._composeNew();
     else if (b.dataset.action === 'back') history.back();
     else if (b.dataset.action === 'me') window._goToProfile(getActiveUser().id);
@@ -399,18 +401,21 @@ window._openMeSheet = openMeSheet;
 
 // ─── Back button: each screen is a step in the browser history, so "voltar" stays in the site ───
 // Layers (post screen, compose, open conversation, notifications) are steps too: back closes them.
+// Post, search detail (artist/album/playlist) and playlist detail stack: going somewhere from them keeps their step,
+// and back reopens them (each module restores its own view on the 'screenrestore' event).
 const isPhone = () => matchMedia('(max-width: 700px)').matches;
+const STACKED_LAYERS = new Set(['post', 'search', 'playlist']);
 
 function pushScreen(screen) {
   if (restoringHistory) return;
   const cur = history.state || { depth: 0 };
   if (!screen.layer && !cur.layer && cur.tab === screen.tab && cur.uid === screen.uid) return; // same screen
   // Leaving a layer by going somewhere (a profile inside a post, a tab from notifications): that step becomes the new screen
-  if (cur.layer) history.replaceState({ ...screen, depth: cur.depth || 0 }, '');
+  if (cur.layer && !STACKED_LAYERS.has(cur.layer)) history.replaceState({ ...screen, depth: cur.depth || 0 }, '');
   else history.pushState({ ...screen, depth: (cur.depth || 0) + 1 }, '');
   syncBackButton();
 }
-window._pushLayer = (layer) => pushScreen({ tab: activeTab, uid: currentProfileUserId, layer });
+window._pushLayer = (layer, extra = {}) => pushScreen({ tab: activeTab, uid: currentProfileUserId, layer, ...extra });
 // A layer closed from its own button: drop its history step too (unless back already did)
 window._leaveLayer = (layer) => {
   if (restoringHistory || history.state?.layer !== layer) return;
@@ -434,6 +439,8 @@ window.addEventListener('popstate', (e) => {
     closeLayers(screen.layer);
     if (screen.tab === 'profile') { if (activeTab !== 'profile' || currentProfileUserId !== screen.uid) window._goToProfile(screen.uid); }
     else if (screen.tab && screen.tab !== activeTab) switchTab(screen.tab);
+    if (screen.layer === 'post' && screen.postId && !document.getElementById('post-view')) window._openPostView(screen.postId);
+    window.dispatchEvent(new CustomEvent('screenrestore', { detail: screen })); // search and playlists sync their own view
   } finally {
     restoringHistory = false;
   }

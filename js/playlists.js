@@ -165,8 +165,14 @@ export function renderPlaylistsTab(containerEl) {
   };
 
   window._viewPlaylist = (id) => {
+    if (activePlaylistId !== id) window._pushLayer?.('playlist', { playlistId: id }); // back returns to the list
     activePlaylistId = id;
     renderPlaylistDetails(containerEl, id);
+  };
+  // The list's own back button takes the same path as the header arrow
+  window._playlistBack = () => {
+    if (history.state?.layer === 'playlist') history.back();
+    else window._backToPlaylists();
   };
 
   window._backToPlaylists = () => {
@@ -269,7 +275,7 @@ export function renderPlaylistDetails(containerEl, playlistId) {
   containerEl.innerHTML = `
     <div class="playlist-detail-wrap">
       <!-- Breadcrumb / Back Button -->
-      <button class="doodle-btn doodle-btn-ghost doodle-btn-sm playlist-back-btn" onclick="window._backToPlaylists()">
+      <button class="doodle-btn doodle-btn-ghost doodle-btn-sm playlist-back-btn" onclick="window._playlistBack()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         <span>Voltar para todas as playlists</span>
       </button>
@@ -957,3 +963,13 @@ window._sharePlaylistLinkAction = async (playlistId) => {
   showToast('Link & texto da playlist copiados!');
 };
 
+
+// Back/forward between the playlist list and a playlist
+window.addEventListener('screenrestore', (e) => {
+  const screen = e.detail || {};
+  if (screen.layer === 'playlist' && screen.playlistId) {
+    if (document.body.dataset.tab === 'playlists') window._viewPlaylist?.(screen.playlistId);
+  } else if (document.querySelector('#tab-playlists .playlist-back-btn')) {
+    window._backToPlaylists?.();
+  }
+});

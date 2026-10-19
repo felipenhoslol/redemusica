@@ -445,9 +445,12 @@ function setTab(tab) {
   root?.querySelector('.search-page')?.scrollIntoView({ block: 'start' });
 }
 
+const viewLevel = (v) => { let n = 0; for (; v; v = v.back) n++; return n; };
+
 function openView(view) {
   if (state.q.trim()) saveRecent(state.q);
   state.view = { ...view, back: state.view };
+  window._pushLayer?.('search', { searchLevel: viewLevel(state.view) }); // the back arrow returns to the previous view
   run({ animate: 1 });
   root?.querySelector('.search-page')?.scrollIntoView({ block: 'start' });
 }
@@ -516,7 +519,10 @@ export function renderSearchPage(container) {
     if (!t || !page.contains(t)) return;
 
     if (t.classList.contains('search-clear')) { input.value = ''; state.q = ''; state.view = null; run(); input.focus(); return; }
-    if (t.classList.contains('search-back')) { state.view = state.view?.back || null; run({ animate: -1 }); return; }
+    if (t.classList.contains('search-back')) {
+      if (history.state?.layer === 'search') { history.back(); return; } // same path as the header arrow
+      state.view = state.view?.back || null; run({ animate: -1 }); return;
+    }
     if (t.closest('.search-tabs') && t.dataset.tab) { setTab(t.dataset.tab); return; }
     if (t.dataset.tab && t.classList.contains('search-see-all')) {
       // Without a search there is no "Pessoas" tab to switch to: open the full list of people instead
@@ -567,3 +573,11 @@ export function renderSearchPage(container) {
   run();
   if (!state.q && !state.view) setTimeout(() => input.focus({ preventScroll: true }), 50);
 }
+
+// Back/forward through search detail views: keep the view as deep as the history step says
+window.addEventListener('screenrestore', (e) => {
+  const level = e.detail?.layer === 'search' ? (e.detail.searchLevel || 0) : 0;
+  if (viewLevel(state.view) <= level) return;
+  while (viewLevel(state.view) > level) state.view = state.view.back || null;
+  if (document.body.dataset.tab === 'search') run({ animate: -1 });
+});

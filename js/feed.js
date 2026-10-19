@@ -1474,7 +1474,7 @@ window._openPostView = async (postId, opts = {}) => {
     setTimeout(() => root.remove(), 200);
     window._leaveLayer?.('post');
   };
-  window._pushLayer?.('post');
+  window._pushLayer?.('post', { postId });
   // iPhone doesn't focus tapped buttons: the field would lose focus and the attach row would vanish under the finger
   root.addEventListener('pointerdown', (e) => {
     if (vv && e.target.closest('.comment-composer-box button')) e.preventDefault();
