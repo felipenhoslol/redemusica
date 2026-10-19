@@ -1500,11 +1500,14 @@ window._openPostView = async (postId, opts = {}) => {
   }
 };
 
-// Phone: tapping the text of a post opens it on its own screen (links and mentions keep working)
+// Phone: tapping anywhere on a post opens it on its own screen, like on X;
+// links, buttons, pictures, songs, polls and comments keep doing their own thing, and selecting text doesn't open it
+const POST_TAP_IGNORE = 'a, button, input, textarea, label, img, video, [onclick], [role="button"], .mention-link, '
+  + '.post-attached-song, .post-attached-playlist, .post-poll, .post-comments-section, .rich-link-card';
 document.addEventListener('click', (e) => {
   if (!isPhoneLayout()) return;
-  const text = e.target.closest('.post-text');
-  if (!text || e.target.closest('a, button, .mention-link, #post-view')) return;
-  const id = text.closest('.post-card')?.dataset.postId;
-  if (id) window._openPostView(id);
+  const card = e.target.closest('.post-card');
+  if (!card || card.closest('#post-view') || e.target.closest(POST_TAP_IGNORE)) return;
+  if (window.getSelection()?.toString()) return;
+  if (card.dataset.postId) window._openPostView(card.dataset.postId);
 });
