@@ -253,11 +253,9 @@ export function renderCommentsSectionHtml(post) {
         ${renderCommentThreadHtml(post.comments, post.id)}
       </div>
 
-      <!-- Pending Attachment Preview (large & clear) -->
-      <div id="comment-pending-attach-${post.id}" class="comment-pending-attach-box" style="display:none;margin-top:10px;"></div>
-
-      <!-- Input and Tool Bar -->
+      <!-- Input and Tool Bar (the attachment preview lives inside, so it stays with the box when pinned on phones) -->
       <div class="comment-composer-box" style="margin-top:8px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;">
+        <div id="comment-pending-attach-${post.id}" class="comment-pending-attach-box" style="display:none;"></div>
         <div class="comment-reply-banner" hidden></div>
         <div style="display:flex;align-items:center;gap:8px;width:100%;">
           <input class="doodle-input" id="comment-input-${post.id}" placeholder="Escreva um comentário..." style="font-size:0.84rem;padding:6px 10px;flex:1;background:transparent;border:none;box-shadow:none;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._submitRichComment('${post.id}', this)}else if(event.key==='Escape'){window._cancelCommentReply('${post.id}', this)}">
@@ -1476,6 +1474,10 @@ window._openPostView = async (postId, opts = {}) => {
     window._leaveLayer?.('post');
   };
   window._pushLayer?.('post');
+  // iPhone doesn't focus tapped buttons: the field would lose focus and the attach row would vanish under the finger
+  root.addEventListener('pointerdown', (e) => {
+    if (vv && e.target.closest('.comment-composer-box button')) e.preventDefault();
+  });
   const onKey = (e) => { if (e.key === 'Escape' && !document.getElementById('photo-viewer')) close(); };
   document.addEventListener('keydown', onKey);
   root.addEventListener('click', (e) => {
