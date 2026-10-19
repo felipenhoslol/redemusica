@@ -35,7 +35,7 @@ import {
   openDoodleModal, closeDoodleModal, showDoodleToast,
   initSearchModal, openSearchModalForFeed, openSearchModalForLyrics, openSearchModalForFeaturedSong,
   openSearchModalForChat, openSearchModalForShowcase,
-  renderMusicAskGrid, renderChallengePills, renderCompareView,
+  renderMusicAskGrid, renderChallengePills, renderCompareView, openCompareWith,
   renderNotificationsPanel, renderPlayerBar, showNotificationPopups
 } from './ui.js';
 import {
@@ -54,6 +54,7 @@ import { renderPlaylistsTab } from './playlists.js';
 // ──────────────────────────────────────────
 
 let activeTab = 'feed';
+let restoringHistory = false; // true while the back button is rebuilding a screen (no new history steps)
 let feedFilterMode = 'all';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -95,9 +96,12 @@ function startApp() {
   window.openSearchModalForFeed = openSearchModalForFeed;
   window.openSearchModalForLyrics = openSearchModalForLyrics;
 
-  // Process pending tab from shim
+  // Process pending tab from shim (the first screen is the bottom of the in-site history)
+  history.replaceState({ tab: window._pendingTab || 'feed', depth: 0 }, '');
+  restoringHistory = true;
   if (window._pendingTab) { switchTab(window._pendingTab); window._pendingTab = null; }
   else { switchTab('feed'); }
+  restoringHistory = false;
 
   if (auth.mode === 'signed-in') {
     startSync(auth.user.id, {
@@ -116,7 +120,7 @@ function startApp() {
 async function openProfileFromLink() {
   const m = location.pathname.match(/^\/@([a-z0-9_.]{2,24})\/?$/i);
   if (!m) return;
-  history.replaceState(null, '', '/' + location.search + location.hash);
+  history.replaceState(history.state, '', '/' + location.search + location.hash);
   const handle = '@' + m[1].toLowerCase();
   const find = () => getAllUsers().find(u => (u.handle || '').toLowerCase() === handle);
   if (!find()) await searchPeople(m[1]).catch(() => null);
@@ -266,6 +270,7 @@ function renderMobileNav() {
     document.querySelector('.app-main')?.prepend(header);
   }
   header.innerHTML = `
+    <button type="button" class="mobile-back" data-action="back" aria-label="Voltar">${ICONS.chevronLeft}</button>
     <button type="button" class="mobile-brand" data-tab="feed" aria-label="rede de música, ir para o início">
       <span class="mobile-brand-cat">${catLogoHtml({ live: true })}</span>
       <span class="mobile-brand-name">rede de música</span>
@@ -284,11 +289,25 @@ function renderMobileNav() {
   bar.innerHTML = `
     <button type="button" class="mobile-tab" data-tab="feed" aria-label="Início">${ICONS.feed}</button>
     <button type="button" class="mobile-tab" data-tab="search" aria-label="Pesquisar">${ICONS.search}</button>
-    <button type="button" class="mobile-tab mobile-tab-post" data-action="post" aria-label="Postar">${ICONS.plus}</button>
+    <button type="button" class="mobile-tab" data-tab="desafios" aria-label="Desafios">${ICONS.star}</button>
     <button type="button" class="mobile-tab" data-tab="chat" aria-label="Chat">${ICONS.chat}</button>
-    <button type="button" class="mobile-tab mobile-tab-me" data-action="me" aria-label="Você: perfil e mais opções" aria-haspopup="dialog">
+    <button type="button" class="mobile-tab mobile-tab-me" data-action="me" aria-label="Seu perfil">
       <span class="post-author-avatar">${avatarInner(user.avatar, user.name)}</span>
     </button>`;
+
+  // Post button floating above the bar, like on X
+  let fab = document.getElementById('mobile-fab');
+  if (!fab) {
+    fab = document.createElement('button');
+    fab.id = 'mobile-fab';
+    fab.type = 'button';
+    fab.className = 'mobile-fab';
+    fab.dataset.action = 'post';
+    fab.setAttribute('aria-label', 'Novo post');
+    fab.innerHTML = ICONS.plus;
+    fab.onclick = () => window._composeNew();
+    document.body.appendChild(fab);
+  }
 
   const onNav = (e) => {
     const b = e.target.closest('[data-tab], [data-action]');
@@ -297,21 +316,24 @@ function renderMobileNav() {
     const notifOpen = document.getElementById('notif-overlay')?.classList.contains('active');
     if (notifOpen && b.dataset.tab !== 'notif') toggleNotifPanel();
     if (b.dataset.action === 'post') window._composeNew();
-    else if (b.dataset.action === 'me') openMeSheet();
+    else if (b.dataset.action === 'back') history.back();
+    else if (b.dataset.action === 'me') window._goToProfile(getActiveUser().id);
     else if (b.dataset.tab === 'notif') toggleNotifPanel();
     else switchTab(b.dataset.tab);
   };
   bar.onclick = onNav;
   header.onclick = onNav;
   syncMobileNav();
+  syncBackButton();
 }
 
 function syncMobileNav() {
-  // The avatar stands for your own profile and everything in the "você" sheet
+  // The avatar stands for your own profile and what its menu opens; Desafios covers Comparar
   const meActive = (activeTab === 'profile' && currentProfileUserId === getActiveUser().id)
-    || ['playlists', 'desafios', 'comparar', 'admin'].includes(activeTab);
+    || ['playlists', 'admin'].includes(activeTab);
+  const tabNow = activeTab === 'comparar' ? 'desafios' : activeTab;
   document.querySelectorAll('#mobile-tabbar .mobile-tab, #mobile-header .mobile-tab').forEach(b => {
-    const on = b.dataset.tab ? b.dataset.tab === activeTab : (b.dataset.action === 'me' && meActive);
+    const on = b.dataset.tab ? b.dataset.tab === tabNow : (b.dataset.action === 'me' && meActive);
     b.classList.toggle('active', on);
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
@@ -347,7 +369,7 @@ function openMeSheet() {
       </div>
       ${creditHtml('me-sheet-credit')}
     </div>`;
-  const close = () => { sheet.classList.remove('open'); document.removeEventListener('keydown', onKey); };
+  const close = () => { sheet.classList.remove('open'); document.removeEventListener('keydown', onKey); window._leaveLayer('menu'); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   sheet.onclick = (e) => {
     if (e.target.closest('[data-close]')) return close();
@@ -362,22 +384,73 @@ function openMeSheet() {
     else switchTab(go);
   };
   document.addEventListener('keydown', onKey);
+  window._pushLayer('menu');
   requestAnimationFrame(() => {
     sheet.classList.add('open');
     sheet.querySelector('.me-sheet-user')?.focus({ preventScroll: true });
   });
 }
 window._refreshSidebarUser = refreshSidebarUser;
+window._openMeSheet = openMeSheet;
 
 // ──────────────────────────────────────────
 // TAB SWITCHING
 // ──────────────────────────────────────────
+
+// ─── Back button: each screen is a step in the browser history, so "voltar" stays in the site ───
+// Layers (post screen, compose, open conversation, notifications) are steps too: back closes them.
+const isPhone = () => matchMedia('(max-width: 700px)').matches;
+
+function pushScreen(screen) {
+  if (restoringHistory) return;
+  const cur = history.state || { depth: 0 };
+  if (!screen.layer && !cur.layer && cur.tab === screen.tab && cur.uid === screen.uid) return; // same screen
+  // Leaving a layer by going somewhere (a profile inside a post, a tab from notifications): that step becomes the new screen
+  if (cur.layer) history.replaceState({ ...screen, depth: cur.depth || 0 }, '');
+  else history.pushState({ ...screen, depth: (cur.depth || 0) + 1 }, '');
+  syncBackButton();
+}
+window._pushLayer = (layer) => pushScreen({ tab: activeTab, uid: currentProfileUserId, layer });
+// A layer closed from its own button: drop its history step too (unless back already did)
+window._leaveLayer = (layer) => {
+  if (restoringHistory || history.state?.layer !== layer) return;
+  // Wait a tick: if the same tap also navigated, that navigation already took this step's place
+  setTimeout(() => { if (history.state?.layer === layer) history.back(); }, 0);
+};
+
+function closeLayers(keep) {
+  if (keep !== 'post') document.querySelector('#post-view [data-close]')?.click();
+  if (keep !== 'compose') document.body.classList.remove('composing');
+  if (keep !== 'conv' && document.querySelector('.chat-tab-container.has-conversation')) window._closeChatConversation?.();
+  if (keep !== 'notif' && document.getElementById('notif-overlay')?.classList.contains('active')) toggleNotifPanel();
+  document.getElementById('me-sheet')?.classList.remove('open');
+}
+
+window.addEventListener('popstate', (e) => {
+  if (!appStarted) return;
+  const screen = e.state || { tab: 'feed', depth: 0 };
+  restoringHistory = true;
+  try {
+    closeLayers(screen.layer);
+    if (screen.tab === 'profile') { if (activeTab !== 'profile' || currentProfileUserId !== screen.uid) window._goToProfile(screen.uid); }
+    else if (screen.tab && screen.tab !== activeTab) switchTab(screen.tab);
+  } finally {
+    restoringHistory = false;
+  }
+  syncBackButton();
+});
+
+// Phone header: a back arrow once you are anywhere but the first screen
+function syncBackButton() {
+  document.getElementById('mobile-header')?.classList.toggle('can-go-back', (history.state?.depth || 0) > 0);
+}
 
 const TAB_TITLES = { feed: 'Feed', search: 'Pesquisar', playlists: 'Playlists', chat: 'Chat', desafios: 'Desafios', comparar: 'Comparar', profile: 'Perfil', admin: 'Admin' };
 const setPageTitle = (name) => { document.title = `${name} · rede de música sem nome`; };
 
 function switchTab(tabName) {
   if (tabName === 'admin' && !auth.isAdmin) tabName = 'feed';
+  if (tabName !== 'profile') pushScreen({ tab: tabName });
   setPageTitle(TAB_TITLES[tabName] || 'Feed');
   // A different tab opens at its top, not at the previous tab's scroll position
   if (tabName !== activeTab) window.scrollTo({ top: 0 });
@@ -400,7 +473,7 @@ function switchTab(tabName) {
     case 'chat':        renderChatTab();      break;
     case 'desafios':    renderDesafiosTab();  break;
     case 'comparar':    renderCompararTab();  break;
-    case 'profile':     renderProfileTab();   break;
+    case 'profile':     renderProfileTab(nextProfileId); nextProfileId = null; break;
     case 'admin':       renderAdminTab(document.getElementById('tab-admin')); break;
   }
 
@@ -590,6 +663,7 @@ function renderCompararTab() {
 // ──────────────────────────────────────────
 
 let currentProfileUserId = null;
+let nextProfileId = null;
 
 function renderProfileTab(userId) {
   const tab = document.getElementById('tab-profile');
@@ -597,6 +671,7 @@ function renderProfileTab(userId) {
   tab.innerHTML = '';
 
   const uid = userId || getActiveUser().id;
+  pushScreen({ tab: 'profile', uid });
   currentProfileUserId = uid;
   const profileUser = getUserById(uid);
   if (profileUser?.name) setPageTitle(`${profileUser.name}${profileUser.handle ? ` (${profileUser.handle})` : ''}`);
@@ -615,7 +690,9 @@ function toggleNotifPanel() {
   const isActive = overlay.classList.contains('active');
   if (isActive) {
     overlay.classList.remove('active');
+    window._leaveLayer('notif');
   } else {
+    window._pushLayer('notif');
     const panel = document.getElementById('notif-panel-content');
     if (panel) renderNotificationsPanel(panel);
     overlay.classList.add('active');
@@ -682,19 +759,32 @@ function bindGlobalHandlers() {
   window._openAccount = () => openAccountSettings();
   window._composeNew = () => {
     switchTab('feed');
-    window.scrollTo({ top: 0 });
+    if (isPhone()) {
+      document.body.classList.add('composing');
+      window._pushLayer('compose');
+    } else {
+      window.scrollTo({ top: 0 });
+    }
     setTimeout(() => document.getElementById('creator-text')?.focus(), 0);
+  };
+  // Closing keeps what you wrote (like a draft) until you post or clear it
+  window._closeCompose = () => {
+    document.body.classList.remove('composing');
+    window._leaveLayer('compose');
   };
   window._logout = () => { stopSync(); logout(); };
 
   // Navigate to any profile
   window._goToProfile = (userId) => {
+    nextProfileId = userId; // the profile tab opens straight on this person (one history step)
     switchTab('profile');
-    renderProfileTab(userId);
     // The sidebar footer stands for the user's own profile: only keep it highlighted there
     const isOwn = !userId || userId === getActiveUser().id;
     document.getElementById('nav-profile')?.classList.toggle('active', isOwn);
   };
+
+  // "Comparar desafios" on a profile: the comparison opens already on that person
+  window._compareWith = (userId) => { openCompareWith(userId); switchTab('comparar'); };
 
   // Link that opens the profile directly (see openProfileFromLink)
   window._copyProfileLink = (handle) => {
@@ -1027,6 +1117,7 @@ function bindGlobalHandlers() {
 
       showToast('Post publicado!');
       setCatMood('happy', 1600);
+      if (document.body.classList.contains('composing')) window._closeCompose();
       // Fresh composer, and the new post slides in on top while the rest move down (no full redraw)
       const creatorWrap = document.getElementById('creator-wrap');
       const feedEl = document.getElementById('feed-posts');
@@ -1080,8 +1171,27 @@ function bindGlobalHandlers() {
           </div>
         </div>
         <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._removeCreatorSong()">Remover</button>
-      </div>`;
+      </div>
+      ${track.previewUrl ? `
+        <div class="song-start">
+          <button type="button" class="song-start-play" aria-label="Ouvir a partir daqui">${ICONS.play}</button>
+          <label for="song-start-range">Começar em <output>${fmtSeconds(track.startAt || 0)}</output></label>
+          <input id="song-start-range" type="range" min="0" max="25" step="1" value="${Number(track.startAt) || 0}">
+        </div>` : ''}`;
+    // Pick the part of the 30s preview that plays on the post; moving the slider while it plays jumps there
+    const range = el.querySelector('#song-start-range');
+    if (range) {
+      const out = el.querySelector('.song-start output');
+      const play = () => globalAudio.playFromStart(track);
+      range.addEventListener('input', () => {
+        track.startAt = Number(range.value);
+        out.textContent = fmtSeconds(track.startAt);
+        if (globalAudio.getIsPlaying() && globalAudio.getCurrentTrack()?.previewUrl === track.previewUrl) play();
+      });
+      el.querySelector('.song-start-play').addEventListener('click', play);
+    }
   };
+  const fmtSeconds = (sec) => `0:${String(Math.round(sec)).padStart(2, '0')}`;
 
   window._removeCreatorSong = () => {
     window._pendingCreatorSong = null;

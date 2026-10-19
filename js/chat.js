@@ -2,7 +2,7 @@
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
 import { ICONS } from './icons.js';
-import { globalAudio } from './audio.js';
+import { globalAudio, playAttr, playIcon } from './audio.js';
 import { fetchLinkMetadata, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { compressImage, openChatChannel, closeChatChannel, sendTyping, markConversationRead } from './sync.js';
 import { adminBadge } from './badges.js';
@@ -366,7 +366,7 @@ function renderChatTabMain(contactId) {
       </div>
       <div class="chat-composer-row">
         <input class="doodle-input" id="chat-tab-text-input" placeholder="Digite uma mensagem para ${esc(contact.name)}..." style="flex:1;font-size:0.9rem;padding:9px 14px;border-radius:24px;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._sendChatTabMessage();}" oninput="window._chatTyping()">
-        <button class="doodle-btn doodle-btn-primary" id="chat-tab-send-btn" style="padding:9px 20px;border-radius:24px;display:flex;align-items:center;gap:6px;" onclick="window._sendChatTabMessage()">
+        <button class="doodle-btn doodle-btn-primary" id="chat-tab-send-btn" style="padding:9px 20px;border-radius:24px;display:flex;align-items:center;gap:6px;" onclick="window._sendChatTabMessage()" aria-label="Enviar">
           <span>Enviar</span>
           ${ICONS.send || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>'}
         </button>
@@ -393,8 +393,12 @@ function renderMessagesListHtml(msgs, activeUserId) {
       </div>`;
   }
 
-  return msgs.map(m => {
+  return msgs.map((m, i) => {
     const isSent = m.fromUserId === activeUserId;
+    // Time only under the last message of a run (same person, less than 5 minutes apart), like WhatsApp
+    const next = msgs[i + 1];
+    const showTime = !next || next.fromUserId !== m.fromUserId || m.edited
+      || !(new Date(next.createdAtIso) - new Date(m.createdAtIso) < 5 * 60000);
 
     const replyBoxHtml = m.replyTo ? `
       <div class="chat-replied-box">
@@ -409,9 +413,7 @@ function renderMessagesListHtml(msgs, activeUserId) {
           <div style="font-size:0.86rem;font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.title)}</div>
           <div style="font-size:0.75rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.artist)}</div>
         </div>
-        <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:32px;height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${jsArg(m.song)})" title="Tocar música">
-          ${ICONS.play}
-        </button>
+        <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:32px;height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${jsArg(m.song)})" title="Tocar música" ${playAttr(m.song)}>${playIcon(m.song)}</button>
       </div>` : '';
 
     const imageHtml = m.imageUrl ? `
@@ -452,10 +454,10 @@ function renderMessagesListHtml(msgs, activeUserId) {
         ${imageHtml}
         ${gifHtml}
         ${linkHtml}
-        <div class="dm-time">
+        ${showTime ? `<div class="dm-time">
           <span>${esc(m.createdAt || '')}</span>
           ${m.edited ? '<span class="chat-edited-tag">(editada)</span>' : ''}
-        </div>
+        </div>` : ''}
       </div>
       ${m.id === lastSentId && !lastIsTheirs ? `<div class="chat-seen${m.readAt ? ' seen' : ''}">${m.readAt ? `${ICONS.check} Visto` : (m.synced ? 'Enviada' : 'Enviando…')}</div>` : ''}`;
   }).join('');
@@ -863,6 +865,8 @@ export function initChatBindings() {
   window._dmSend = () => sendDMMessage(false);
 
   window._selectChatContact = (id) => {
+    // Phones: the open conversation is its own screen, so the back button returns to the list
+    if (id && !document.querySelector('.chat-tab-container.has-conversation') && matchMedia('(max-width: 700px)').matches) window._pushLayer?.('conv');
     activeContactId = id;
     renderChatTabContacts();
     renderChatTabMain(id);
@@ -871,6 +875,7 @@ export function initChatBindings() {
   };
 
   window._closeChatConversation = () => {
+    window._leaveLayer?.('conv');
     activeContactId = null;
     closeChatChannel();
     document.querySelector('.chat-tab-container')?.classList.remove('has-conversation');

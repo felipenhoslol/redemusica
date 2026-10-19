@@ -4,6 +4,7 @@ import { esc, safeUrl, jsArg, avatarInner, searchKeyboard } from './dom.js';
 import { ICONS } from './icons.js';
 import * as Storage from './storage.js';
 import { searchTracks } from './api.js';
+import { playAttr, playIcon } from './audio.js';
 
 export const POLL_MIN = 2;
 export const POLL_MAX = 4;
@@ -43,7 +44,7 @@ export function pollHtml(post) {
             ${isMine ? `<span class="poll-check" aria-hidden="true">${ICONS.check}</span>` : ''}
             ${showResults ? `<span class="poll-pct">${pct}%</span>` : ''}
           </button>
-          <button type="button" class="poll-play" onclick="window._playTrack(${jsArg(t)})" aria-label="Tocar prévia de ${esc(t.title)}">${ICONS.play}</button>
+          <button type="button" class="poll-play" onclick="window._playTrack(${jsArg(t)})" aria-label="Tocar prévia de ${esc(t.title)}" ${playAttr(t)}>${playIcon(t)}</button>
         </div>`;
       }).join('')}
       <div class="poll-meta">${total === 1 ? '1 voto' : `${total} votos`} · ${mine !== null ? 'toque na sua escolha para tirar o voto' : 'toque numa música para votar'}${showResults && total ? ` · <button type="button" class="poll-see-votes" onclick="window._showPollVotes(${jsArg(post.id)})">Ver votos</button>` : ''}</div>

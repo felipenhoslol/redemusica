@@ -14,6 +14,25 @@ import { adminBadge } from './badges.js';
 // PROFILE RENDER
 // ──────────────────────────────────────────
 
+// Music match with someone else's profile: one number, why, and the way into the challenges.
+// Comparing challenges is only for people you follow (the button shows once you follow).
+function matchHtml(user, following) {
+  const match = Storage.calculateMusicalAffinity(Storage.getActiveUserId(), user.id);
+  const shared = (match.sharedArtists || []).map(a => String(a).replace(/(^|\s)\S/g, c => c.toUpperCase()));
+  const why = shared.length
+    ? `${shared.slice(0, 2).join(', ')}${shared.length > 2 ? ` e mais ${shared.length - 2}` : ''} em comum`
+    : 'Nenhum artista em comum ainda';
+  const button = `<button type="button" class="doodle-btn doodle-btn-secondary doodle-btn-sm profile-match-btn" data-compare-id="${user.id}"
+    onclick="window._compareWith('${user.id}')"${following ? '' : ' hidden'}>${ICONS.compare} Comparar desafios</button>`;
+  if (!match.hasEnoughData) return following ? `<div class="profile-match">${button}</div>` : '';
+  return `
+    <div class="profile-match">
+      <div class="profile-match-score"><strong>${Number(match.percentage) || 0}%</strong><span>de sintonia musical</span></div>
+      <div class="profile-match-why">${esc(why)}</div>
+      ${button}
+    </div>`;
+}
+
 export function renderProfileView(container, targetUserId) {
   const user = Storage.getUserById(targetUserId) || Storage.getActiveUser();
   const activeUser = Storage.getActiveUser();
@@ -146,6 +165,8 @@ export function renderProfileView(container, targetUserId) {
               <button class="doodle-btn doodle-btn-secondary doodle-btn-sm" onclick="window._openProfileEdit()">
                 ${ICONS.edit} Editar
               </button>
+              <button class="doodle-btn doodle-btn-ghost doodle-btn-sm profile-menu-btn" onclick="window._openMeSheet()"
+                aria-label="Mais: playlists, exibição, conta e sair" aria-haspopup="dialog">${ICONS.gear}</button>
             `}
           </div>
         </div>
@@ -185,6 +206,7 @@ export function renderProfileView(container, targetUserId) {
             <strong data-stat="followers">${followers.length}</strong><span>seguidores</span>
           </div>
         </div>
+        ${isMe ? '' : matchHtml(user, following)}
         ${featuredHtml}
         ${listeningHtml}
         ${topArtistsHtml}
@@ -928,7 +950,7 @@ export function refreshProfileFollowState() {
     btn.textContent = isFollowing ? 'Seguindo' : 'Seguir';
     btn.classList.toggle('following', isFollowing);
   });
-  document.querySelectorAll(`[data-dm-id="${userId}"]`).forEach(btn => { btn.hidden = !isFollowing; });
+  document.querySelectorAll(`[data-dm-id="${userId}"], [data-compare-id="${userId}"]`).forEach(btn => { btn.hidden = !isFollowing; });
 }
 
 // helpers re-exported for app.js

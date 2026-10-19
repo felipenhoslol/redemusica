@@ -3,6 +3,7 @@
 import { esc, jsArg } from './dom.js';
 import { ICONS } from './icons.js';
 import { searchTracks } from './api.js';
+import { playAttr, playIcon } from './audio.js';
 import { REAL_LYRICS_DB } from './lyrics_db.js';
 import * as sb from './supabase.js';
 
@@ -130,7 +131,7 @@ export async function renderDailyLyric(container, iso) {
           <span>${esc(lyric.artist)}${lyric.year ? ` · ${esc(lyric.year)}` : ''}</span>
         </div>
         <button type="button" class="daily-lyric-play" aria-label="Ouvir ${esc(lyric.song)}"
-          onclick="window._playTrack(${jsArg({ title: lyric.song, artist: lyric.artist })})">${ICONS.play}</button>
+          ${playAttr({ title: lyric.song, artist: lyric.artist })} onclick="window._playTrack(${jsArg({ title: lyric.song, artist: lyric.artist })})">${playIcon({ title: lyric.song, artist: lyric.artist })}</button>
       </div>
       ${lyric.note ? `<p class="daily-lyric-note">${esc(lyric.note)}</p>` : ''}
       ${lyric.source === 'curated' ? `<div class="daily-lyric-badge">Escolhida pela equipe</div>` : ''}

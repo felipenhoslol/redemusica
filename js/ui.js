@@ -5,7 +5,7 @@ import * as storage from './storage.js';
 import { relativeTime } from './sync.js';
 import { auth, needsEmailConfirmation, markEmailReminderSeen } from './auth.js';
 import { sendVerificationLink } from './supabase.js';
-import { globalAudio } from './audio.js';
+import { globalAudio, playAttr, playIcon } from './audio.js';
 import { searchTracks, searchArtists, lookupArtist, lookupAlbum } from './api.js';
 import { getArtistImage } from './lastfm.js';
 import { renderProfileView, renderFollowListModal, openModal, closeModal, showToast } from './profile.js';
@@ -162,25 +162,13 @@ function modalTrackRow(t, { number } = {}) {
           ${t.duration && t.duration !== '--:--' ? ` · ${esc(t.duration)}` : ''}
         </div>
       </div>
-      ${t.previewUrl ? `<button type="button" class="msearch-play${isPreviewing(t) ? ' playing' : ''}" data-preview="${key}" aria-label="${isPreviewing(t) ? 'Pausar' : 'Ouvir'} prévia de ${esc(t.title)}">${isPreviewing(t) ? ICONS.pause : ICONS.play}</button>` : ''}
+      ${t.previewUrl ? `<button type="button" class="msearch-play" data-preview="${key}" ${playAttr(t)} aria-label="Ouvir prévia de ${esc(t.title)}">${playIcon(t)}</button>` : ''}
     </div>`;
 }
 
 const modalMsg = (text, color = 'var(--muted)') => `<div style="padding:20px;text-align:center;color:${color}">${text}</div>`;
 const MODAL_HINT = modalMsg('Digite o nome da música ou do artista.');
 
-// The play button of the song previewing now shows pause (the player bar sits behind this window)
-const isPreviewing = (t) => Boolean(t?.previewUrl) && globalAudio.getIsPlaying() && globalAudio.getCurrentTrack()?.previewUrl === t.previewUrl;
-function syncPreviewButtons() {
-  document.querySelectorAll('#search-results [data-preview]').forEach(btn => {
-    const t = modalTracks.get(btn.dataset.preview);
-    const on = isPreviewing(t);
-    if (btn.classList.contains('playing') === on) return;
-    btn.classList.toggle('playing', on);
-    btn.innerHTML = on ? ICONS.pause : ICONS.play;
-    btn.setAttribute('aria-label', `${on ? 'Pausar' : 'Ouvir'} prévia de ${t?.title || 'música'}`);
-  });
-}
 
 function modalBackBar(title) {
   return `
@@ -212,9 +200,6 @@ export function initSearchModal() {
 
   const results = document.getElementById('search-results');
   searchKeyboard(input, results?.closest('.modal-body'));
-  globalAudio.subscribe((event) => {
-    if (['play', 'pause', 'ended', 'trackchange', 'error'].includes(event)) syncPreviewButtons();
-  });
   results?.addEventListener('click', (e) => {
     const t = e.target.closest('[data-preview], [data-m-artist], [data-m-album], [data-m-back], [data-m-more], [data-pick]');
     if (!t) return;
@@ -430,9 +415,7 @@ export function renderMusicAskGrid(container, challengeId, userId) {
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
               </svg>
             </button>
-            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._playTrack(${jsArg(ans)})" title="Ouvir música">
-              ${ICONS.play}
-            </button>
+            <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="event.stopPropagation();window._playTrack(${jsArg(ans)})" title="Ouvir música" ${playAttr(ans)}>${playIcon(ans)}</button>
             ${isMe ? `<button class="doodle-btn doodle-btn-ghost doodle-btn-sm q-card-remove" onclick="event.stopPropagation();window._removeAnswer('${cid}', ${jsArg(q.id)})" title="Tirar esta música" aria-label="Tirar a música da questão ${q.id}">
               ${ICONS.trash}
             </button>` : ''}
@@ -477,18 +460,22 @@ window._postAnswer = (challengeId, questionId) => {
 // COMPARE VIEW (MULTI-CHALLENGE & BATTLE UI)
 // ──────────────────────────────────────────
 
+// Who the comparison opens with (set by the "Comparar desafios" button on a profile)
+let compareWithNext = null;
+export function openCompareWith(userId) { compareWithNext = userId; }
+
 export function renderCompareView(container) {
   const users = storage.getAllUsers();
   const activeUser = storage.getActiveUser();
   const allChallenges = storage.getAllChallenges();
 
   let selectedChallengeId = storage.getActiveChallengeId() || allChallenges[0]?.id || 'classic_30';
-  // Default: someone you follow who already answered this challenge, then anyone who answered
+  // Only people you follow; first the one picked on a profile, then someone who already answered
   const following = new Set(storage.getFollowing(activeUser.id));
-  const others = users.filter(u => u.id !== activeUser.id && u.id !== 'user_me');
+  const others = users.filter(u => u.id !== activeUser.id && following.has(u.id));
   const answered = (u) => Object.keys(storage.getChallengeAnswers(selectedChallengeId, u.id)).length > 0;
-  let compareUserId = (others.find(u => following.has(u.id) && answered(u)) || others.find(answered)
-    || others.find(u => following.has(u.id)) || others[0] || users[0])?.id;
+  let compareUserId = (others.find(u => u.id === compareWithNext) || others.find(answered) || others[0])?.id;
+  compareWithNext = null;
   let activeFilter = 'all'; // 'all' | 'both' | 'my' | 'theirs' | 'reviewed'
 
   function getAvatarMarkup(user, size = 44) {
@@ -523,8 +510,7 @@ export function renderCompareView(container) {
     }).join('');
 
     // User Selection Cards
-    const otherUsers = users.filter(u => u.id !== activeUser.id);
-    const selectorHtml = otherUsers.map(u => {
+    const selectorHtml = others.map(u => {
       const uAnswers = storage.getChallengeAnswers(selectedChallengeId, u.id);
       const uCount = Object.keys(uAnswers).length;
       const totalQ = questions.length || 1;
@@ -566,7 +552,7 @@ export function renderCompareView(container) {
           </div>
           <div class="compare-challenges-bar">${challengesPillsHtml}</div>
           <div class="compare-selector">${selectorHtml}</div>
-          <div class="empty-state"><div class="empty-state-sub">Nenhum amigo encontrado para comparar.</div></div>
+          <div class="empty-state"><div class="empty-state-sub">Siga alguém para comparar os desafios. Dá para abrir a comparação pelo perfil da pessoa.</div></div>
         </div>`;
       return;
     }

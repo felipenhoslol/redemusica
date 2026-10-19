@@ -1,4 +1,6 @@
 // Global Audio Player manager for 30s music previews
+import { ICONS } from './icons.js';
+import { esc } from './dom.js';
 
 class AudioController {
   constructor() {
@@ -117,7 +119,7 @@ class AudioController {
         this.audio.pause();
       } else {
         if (this.audio.ended || (this.audio.duration && this.audio.currentTime >= this.audio.duration - 0.5)) {
-          this.audio.currentTime = 0;
+          this.audio.currentTime = this._startOf(this.currentTrack);
         }
         const playPromise = this.audio.play();
         if (playPromise !== undefined) {
@@ -135,6 +137,10 @@ class AudioController {
     this.currentTrack = trackData;
     this.audio.src = trackData.previewUrl;
     this.audio.currentTime = 0;
+    // A post can pick where its preview starts (song.startAt, in seconds)
+    if (this._startOf(trackData)) {
+      this.audio.addEventListener('loadedmetadata', () => { this.audio.currentTime = this._startOf(trackData); }, { once: true });
+    }
     this._emit('trackchange', trackData);
 
     const playPromise = this.audio.play();
@@ -153,7 +159,7 @@ class AudioController {
       this.audio.pause();
     } else {
       if (this.audio.ended || (this.audio.duration && this.audio.currentTime >= this.audio.duration - 0.5)) {
-        this.audio.currentTime = 0;
+        this.audio.currentTime = this._startOf(this.currentTrack);
       }
       const playPromise = this.audio.play();
       if (playPromise !== undefined) {
@@ -164,6 +170,22 @@ class AudioController {
         });
       }
     }
+  }
+
+  /** Second the preview starts at: song.startAt, kept inside the 30s preview (a few seconds left to hear) */
+  _startOf(track) {
+    const start = Math.max(0, Number(track?.startAt) || 0);
+    const room = (this.audio.duration || 30) - 3;
+    return Math.min(start, Math.max(0, room));
+  }
+
+  /** Play this song from where it starts (used by the "start at" picker while choosing) */
+  playFromStart(track) {
+    const same = this.currentTrack && track?.previewUrl && this.currentTrack.previewUrl === track.previewUrl;
+    if (!same) { this.playTrack(track); return; }
+    this.currentTrack = track;
+    this.audio.currentTime = this._startOf(track);
+    if (!this.isPlaying) this.audio.play().catch(() => {});
   }
 
   pause() {
@@ -195,3 +217,28 @@ class AudioController {
 }
 
 export const globalAudio = new AudioController();
+
+// ─── Play buttons that follow the player ─────────────────────────────────────
+// A button with data-play-key (see playAttr) shows pause while its song plays, wherever it is on screen.
+
+const playKey = (t) => `${String(t?.title || '').trim()}|${String(t?.artist || '').trim()}`.toLowerCase();
+const isPlayingTrack = (t) => globalAudio.getIsPlaying() && Boolean(globalAudio.getCurrentTrack())
+  && playKey(globalAudio.getCurrentTrack()) === playKey(t);
+
+/** Attribute that ties a button to a song: `<button ${playAttr(song)}>${playIcon(song)}</button>` */
+export const playAttr = (t) => `data-play-key="${esc(playKey(t))}"`; // search.js uses data-play for its own rows
+export const playIcon = (t) => (isPlayingTrack(t) ? ICONS.pause : ICONS.play);
+
+function syncPlayButtons() {
+  const cur = globalAudio.getCurrentTrack();
+  const key = globalAudio.getIsPlaying() && cur ? playKey(cur) : null;
+  document.querySelectorAll('[data-play-key]').forEach(btn => {
+    const on = btn.dataset.playKey === key;
+    if (btn.classList.contains('playing') === on) return;
+    btn.classList.toggle('playing', on);
+    btn.innerHTML = on ? ICONS.pause : ICONS.play;
+  });
+}
+globalAudio.subscribe((event) => {
+  if (['play', 'pause', 'ended', 'trackchange', 'error'].includes(event)) syncPlayButtons();
+});

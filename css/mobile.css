@@ -66,12 +66,6 @@
   .mobile-tab.active { color: var(--text); }
   .mobile-tab.active svg { stroke-width: 2.7; }
   .mobile-tab:active { background: var(--hover); }
-  .mobile-tab-post svg {
-    width: 46px; height: 46px; padding: 11px; border-radius: 50%;
-    background: var(--accent); color: var(--on-accent); stroke-width: 2.6;
-  }
-  .mobile-tab-post:active { background: none; }
-  .mobile-tab-post:active svg { transform: scale(.94); }
   .mobile-tab-me .post-author-avatar {
     position: static; width: 30px; height: 30px; min-width: 0; font-size: 13px; margin: 0;
     transition: box-shadow .15s;
@@ -243,4 +237,93 @@ html, body { max-width: 100%; overflow-x: clip; }
   .creator-attach-btns::-webkit-scrollbar { display: none; }
   .creator-attach-btns .btn-attach { flex: 0 0 36px; width: 36px; min-width: 36px; padding-inline: 0; justify-content: center; }
   .creator-action-bar > :last-child { flex-shrink: 0; }
+}
+
+/* ═══ Celular: navegação como no X ═════════════════════════════════════════
+   Voltar no topo, "+" flutuando acima da barra, postar em tela cheia e o post na própria tela */
+.mobile-fab, .compose-head, .mobile-back, .profile-menu-btn { display: none; }
+@media (max-width: 700px) {
+  /* Seta de voltar: aparece quando há uma tela anterior dentro do site */
+  .mobile-header.can-go-back .mobile-back {
+    display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; margin-right: -4px;
+    border: 0; border-radius: 50%; background: none; color: var(--text); cursor: pointer;
+  }
+  .mobile-back svg { width: 22px; height: 22px; }
+  .mobile-back:active { background: var(--hover); }
+  .mobile-header.can-go-back { padding-left: 4px; }
+
+  /* "+" de postar: redondo, embaixo à direita, acima da barra (e do player, quando toca) */
+  .mobile-fab {
+    display: grid; place-items: center; position: fixed; z-index: 610;
+    right: 16px; bottom: calc(var(--tabbar-h) + var(--safe-b) + 16px);
+    width: 56px; height: 56px; border: 0; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent); box-shadow: 0 6px 20px rgb(0 0 0 / .35);
+    transition: transform var(--spring-press-dur, 160ms) var(--spring-press, var(--ease-out));
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-fab svg { width: 26px; height: 26px; stroke-width: 2.6; }
+  .mobile-fab:active { transform: scale(.94); }
+  body:has(.player-bar.has-track) .mobile-fab { bottom: calc(var(--tabbar-h) + var(--safe-b) + 76px); }
+  body[data-tab="chat"] .mobile-fab, body[data-tab="admin"] .mobile-fab, body.composing .mobile-fab,
+  body.auth-open .mobile-fab, body:has(#post-view) .mobile-fab { display: none; }
+
+  /* Sem campo de postar no meio do feed: o "+" abre uma tela só para isso */
+  body:not(.composing) #creator-wrap { display: none; }
+  body.composing #creator-wrap {
+    position: fixed; inset: 0; z-index: 800; overflow-y: auto; background: var(--bg);
+    padding: env(safe-area-inset-top, 0px) 0 var(--safe-b);
+    animation: compose-in var(--spring-drawer-dur, 320ms) var(--spring-drawer, var(--ease-drawer, ease-out));
+  }
+  body.composing { overflow: hidden; }
+  body.composing .create-post-card { border: 0; padding: 0 16px 16px; }
+  body.composing .compose-head {
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 1; margin: 0 -16px 8px; padding: 8px 12px; background: var(--bg);
+  }
+  .compose-close {
+    display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%;
+    background: none; color: var(--text); cursor: pointer;
+  }
+  .compose-close svg { width: 22px; height: 22px; }
+  .compose-post { padding: 8px 20px; border-radius: 999px; }
+  body.composing .create-post-textarea { min-height: 160px; font-size: 1.1rem !important; }
+  body.composing .creator-action-bar > :last-child { display: none !important; } /* o "Postar" fica no topo (o botão tem display inline) */
+  @keyframes compose-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* O post na própria tela, com os comentários */
+  .post-view { padding: 0; place-items: stretch; }
+  .post-view .post-view-panel {
+    width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0;
+    padding: env(safe-area-inset-top, 0px) 0 var(--safe-b); transform: translateX(24px);
+  }
+  .post-view .app-dialog-head { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); padding: 6px 12px; }
+
+  /* Menu do seu perfil (playlists, exibição, conta, sair) */
+  .profile-menu-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; padding: 0; }
+
+  /* Tela inteira: perfil e desafios sem moldura nas laterais */
+  body[data-tab="profile"] #tab-profile { padding: 0 0 24px; }
+  .profile-banner { border-radius: 0; border-left: 0; border-right: 0; border-top: 0; }
+  .profile-info-card { border-radius: 0; border-left: 0; border-right: 0; }
+  .q-card { border-radius: 0; border-width: 0 0 1px; margin-inline: -12px; padding-inline: 16px; background: none; }
+  .questions-grid { gap: 0; }
+}
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) {
+  body.composing #creator-wrap { animation: none; }
+}
+
+/* Chat no celular: mais espaço para as mensagens */
+@media (max-width: 700px) {
+  .chat-main-composer { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 8px 8px calc(8px + var(--safe-b)); }
+  #chat-tab-reply-banner { flex: 0 0 100%; }
+  .chat-composer-tools { display: flex; gap: 0; margin: 0; flex: none; }
+  .chat-tool-btn { width: 40px; height: 40px; padding: 0; justify-content: center; border: 0; background: none; }
+  .chat-tool-btn span { display: none; }
+  .chat-tool-btn svg { width: 22px; height: 22px; }
+  .chat-composer-row { flex: 1; min-width: 0; gap: 6px; }
+  #chat-tab-text-input { min-width: 0; }
+  #chat-tab-send-btn { width: 44px; height: 44px; padding: 0 !important; justify-content: center; flex-shrink: 0; }
+  #chat-tab-send-btn span { display: none; }
+  .chat-main-messages { gap: 3px; }
+  .chat-main-messages .dm-bubble:has(.dm-time) { margin-bottom: 9px; }
 }

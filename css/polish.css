@@ -99,3 +99,24 @@
 
 /* Perfil de outra pessoa sem status: nada de espaço vazio */
 .profile-status-wrap:not(:has(*)) { display: none; }
+
+/* Sintonia no perfil de outra pessoa: um número, o porquê e o caminho para os desafios */
+.profile-match {
+  display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 14px;
+  margin: 0 16px 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px;
+}
+.profile-match-score { grid-row: span 2; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.profile-match-score strong { font-size: 1.6rem; font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; }
+.profile-match-score span { font-size: .72rem; color: var(--text-2); text-align: center; max-width: 9ch; }
+.profile-match-why { font-size: .88rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-match-btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
+.profile-match-btn[hidden] { display: none; }
+.profile-match:not(:has(.profile-match-score)) { display: block; border: 0; padding: 0; }
+
+/* Escolher de onde a prévia da música começa no post */
+.song-start { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "play label" "play range"; align-items: center; column-gap: 10px; margin-top: 8px; }
+.song-start-play { grid-area: play; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--accent); color: var(--on-accent); cursor: pointer; }
+.song-start-play svg { width: 16px; height: 16px; }
+.song-start label { grid-area: label; font-size: .8rem; color: var(--text-2); }
+.song-start output { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.song-start input { grid-area: range; width: 100%; accent-color: var(--accent); min-height: 28px; }

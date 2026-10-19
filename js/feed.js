@@ -2,7 +2,7 @@
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
 import { toggleCollapse } from './motion.js';
-import { globalAudio } from './audio.js';
+import { globalAudio, playAttr, playIcon } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.js';
@@ -164,9 +164,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
           <div style="font-size:0.78rem;color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.song.artist)}</div>
         </div>
       </div>
-      <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="padding:0;border-radius:50%;width:26px;height:26px;min-width:26px;display:flex;align-items:center;justify-content:center;" onclick="window._playTrack(${jsArg(c.song)})" title="Tocar prévia">
-        ${ICONS.play}
-      </button>
+      <button class="doodle-btn doodle-btn-primary doodle-btn-sm" style="padding:0;border-radius:50%;width:26px;height:26px;min-width:26px;display:flex;align-items:center;justify-content:center;" onclick="window._playTrack(${jsArg(c.song)})" title="Tocar prévia" ${playAttr(c.song)}>${playIcon(c.song)}</button>
     </div>` : '';
 
   const imageAttachmentHtml = !c.imageUrl && c.imageLazy ? `
@@ -309,12 +307,10 @@ export function renderPostCard(post, options = {}) {
         <img class="post-song-cover" src="${safeUrl(post.song.artwork || '')}" alt="" onerror="this.style.display='none'">
         <div>
           <div class="post-song-title">${esc(post.song.title)}</div>
-          <div class="post-song-artist">${esc(post.song.artist)}</div>
+          <div class="post-song-artist">${esc(post.song.artist)}${Number(post.song.startAt) > 0 ? ` · a partir de 0:${String(Math.round(post.song.startAt)).padStart(2, '0')}` : ''}</div>
         </div>
       </div>
-      <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" onclick="window._playTrack(${jsArg(post.song)})">
-        ${ICONS.play}
-      </button>
+      <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" ${playAttr(post.song)} onclick="window._playTrack(${jsArg(post.song)})" aria-label="Tocar ${esc(post.song.title)}">${playIcon(post.song)}</button>
     </div>` : '';
 
   const playlistHtml = renderPostPlaylistCard(post);
@@ -433,6 +429,11 @@ export function renderPostCreator(containerEl) {
 
   containerEl.innerHTML = `
     <div class="create-post-card">
+      <!-- Only on the phone's full-screen composer (body.composing) -->
+      <div class="compose-head">
+        <button type="button" class="compose-close" onclick="window._closeCompose()" aria-label="Fechar">${ICONS.close}</button>
+        <button type="button" class="doodle-btn doodle-btn-primary compose-post" onclick="window._submitPost()">Postar</button>
+      </div>
       <div class="create-post-top">
         <div class="creator-avatar">${creatorAvatarHtml}</div>
         <div class="creator-fields">
@@ -1137,8 +1138,12 @@ export function refreshCommentsDisplay(postId) {
   });
 }
 
+const isPhoneLayout = () => matchMedia('(max-width: 700px)').matches;
+
 window._toggleComments = (postId, btn, event) => {
   if (event) event.stopPropagation();
+  // On a phone the post opens on its own screen with the comments, like on X
+  if (isPhoneLayout() && !btn?.closest('#post-view')) { window._openPostView(postId); return; }
 
   let postCard = btn ? btn.closest('.post-card') : null;
   if (!postCard) {
@@ -1157,7 +1162,7 @@ window._toggleComments = (postId, btn, event) => {
 
   if (isHidden) {
     const input = commentsSection.querySelector('.doodle-input');
-    if (input) setTimeout(() => input.focus(), 50);
+    if (input && !matchMedia('(pointer: coarse)').matches) setTimeout(() => input.focus(), 50); // on a phone, focusing would pop the keyboard just to read comments
   }
 };
 
@@ -1451,13 +1456,19 @@ window._openPostView = async (postId, opts = {}) => {
     <div class="app-dialog-scrim" data-close></div>
     <div class="app-dialog-panel post-view-panel" role="dialog" aria-modal="true" aria-label="Post">
       <div class="app-dialog-head">
-        <button type="button" class="photo-editor-icon" data-close aria-label="Fechar">${ICONS.close}</button>
+        <button type="button" class="photo-editor-icon" data-close aria-label="${isPhoneLayout() ? 'Voltar' : 'Fechar'}">${isPhoneLayout() ? ICONS.chevronLeft : ICONS.close}</button>
         <h2>Post</h2>
       </div>
       <div class="post-view-body"><div class="post-view-empty">Carregando…</div></div>
     </div>`;
   document.body.appendChild(root);
-  const close = () => { document.removeEventListener('keydown', onKey); root.classList.remove('open'); setTimeout(() => root.remove(), 200); };
+  const close = () => {
+    document.removeEventListener('keydown', onKey);
+    root.classList.remove('open');
+    setTimeout(() => root.remove(), 200);
+    window._leaveLayer?.('post');
+  };
+  window._pushLayer?.('post');
   const onKey = (e) => { if (e.key === 'Escape' && !document.getElementById('photo-viewer')) close(); };
   document.addEventListener('keydown', onKey);
   root.addEventListener('click', (e) => {
@@ -1481,3 +1492,12 @@ window._openPostView = async (postId, opts = {}) => {
     if (row) { row.classList.add('comment-highlight'); setTimeout(() => row.scrollIntoView({ block: 'center', behavior: 'smooth' }), 120); }
   }
 };
+
+// Phone: tapping the text of a post opens it on its own screen (links and mentions keep working)
+document.addEventListener('click', (e) => {
+  if (!isPhoneLayout()) return;
+  const text = e.target.closest('.post-text');
+  if (!text || e.target.closest('a, button, .mention-link, #post-view')) return;
+  const id = text.closest('.post-card')?.dataset.postId;
+  if (id) window._openPostView(id);
+});
