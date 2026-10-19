@@ -338,3 +338,13 @@ html, body { max-width: 100%; overflow-x: clip; }
   #post-view .comment-composer-box:not(:focus-within) .comment-attach-bar { display: none !important; }
   #post-view .post-view-body { padding-bottom: 140px; } /* o último comentário não fica por baixo da caixa */
 }
+
+/* Postar no celular: botões de anexo com nome, numa fileira que arrasta de lado */
+@media (max-width: 700px) {
+  body.composing .creator-attach-btns { gap: 8px; }
+  body.composing .creator-attach-btns .btn-attach {
+    flex: 0 0 auto; width: auto; min-width: 0; height: 36px; padding: 0 12px; gap: 6px;
+    border-radius: 999px; background: var(--surface); font-size: var(--fs-detail);
+  }
+  body.composing .creator-attach-btns .btn-attach span { display: inline; }
+}

@@ -453,30 +453,12 @@ export function renderPostCreator(containerEl) {
       <!-- Action bar -->
       <div class="creator-action-bar">
         <div class="creator-attach-btns">
-          <button class="btn-attach" title="Adicionar letra" onclick="window._creatorToggleLyrics()">
-            ${ICONS.music}
-            <span>Letra</span>
-          </button>
-          <button class="btn-attach" title="Vincular música" onclick="window._creatorOpenSearch()">
-            ${ICONS.search}
-            <span>Música</span>
-          </button>
-          <button class="btn-attach" title="Vincular playlist" onclick="window._creatorOpenPlaylistPicker()">
-            ${ICONS.playlist}
-            <span>Playlist</span>
-          </button>
-          <button class="btn-attach" title="Anexar imagem (URL ou arquivo)" onclick="window._creatorOpenImagePicker()">
-            ${ICONS.image || '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>'}
-            <span>Imagem</span>
-          </button>
-          <button class="btn-attach" title="Criar votação de músicas" onclick="window._creatorOpenPoll()">
-            ${ICONS.poll}
-            <span>Votação</span>
-          </button>
-          <button class="btn-attach" title="Dar nota" onclick="window._creatorToggleRating()">
-            ${ICONS.star}
-            <span>Nota</span>
-          </button>
+          <button class="btn-attach" title="Música" aria-label="Música" onclick="window._creatorOpenSearch()">${ICONS.music}<span>Música</span></button>
+          <button class="btn-attach" title="Letra" aria-label="Letra" onclick="window._creatorToggleLyrics()">${ICONS.quote}<span>Letra</span></button>
+          <button class="btn-attach" title="Foto" aria-label="Foto" onclick="window._creatorOpenImagePicker()">${ICONS.image}<span>Foto</span></button>
+          <button class="btn-attach" title="Playlist" aria-label="Playlist" onclick="window._creatorOpenPlaylistPicker()">${ICONS.playlist}<span>Playlist</span></button>
+          <button class="btn-attach" title="Votação" aria-label="Votação" onclick="window._creatorOpenPoll()">${ICONS.poll}<span>Votação</span></button>
+          <button class="btn-attach" title="Nota" aria-label="Nota" onclick="window._creatorToggleRating()">${ICONS.star}<span>Nota</span></button>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <button class="doodle-btn doodle-btn-primary" style="padding:8px 22px;" onclick="window._submitPost()">Postar</button>
