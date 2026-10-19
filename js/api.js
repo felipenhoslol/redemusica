@@ -178,7 +178,8 @@ export async function lookupArtist(artistId) {
   ]);
   return {
     songs: dedupeTracks((songs?.results || []).filter(r => r.wrapperType === 'track').map(toTrack)),
-    ...organizeAlbums((albums?.results || []).filter(r => r.wrapperType === 'collection').map(toAlbum))
+    // Lookup also lists other artists' releases they appear on ("Starboy (feat. Daft Punk)"): keep only theirs
+    ...organizeAlbums((albums?.results || []).filter(r => r.wrapperType === 'collection' && String(r.artistId) === String(artistId)).map(toAlbum))
   };
 }
 

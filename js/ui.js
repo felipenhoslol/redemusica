@@ -279,22 +279,24 @@ async function openModalView(view) {
   container.closest('.modal-body')?.scrollTo?.(0, 0);
   try {
     if (view.type === 'artist') {
-      const { songs, albums } = await lookupArtist(view.id);
-      if (mySeq !== searchModalSeq) return;
-      modalTracks.clear();
-      container.innerHTML = `
-        ${modalBackBar(view.name || songs[0]?.artist || 'Artista')}
-        ${songs.length ? `<div class="msearch-section">Mais tocadas</div>${songs.map(t => modalTrackRow(t)).join('')}` : modalMsg('Nenhuma música encontrada.')}
-        ${albums.length ? `
-          <div class="msearch-section">Álbuns</div>
+      const { songs, albums, singles } = await lookupArtist(view.id);
+      const albumGroup = (title, list) => list.length ? `
+          <div class="msearch-section">${title}</div>
           <div class="msearch-albums">
-            ${albums.map(al => `
+            ${list.map(al => `
               <button type="button" class="msearch-album" data-m-album="${esc(al.id)}">
                 ${al.artwork ? `<img src="${safeUrl(al.artwork)}" alt="" loading="lazy" decoding="async">` : '<span></span>'}
                 <span class="msearch-album-title">${esc(al.title)}</span>
                 <span class="msearch-album-sub">${esc(al.year || '')}</span>
               </button>`).join('')}
-          </div>` : ''}`;
+          </div>` : '';
+      if (mySeq !== searchModalSeq) return;
+      modalTracks.clear();
+      container.innerHTML = `
+        ${modalBackBar(view.name || songs[0]?.artist || 'Artista')}
+        ${songs.length ? `<div class="msearch-section">Mais tocadas</div>${songs.map(t => modalTrackRow(t)).join('')}` : modalMsg('Nenhuma música encontrada.')}
+        ${albumGroup('Álbuns', albums)}
+        ${albumGroup('Singles e EPs', singles)}`;
     } else {
       const { album, tracks } = await lookupAlbum(view.id);
       if (mySeq !== searchModalSeq) return;

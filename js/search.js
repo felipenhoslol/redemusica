@@ -4,6 +4,7 @@ import { esc, safeUrl, jsArg, avatarInner } from './dom.js';
 import * as Storage from './storage.js';
 import { ICONS } from './icons.js';
 import { searchTracks, searchArtists, searchAlbums, lookupArtist, lookupAlbum } from './api.js';
+import { organizeAlbums } from './musicResults.js';
 import { fetchLastFmTrendingTracks, getArtistImage } from './lastfm.js';
 import { searchPeople, searchPosts } from './sync.js';
 import { renderPostCard } from './feed.js';
@@ -152,6 +153,16 @@ function albumCard(al) {
     </button>`;
 }
 
+// "Álbuns" then "Singles e EPs"; an empty group is left out
+function albumSections(albums, singles) {
+  const section = (title, list) => list.length ? `
+    <section class="search-section">
+      ${sectionHead(title)}
+      <div class="search-album-grid">${list.map(albumCard).join('')}</div>
+    </section>` : '';
+  return section('Álbuns', albums) + section('Singles e EPs', singles);
+}
+
 function playlistRow(p) {
   const author = Storage.getUserById(p.authorId);
   const covers = (p.songs || []).map(s => s.artwork).filter(Boolean).slice(0, 4);
@@ -252,11 +263,11 @@ async function renderExplore(mySeq) {
 
 async function renderAll(q, mySeq) {
   paint(`
-    <section class="search-section" data-slot="pessoas">${sectionHead('Pessoas', 'pessoas')}${loading()}</section>
     <section class="search-section" data-slot="musicas">${sectionHead('Músicas', 'musicas')}${loading()}</section>
-    <section class="search-section" data-slot="artistas">${sectionHead('Artistas', 'artistas')}${loading()}</section>
-    <section class="search-section" data-slot="posts">${sectionHead('Posts', 'posts')}${loading()}</section>
     <section class="search-section" data-slot="albuns">${sectionHead('Álbuns', 'albuns')}${loading()}</section>
+    <section class="search-section" data-slot="artistas">${sectionHead('Artistas', 'artistas')}${loading()}</section>
+    <section class="search-section" data-slot="pessoas">${sectionHead('Pessoas', 'pessoas')}${loading()}</section>
+    <section class="search-section" data-slot="posts">${sectionHead('Posts', 'posts')}${loading()}</section>
     <section class="search-section" data-slot="playlists">${sectionHead('Playlists', 'playlists')}${loading()}</section>`, mySeq);
 
   const fill = (slot, title, html, count) => {
@@ -279,7 +290,11 @@ async function renderAll(q, mySeq) {
     searchTracks(q, 6).then(r => fill('musicas', 'Músicas', r.slice(0, 5).map(t => songRow(t)).join(''), r.length)).catch(() => fill('musicas', '', '', 0)),
     searchArtists(q, 8).then(r => fill('artistas', 'Artistas', `<div class="search-artist-row">${r.slice(0, 8).map(artistCard).join('')}</div>`, r.length)).catch(() => fill('artistas', '', '', 0)),
     findPosts(q, 3).then(r => fill('posts', 'Posts', postsList(r.slice(0, 3)), r.length)),
-    searchAlbums(q, 6).then(r => fill('albuns', 'Álbuns', `<div class="search-album-grid">${r.slice(0, 6).map(albumCard).join('')}</div>`, r.length)).catch(() => fill('albuns', '', '', 0))
+    searchAlbums(q, 24).then(r => {
+      const { albums, singles } = organizeAlbums(r);
+      const list = [...albums, ...singles]; // full albums before singles and EPs
+      fill('albuns', 'Álbuns', `<div class="search-album-grid">${list.slice(0, 6).map(albumCard).join('')}</div>`, list.length);
+    }).catch(() => fill('albuns', '', '', 0))
   ]);
 }
 
@@ -306,8 +321,8 @@ async function renderTab(q, tab, mySeq) {
       const r = await searchArtists(q, 30);
       paint(r.length ? `<div class="search-artist-grid">${r.map(artistCard).join('')}</div>` : emptyResults(), mySeq);
     } else if (tab === 'albuns') {
-      const r = await searchAlbums(q, 48);
-      paint(r.length ? `<div class="search-album-grid">${r.map(albumCard).join('')}</div>` : emptyResults(), mySeq);
+      const { albums, singles } = organizeAlbums(await searchAlbums(q, 48));
+      paint(albums.length || singles.length ? albumSections(albums, singles) : emptyResults(), mySeq);
     } else if (tab === 'playlists') {
       const r = findPlaylists(q);
       paint(r.length ? `<section class="search-section">${r.map(playlistRow).join('')}</section>` : emptyResults('Procure pelo nome da playlist ou por uma música que esteja nela.'), mySeq);
@@ -328,8 +343,8 @@ async function renderArtistView(view, mySeq) {
     </div>
     ${loading('Carregando músicas e álbuns…')}`, mySeq);
 
-  const [{ songs, albums }, posts] = await Promise.all([
-    lookupArtist(view.id).catch(() => ({ songs: [], albums: [] })),
+  const [{ songs, albums, singles }, posts] = await Promise.all([
+    lookupArtist(view.id).catch(() => ({ songs: [], albums: [], singles: [] })),
     findPosts(view.name, 10).catch(() => [])
   ]);
   if (mySeq !== seq) return;
@@ -343,17 +358,13 @@ async function renderArtistView(view, mySeq) {
         ${songs.slice(0, showAll ? 25 : 8).map((t, i) => songRow(t, { number: i + 1 })).join('')}
         ${!showAll && songs.length > 8 ? `<button type="button" class="search-more" data-all-artist-songs>Ver todas as ${songs.length}</button>` : ''}
       </section>` : ''}
-    ${albums.length ? `
-      <section class="search-section">
-        ${sectionHead('Álbuns')}
-        <div class="search-album-grid">${albums.map(albumCard).join('')}</div>
-      </section>` : ''}
+    ${albumSections(albums, singles)}
     ${posts.length ? `
       <section class="search-section">
         ${sectionHead(`Posts sobre ${view.name}`)}
         ${postsList(posts)}
       </section>` : ''}
-    ${!songs.length && !albums.length ? `<div class="search-loading">Não encontramos o catálogo desse artista.</div>` : ''}`);
+    ${!songs.length && !albums.length && !singles.length ? `<div class="search-loading">Não encontramos o catálogo desse artista.</div>` : ''}`);
 }
 
 async function renderAlbumView(view, mySeq) {
