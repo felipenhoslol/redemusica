@@ -1,5 +1,6 @@
 // Music API service: iTunes Search API + rich link previews (Last.fm lives in lastfm.js)
 import { esc, safeUrl, jsArg, avatarInner } from './dom.js';
+import { dedupeTracks, relevantArtists, albumKind, cleanAlbumTitle, organizeAlbums } from './musicResults.js';
 
 /**
  * Format milliseconds to mm:ss
@@ -109,13 +110,14 @@ export async function searchTracks(query, limit = 25) {
   if (!query || query.trim().length === 0) return [];
 
   const cleanQuery = query.trim();
-  const data = await fetchItunesData(cleanQuery, limit);
+  // Ask for more: the same song comes back several times and the repeats are dropped
+  const data = await fetchItunesData(cleanQuery, Math.min(limit * 2, 200));
 
   if (!data || !Array.isArray(data.results) || data.results.length === 0) {
     return [];
   }
 
-  return data.results.filter(item => item.wrapperType === 'track' || item.kind === 'song').map(toTrack);
+  return dedupeTracks(data.results.filter(item => item.wrapperType === 'track' || item.kind === 'song').map(toTrack)).slice(0, limit);
 }
 
 function toTrack(item) {
@@ -140,18 +142,20 @@ function toTrack(item) {
 /** Artists on iTunes (no photos there: callers fill them with getArtistImage). */
 export async function searchArtists(query, limit = 20) {
   if (!query?.trim()) return [];
-  const data = await fetchItunesData(query, limit, 'musicArtist');
-  return (data?.results || []).filter(r => r.artistId).map(r => ({
+  const data = await fetchItunesData(query, Math.min(limit * 2, 200), 'musicArtist');
+  const artists = (data?.results || []).filter(r => r.artistId).map(r => ({
     id: String(r.artistId),
     name: r.artistName,
     genre: r.primaryGenreName || ''
   }));
+  return relevantArtists(artists, query).slice(0, limit);
 }
 
 function toAlbum(r) {
   return {
     id: String(r.collectionId),
-    title: r.collectionName,
+    title: cleanAlbumTitle(r.collectionName),
+    kind: albumKind(r.collectionName),
     artist: r.artistName,
     artwork: getHighResArtwork(r.artworkUrl100 || r.artworkUrl60, 400),
     year: r.releaseDate ? new Date(r.releaseDate).getFullYear() : '',
@@ -166,15 +170,15 @@ export async function searchAlbums(query, limit = 24) {
   return (data?.results || []).filter(r => r.collectionId).map(toAlbum);
 }
 
-/** An artist's most popular songs and albums. */
+/** An artist's most popular songs, albums and singles/EPs (the whole catalog, not just the first 24). */
 export async function lookupArtist(artistId) {
   const [songs, albums] = await Promise.all([
     fetchItunesUrl(`https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=song&limit=25&country=BR`),
-    fetchItunesUrl(`https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=album&limit=24&country=BR`)
+    fetchItunesUrl(`https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=album&limit=200&country=BR`)
   ]);
   return {
-    songs: (songs?.results || []).filter(r => r.wrapperType === 'track').map(toTrack),
-    albums: (albums?.results || []).filter(r => r.wrapperType === 'collection').map(toAlbum)
+    songs: dedupeTracks((songs?.results || []).filter(r => r.wrapperType === 'track').map(toTrack)),
+    ...organizeAlbums((albums?.results || []).filter(r => r.wrapperType === 'collection').map(toAlbum))
   };
 }
 
