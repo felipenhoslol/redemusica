@@ -151,3 +151,10 @@
 
 /* Negrito do navegador (700) segue o peso de destaque do site */
 strong, b { font-weight: 800; }
+
+/* ═══ Regras do visual (docs/superpowers/specs/2026-10-19-visual-refresh-design.md) ═══
+   Ícones em 2 tamanhos: 24px nas barras, 20px nas ações; nada de caixas emolduradas dentro das páginas. */
+#mobile-tabbar svg, #mobile-header svg:not(.cat), .app-sidebar .nav-item svg { width: 24px; height: 24px; }
+.tab-view-content svg[stroke="currentColor"], #post-view svg[stroke="currentColor"] { width: 20px; height: 20px; }
+.tab-view-content .empty-icon svg, .tab-view-content .empty-state svg { width: 32px; height: 32px; } /* ilustração de tela vazia, não é ação */
+.post-attached-song, .search-chip { border: 0 !important; background: var(--surface); }

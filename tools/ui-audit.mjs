@@ -25,7 +25,7 @@ export function auditScreen(root = document.querySelector('.tab-view-content.act
     return c;
   })();
   const interactive = 'a, button, [role="button"], .active, [aria-current], [aria-selected="true"], .liked, .reposted, .bookmarked';
-  const notFrame = 'input, textarea, select, button, a, [role="button"], .featured-song-box, .comment-composer-box, .app-dialog-panel, img, [class*="avatar"], [class*="photo"]';
+  const notFrame = 'input, textarea, select, .search-bar, button, a, [role="button"], .featured-song-box, .comment-composer-box, .app-dialog-panel, img, [class*="avatar"], [class*="photo"]';
   const framed = (el) => {
     const cs = getComputedStyle(el);
     return el.getBoundingClientRect().width > 60 && !el.matches(notFrame) && !el.closest('.featured-song-box')
