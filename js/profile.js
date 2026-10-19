@@ -99,6 +99,7 @@ export function renderProfileView(container, targetUserId) {
     </div>` : '');
 
   const topArtistsHtml = buildTopArtistsMonthHtml(user, isMe);
+  const showcaseHtml = buildShowcaseHtml(user, isMe);
   const presence = isMe ? { online: true, known: true, label: 'online' } : presenceOf(user);
 
   // Banner: the user's image, or a neutral wash of the chosen accent color
@@ -173,6 +174,7 @@ export function renderProfileView(container, targetUserId) {
         </div>
         ${featuredHtml}
         ${topArtistsHtml}
+        ${showcaseHtml}
         <div class="profile-subtabs">
           <button class="profile-subtab-btn active" data-profile-tab="posts" onclick="window._switchProfileTab('posts', this)">Posts</button>
           <button class="profile-subtab-btn" data-profile-tab="playlists" onclick="window._switchProfileTab('playlists', this)">Playlists</button>
@@ -322,6 +324,33 @@ function buildTopArtistsMonthHtml(user, isMe) {
  * @param {HTMLElement} root
  * @param {string} userId
  */
+// Song showcase: up to 5 songs the person picked (others only see it when it has songs)
+function buildShowcaseHtml(user, isMe) {
+  const showcase = user.songShowcase || [];
+  if (!isMe && !showcase.length) return '';
+  const slots = isMe ? Array.from({ length: 5 }, (_, i) => showcase[i] || null) : showcase.slice(0, 5);
+
+  const html = slots.map(song => {
+    if (song) {
+      return `
+        <div class="showcase-slot" title="${esc(song.title)} — ${esc(song.artist)}"
+          onclick="window._playTrack(${jsArg(song)})">
+          ${song.artwork ? `<img src="${safeUrl(song.artwork)}" alt="${esc(song.title)}" loading="lazy" decoding="async">` : `<div class="showcase-slot-add" style="display:flex;align-items:center;justify-content:center;">${ICONS.music}</div>`}
+          ${isMe ? `<button type="button" class="showcase-remove" onclick="event.stopPropagation();window._removeShowcase(${jsArg(song.id)})" aria-label="Tirar ${esc(song.title)} da vitrine" title="Tirar da vitrine">${ICONS.close}</button>` : ''}
+        </div>`;
+    }
+    return `<button type="button" class="showcase-slot showcase-slot-empty" onclick="window._addToShowcase()" aria-label="Adicionar música à vitrine">
+      <span class="showcase-slot-add">+</span>
+    </button>`;
+  }).join('');
+
+  return `
+    <section class="top5 profile-showcase" aria-label="Vitrine de músicas">
+      <div class="top5-head"><h3>Vitrine</h3></div>
+      <div class="song-showcase-grid">${html}</div>
+    </section>`;
+}
+
 export async function hydrateArtistImages(root, userId) {
   const slots = [...root.querySelectorAll('[data-artist-img]')];
   if (!slots.length) return;

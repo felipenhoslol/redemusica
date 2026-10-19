@@ -158,3 +158,6 @@ strong, b { font-weight: 800; }
 .tab-view-content svg[stroke="currentColor"], #post-view svg[stroke="currentColor"] { width: 20px; height: 20px; }
 .tab-view-content .empty-icon svg, .tab-view-content .empty-state svg { width: 32px; height: 32px; } /* ilustração de tela vazia, não é ação */
 .post-attached-song, .search-chip { border: 0 !important; background: var(--surface); }
+
+/* Vitrine no perfil: mesmo cabeçalho do Top 5, capas com tamanho limitado no PC */
+.profile-showcase .song-showcase-grid { grid-template-columns: repeat(5, minmax(0, 104px)); gap: 10px; padding: 0 0 8px; border-top: 0; }
