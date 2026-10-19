@@ -464,6 +464,8 @@ window._postAnswer = (challengeId, questionId) => {
 
 // Who the comparison opens with (set by the "Comparar desafios" button on a profile)
 let compareWithNext = null;
+// Who/what was being compared: kept when the view re-renders (after rating a song, or a sync)
+const compareState = { userId: null, filter: 'all', challengeId: null };
 export function openCompareWith(userId) { compareWithNext = userId; }
 
 export function renderCompareView(container) {
@@ -471,14 +473,17 @@ export function renderCompareView(container) {
   const activeUser = storage.getActiveUser();
   const allChallenges = storage.getAllChallenges();
 
-  let selectedChallengeId = storage.getActiveChallengeId() || allChallenges[0]?.id || 'classic_30';
+  let selectedChallengeId = (allChallenges.some(c => c.id === compareState.challengeId) && compareState.challengeId) ||
+    storage.getActiveChallengeId() || allChallenges[0]?.id || 'classic_30';
   // Only people you follow; first the one picked on a profile, then someone who already answered
   const following = new Set(storage.getFollowing(activeUser.id));
   const others = users.filter(u => u.id !== activeUser.id && following.has(u.id));
   const answered = (u) => Object.keys(storage.getChallengeAnswers(selectedChallengeId, u.id)).length > 0;
-  let compareUserId = (others.find(u => u.id === compareWithNext) || others.find(answered) || others[0])?.id;
+  let compareUserId = (others.find(u => u.id === compareWithNext) || others.find(u => u.id === compareState.userId) ||
+    others.find(answered) || others[0])?.id;
   compareWithNext = null;
-  let activeFilter = 'all'; // 'all' | 'both' | 'my' | 'theirs' | 'reviewed'
+  compareState.userId = compareUserId;
+  let activeFilter = compareState.filter; // 'all' | 'both' | 'my' | 'theirs' | 'reviewed'
 
   function getAvatarMarkup(user, size = 44) {
     if (!user) return `<div class="compare-user-avatar" style="width:${size}px;height:${size}px;">U</div>`;
@@ -831,16 +836,19 @@ export function renderCompareView(container) {
   // Global window handlers for interaction
   window._setCompareChallenge = (cId) => {
     selectedChallengeId = cId;
+    compareState.challengeId = cId;
     buildHtml();
   };
 
   window._setCompareUser = (uId) => {
     compareUserId = uId;
+    compareState.userId = uId;
     buildHtml();
   };
 
   window._setCompareFilter = (filterKey) => {
     activeFilter = filterKey;
+    compareState.filter = filterKey;
     buildHtml();
   };
 
