@@ -7,6 +7,7 @@ import { popIcon, rollNumber, flip, animateSpring, reducedMotion } from './motio
 import { showToast } from './profile.js'; // ui.js re-exports it; importing ui.js here would close a cycle
 import { openRankingView } from './rankingCard.js';
 import { ICONS, getStarSVG } from './icons.js';
+import { mountTabIndicator } from './tabs.js';
 import { catLogoHtml } from './logo.js';
 import { esc, safeUrl, jsArg, avatarInner } from './dom.js';
 
@@ -50,9 +51,9 @@ const cover = (art) => {
 function headerHtml() {
   const n = ratedCount();
   const s = ed.subject;
-  const tabs = ed.mode === 'artist' ? `<div class="rk-tabs" role="tablist">${TABS.map(([id, name]) => {
+  const tabs = ed.mode === 'artist' ? `<div class="feed-filter-bar rk-tabs" role="tablist" aria-label="Tipo de lançamento">${TABS.map(([id, name]) => {
     const count = ed.groups[id].length;
-    return `<button type="button" role="tab" class="rk-tab" data-tab="${id}" aria-selected="${ed.tab === id}" ${count ? '' : 'disabled'} onclick="window._rankTab('${id}', this)">${name} <span class="rk-tab-count">${count}</span></button>`;
+    return `<button type="button" role="tab" class="feed-filter-btn${ed.tab === id ? ' active' : ''}" data-tab="${id}" aria-selected="${ed.tab === id}" ${count ? '' : 'disabled'} onclick="window._rankTab('${id}', this)">${name} <span class="rk-tab-count">${count}</span></button>`;
   }).join('')}</div>` : '';
   return `
     <div class="rk-header">
@@ -75,8 +76,7 @@ function headerHtml() {
 const gridHtml = () => ed.groups[ed.tab].map(r => `
   <div class="rk-cell" data-flip-key="${esc(r.id)}">
     ${cover(r.artwork)}
-    <span class="ranking-title" title="${esc(r.title)}">${esc(r.title)}</span>
-    <span class="ranking-meta">${esc(r.year)}</span>
+    <p class="rk-cell-line"><span class="ranking-title" title="${esc(r.title)}">${esc(r.title)}</span>${r.year ? `<span class="ranking-meta">· ${esc(r.year)}</span>` : ''}</p>
     ${starsHtml(r.id, r.title, ratingOf(r.id))}
   </div>`).join('');
 
@@ -90,7 +90,10 @@ const tracklistHtml = () => `<ol class="rk-tracks">${[...ed.items.values()].map(
 function renderEditor() {
   ed.container.innerHTML = `<div class="rk-editor" data-mode="${ed.mode}">${headerHtml()}
     ${ed.mode === 'artist' ? `<div class="rk-grid">${gridHtml()}</div>` : tracklistHtml()}</div>`;
-  if (ed.mode === 'artist') lastGridCount = ed.groups[ed.tab].length || 8;
+  if (ed.mode === 'artist') {
+    lastGridCount = ed.groups[ed.tab].length || 8;
+    mountTabIndicator(ed.container.querySelector('.rk-tabs'), { key: 'ranking' });
+  }
 }
 
 const loadingHtml = () => `<div class="rk-editor" aria-busy="true"><p class="rk-loading-text">Carregando o catálogo…</p>
@@ -161,7 +164,10 @@ window._rankStar = (id, value, btn) => {
 window._rankTab = (tab, btn) => {
   if (!ed?.groups?.[tab]?.length || ed.tab === tab) return;
   ed.tab = tab;
-  ed.container.querySelectorAll('.rk-tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === tab)));
+  ed.container.querySelectorAll('.rk-tabs [role="tab"]').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tab);
+    t.setAttribute('aria-selected', String(t.dataset.tab === tab));
+  });
   press(btn);
   const grid = ed.container.querySelector('.rk-grid');
   flip(grid, '.rk-cell', () => { grid.innerHTML = gridHtml(); });

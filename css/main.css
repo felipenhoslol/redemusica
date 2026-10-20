@@ -569,6 +569,8 @@ body {
 .doodle-star {
   vertical-align: middle;
   display: inline-block;
+  flex-shrink: 0;
+  color: var(--star); /* cada tela pode trocar: o desenho usa currentColor */
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   filter: none !important;
 }

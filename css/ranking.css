@@ -1,6 +1,11 @@
 /* Ranking por estrelas: card do pódio no feed (js/rankingCard.js) e a lista completa no modal */
 
-.post-ranking { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 4px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-md); }
+.post-ranking { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 4px; }
+
+/* Estrelas: o mesmo desenho do site (getStarSVG), com as cores da paleta. Roxo só onde se toca (tela de dar notas) */
+.post-ranking .doodle-star, .ranking-list .doodle-star { color: var(--text); }
+.rk-stars .doodle-star { color: var(--accent); }
+:is(.post-ranking, .ranking-list, .rk-stars) .doodle-star.empty { color: var(--text-2); opacity: 1; }
 .ranking-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ranking-kicker { font-size: var(--fs-detail); color: var(--text-2); }
 .ranking-subject { font-size: var(--fs-name); font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -59,16 +64,17 @@
 /* Uma linha só: trocar o texto não muda a altura do cabeçalho */
 .rk-hint { margin: 0; font-size: var(--fs-detail); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.rk-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--line); }
-.rk-tab { min-height: 44px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-2); font: inherit; font-size: var(--fs-text); font-weight: 800; cursor: pointer; }
-.rk-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
-.rk-tab:disabled { opacity: .4; cursor: default; }
+/* Abas: as mesmas do feed (.feed-filter-bar/.feed-filter-btn), com a divisória embaixo */
+.feed-filter-bar.rk-tabs { border-bottom: 1px solid var(--line); }
+.rk-tabs .feed-filter-btn:disabled { opacity: .4; cursor: default; }
 .rk-tab-count { font-size: var(--fs-detail); font-weight: 400; font-variant-numeric: tabular-nums; }
 
 /* Células de ≥240px: cada meia estrela fica com ≥24px de largura (WCAG 2.5.8) */
 .rk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px 12px; }
-.rk-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.rk-cell .ranking-meta { min-height: 1.3em; }
+.rk-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+/* Título · ano numa linha; altura fixa para nada pular quando falta o ano */
+.rk-cell-line { display: flex; align-items: baseline; gap: 4px; min-width: 0; min-height: 1.3em; margin: 4px 0 0; }
+.rk-cell-line .ranking-meta { flex-shrink: 0; }
 
 /* Estrelas: 44px de altura de toque; cada estrela tem metade esquerda (.5) e direita (inteira) */
 /* 240–260px de largura: cada metade (1/10 da linha) tem 24–26px */

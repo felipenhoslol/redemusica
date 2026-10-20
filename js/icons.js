@@ -101,29 +101,23 @@ export const ICONS = {
   chevronRight: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
 };
 
+const STAR_POINTS = '12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2';
+let halfStarId = 0;
+
 /**
- * Render dynamic star SVG (empty, half 0.5, or full 1.0) with clean doodle borders and no glow
+ * One rating star (0 empty, 0.5 half, 1 full) drawn like ICONS.star: same shape, stroke 2, colored by
+ * currentColor so each screen picks the palette token (stroke sits on the polygon so the global
+ * 20px rule for svg[stroke="currentColor"] action icons does not resize it).
  * @param {number} fill 0 = empty, 0.5 = half, 1 = full
- * @param {number} size 
+ * @param {number} size
  * @returns {string} SVG markup
  */
 export function getStarSVG(fill = 1, size = 20) {
-  if (fill >= 1) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="#ffb800" stroke="#000000" stroke-width="1.3" stroke-linejoin="round" class="doodle-star filled" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
-  } else if (fill >= 0.5) {
-    const fillId = 'half_star_' + Math.random().toString(36).substring(2, 9);
-    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" class="doodle-star half" style="flex-shrink:0;">
-      <defs>
-        <linearGradient id="${fillId}">
-          <stop offset="50%" stop-color="#ffb800" />
-          <stop offset="50%" stop-color="rgba(255,255,255,0.08)" />
-        </linearGradient>
-      </defs>
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="url(#${fillId})" stroke="#000000" stroke-width="1.3" stroke-linejoin="round"></polygon>
-    </svg>`;
-  } else {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="rgba(255,255,255,0.08)" stroke="#000000" stroke-width="1.3" stroke-linejoin="round" class="doodle-star empty" style="flex-shrink:0;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
-  }
+  const kind = fill >= 1 ? 'filled' : fill >= 0.5 ? 'half' : 'empty';
+  const id = kind === 'half' ? `half_star_${++halfStarId}` : '';
+  const paint = kind === 'filled' ? 'currentColor' : kind === 'half' ? `url(#${id})` : 'none';
+  const defs = id ? `<defs><linearGradient id="${id}"><stop offset="50%" stop-color="currentColor"/><stop offset="50%" stop-color="transparent"/></linearGradient></defs>` : '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" class="doodle-star ${kind}" aria-hidden="true" focusable="false">${defs}<polygon points="${STAR_POINTS}" fill="${paint}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 /**
@@ -144,5 +138,5 @@ export function renderRatingStars(rating = 0, size = 18) {
       html += getStarSVG(0, size);
     }
   }
-  return `<span class="rating-stars-row">${html}</span>`;
+  return `<span class="rating-stars-row" role="img" aria-label="Nota ${String(num).replace('.', ',')} de 5">${html}</span>`;
 }
