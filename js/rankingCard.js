@@ -76,7 +76,7 @@ export function rankingSummaryHtml(ranking, { own = false, posted = false } = {}
   const items = ranked(r);
   const art = (it) => (album && !it.artwork ? s.artwork : it.artwork);
   // Artist photo arrives later (hydrateSummaryPhoto) into this fixed round slot; the icon stays when there is none
-  const pic = album ? cover(s.artwork, 'ranking-cover rk-sum-pic')
+  const pic = album ? (safeUrl(s.artwork) ? cover(s.artwork, 'ranking-cover rk-sum-pic') : `<div class="rk-sum-pic rk-sum-icon">${ICONS.disc}</div>`)
     : `<div class="rk-sum-pic rk-sum-photo" data-rk-photo="${esc(s.title)}">${ICONS.profile}</div>`;
   const avg = averageLabel(items);
   return `

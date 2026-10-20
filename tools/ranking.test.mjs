@@ -162,6 +162,12 @@ test('album summary uses the album cover when a track has none', () => {
   assert.equal((rankingSummaryHtml(s).match(/src="https:\/\/a\/s\.jpg"/g) || []).length, 1 + 2 + 2); // header, podium, rows
 });
 
+test('album summary without a cover shows the disc icon, not an empty box', () => {
+  const s = snap('album', 1);
+  s.subject.artwork = '';
+  assert.match(rankingSummaryHtml(s), /class="rk-sum-pic rk-sum-icon"><svg/);
+});
+
 test('only my own summary gets Editar notas / Postar no feed', () => {
   const mine = rankingSummaryHtml(snap('artist', 3), { own: true });
   assert.match(mine, /Editar notas/);

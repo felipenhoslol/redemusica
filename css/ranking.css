@@ -13,6 +13,7 @@
 
 .ranking-place { font-size: var(--fs-detail); font-weight: 800; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .ranking-title { font-size: var(--fs-detail); font-weight: 800; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranking-meta { font-size: var(--fs-detail); color: var(--text-2); }
 
 /* Artista: 2º, 1º, 3º; o 1º maior e no meio */
 .post-ranking[data-mode="artist"] .ranking-podium { display: grid; grid-template-columns: 1fr 1.3fr 1fr; align-items: end; gap: 10px; }
@@ -39,7 +40,8 @@
 /* Resumo do ranking (modal): cabeçalho com a média, pódio, todas as notas em linhas finas */
 .rk-sum { display: flex; flex-direction: column; gap: 18px; }
 .rk-sum-head { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 12px; }
-.rk-sum-photo { display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border-radius: 50%; background: var(--hover); color: var(--text-2); }
+.rk-sum-photo, .rk-sum-icon { display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border-radius: 50%; background: var(--hover); color: var(--text-2); }
+.rk-sum-icon { border-radius: var(--radius-sm); }
 .rk-sum-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rk-sum-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rk-sum-name { font-size: var(--fs-name); font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
