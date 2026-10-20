@@ -103,7 +103,7 @@ body.auth-open .app-sidebar { visibility: hidden; }
 .auth-strength { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: -6px; }
 .auth-strength i { height: 4px; border-radius: 4px; background: var(--line); transition: background .2s; }
 .auth-strength[data-score="1"] i:nth-child(-n+1) { background: var(--danger); }
-.auth-strength[data-score="2"] i:nth-child(-n+2) { background: var(--star); }
+.auth-strength[data-score="2"] i:nth-child(-n+2) { background: var(--warning); }
 .auth-strength[data-score="3"] i { background: var(--success); }
 
 .auth-row-end { display: flex; justify-content: flex-end; margin-top: -6px; }

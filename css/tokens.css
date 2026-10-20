@@ -23,6 +23,7 @@
   --shadow:    0 8px 28px rgba(0, 0, 0, .55);
   --danger:    #ff6b7d;
   --success:   #3ddc97;
+  --warning:   #ffc53d; /* só a força média da senha */
   --star:      var(--text); /* estrelas seguem a paleta: texto; as que se tocam usam --accent */
 }
 
@@ -42,6 +43,7 @@
   --shadow:    0 8px 28px rgba(22, 19, 29, .14);
   --danger:    #d6334a;
   --success:   #0f8a55;
+  --warning:   #e0a100;
 }
 
 /* ─── Cores de destaque (cada uma com versão para tema escuro e claro) ─── */
