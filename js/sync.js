@@ -2,6 +2,7 @@
 // storage.js stays the synchronous cache the UI reads; this module fills it from the server and pushes local writes up.
 import { getSupabase } from './supabase.js';
 import * as Storage from './storage.js';
+import { cleanRanking } from './ranking.js';
 
 const POLL_MS = 45000;
 const PROFILE_FIELDS = 'id, name, handle, avatar_url';
@@ -13,6 +14,7 @@ const pending = new Set();  // post ids created here that the server hasn't conf
 const pendingFollows = new Map(); // targetId → following?
 const pendingLikes = new Map();   // postId → liked?
 const pendingReposts = new Map(); // postId → reposted?
+const pendingRankings = new Map(); // ranking key → ranking being saved (null: being deleted)
 let pullSoonTimer = null;
 let pullFailures = 0;
 let warnedPullFailure = false;
@@ -27,6 +29,7 @@ let profileDirty = false;   // your own profile has local changes not on the ser
 let profileTimer = null;
 let warnedProfileSql = false;
 let votesTable = true;      // false until supabase/004_polls.sql has been run
+let rankingsTable = true;   // false until supabase/014_rankings.sql has been run
 let commentLikesTable = true; // false until supabase/005_comment_likes.sql has been run
 let presenceOn = true;      // false until supabase/006_presence.sql has been run
 let presenceTimer = null;
@@ -145,7 +148,8 @@ function toBody(post) {
     images: (post.images || []).filter(u => /^https:\/\//.test(u)).slice(0, 4),
     mentions: (post.mentions || []).filter(isAccountId).slice(0, 20),
     playlistId: post.playlistId || null, playlist: playlistSnapshot(post),
-    poll: post.poll?.options?.length ? { options: post.poll.options.slice(0, 4) } : null
+    poll: post.poll?.options?.length ? { options: post.poll.options.slice(0, 4) } : null,
+    ranking: cleanRanking(post.ranking)
   };
 }
 
@@ -173,6 +177,7 @@ function fromRow(row) {
     ...(b.imageInline ? { imageLazy: true } : {}),
     playlistId: safeId(b.playlistId), playlist: cleanPlaylist(b.playlist),
     poll: Array.isArray(b.poll?.options) && b.poll.options.filter(obj).length >= 2 ? { options: b.poll.options.filter(obj).slice(0, 4) } : null,
+    ranking: cleanRanking(b.ranking),
     votes: Object.fromEntries((row.post_votes || []).map(v => [v.user_id, v.option])),
     likes: (row.post_likes || []).map(l => l.user_id),
     reposts: (row.post_reposts || []).map(r => r.user_id),
@@ -565,11 +570,13 @@ export function pullNow() {
     profilePulls++;
     // Each part stands on its own: if the posts fail, followers, profiles and who's online still update
     if (fullProfiles) refreshAdminIds(db); // background: rarely changes
-    const [postsRes, followsRes, profilesRes, presenceRes] = await Promise.allSettled([
+    const rankingIds = [me, ...Storage.getFollowing()];
+    const [postsRes, followsRes, profilesRes, presenceRes, rankingsRes] = await Promise.allSettled([
       fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
       fetchProfiles(db, q => (fullProfiles ? q : q.gt('updated_at', profilesSince)).eq('banned', false).limit(1000)),
-      fetchPresence(db)
+      fetchPresence(db),
+      rankingsTable ? must(db.from('rankings').select('user_id, key, body, updated_at').in('user_id', rankingIds)) : null
     ]);
     const rows = postsRes.status === 'fulfilled' ? postsRes.value : null;
     const follows = followsRes.status === 'fulfilled' ? followsRes.value : null;
@@ -578,6 +585,10 @@ export function pullNow() {
     if (profilesRes.status === 'rejected') profilePulls = 0; // retry a full read next time
     if (profilesRes.status === 'rejected') console.warn('Perfis não atualizados:', profilesRes.reason?.code, profilesRes.reason?.message);
     if (followsRes.status === 'rejected') console.warn('Seguidores não atualizados:', followsRes.reason?.code, followsRes.reason?.message);
+    if (rankingsRes.status === 'rejected' && isMissingTable(rankingsRes.reason)) rankingsTable = false;
+    const rankings = rankingsRes.status === 'fulfilled' ? rankingsRes.value : null;
+    // A save/delete of mine still on its way up wins over what the server has now
+    if (rankings) Storage.mergeRemoteRankings(rankings.filter(r => !(r.user_id === me && pendingRankings.has(r.key))), rankingIds);
 
     let posts = null;
     if (rows) {
@@ -603,7 +614,8 @@ export function pullNow() {
         p.comments.map(c => `${c.id}:${c.likes.length}`).join(','), p.text.length, p.imageUrl.length, Boolean(p.imageLazy)]) : 'posts?',
       follows ? follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(',') : 'follows?',
       others.map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
-      profilesVersion, [...pending], [...pendingComments]
+      profilesVersion, [...pending], [...pendingComments],
+      rankings ? rankings.map(r => `${r.user_id}:${r.key}:${r.updated_at}`).sort().join(',') : 'rankings?'
     ]);
     if (signature !== lastSignature) {
       lastSignature = signature;
@@ -651,11 +663,11 @@ export function pullNow() {
 const POST_FIELDS = `id, author_id, edited, created_at,
   text:body->>text, lyrics:body->>lyrics, lyricsSong:body->>lyricsSong, lyricsArt:body->>lyricsArt,
   tag:body->>tag, rating:body->rating, song:body->song, playlistId:body->>playlistId, poll:body->poll,
-  images:body->images, mentions:body->mentions,
+  images:body->images, mentions:body->mentions, ranking:body->ranking,
   plId:body->playlist->>id, plTitle:body->playlist->>title, plDescription:body->playlist->>description,
   plAuthorId:body->playlist->>authorId, plSongs:body->playlist->songs`;
 const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl, parentId:body->>parentId`;
-const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll', 'images', 'mentions'];
+const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll', 'images', 'mentions', 'ranking'];
 
 async function fetchPostRows(db, refine) {
   for (;;) {
@@ -975,7 +987,23 @@ function tracked(map, key, on, task, failMessage) {
   }, failMessage);
 }
 
+// Ranking writes for one key run in order; a missing table turns them off quietly (no toast per star tap)
+function rankingWrite(key, ranking, task) {
+  if (!rankingsTable) return;
+  tracked(pendingRankings, key, ranking, async db => {
+    try { await must(task(db)); }
+    catch (err) { if (isMissingTable(err)) rankingsTable = false; else throw err; }
+  }, ranking ? 'Não foi possível salvar seu ranking.' : 'Não foi possível apagar seu ranking.');
+}
+
 const hooks = {
+  saveRanking(ranking) {
+    rankingWrite(ranking.key, ranking, db => db.from('rankings')
+      .upsert({ user_id: me, key: ranking.key, body: ranking, updated_at: ranking.updatedAt }, { onConflict: 'user_id,key' }));
+  },
+  deleteRanking(key) {
+    rankingWrite(key, null, db => db.from('rankings').delete().eq('user_id', me).eq('key', key));
+  },
   vote(postId, option) {
     if (!votesTable) return;
     write(db => must(option === null
@@ -1088,6 +1116,7 @@ export function startSync(userId, opts = {}) {
   profileColumns = true;
   warnedProfileSql = false;
   votesTable = true;
+  rankingsTable = true;
   commentLikesTable = true;
   presenceOn = true;
   messagesOn = true;
@@ -1132,6 +1161,7 @@ export function stopSync() {
   pendingComments.clear();
   pendingLikes.clear();
   pendingReposts.clear();
+  pendingRankings.clear();
   document.removeEventListener('visibilitychange', onVisible);
   me = null;
 }
