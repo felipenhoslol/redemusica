@@ -2,7 +2,7 @@
 // Every tap saves (setRankingRating); posting is a separate button.
 import { lookupArtist, lookupAlbum, searchArtists, searchAlbums } from './api.js';
 import { dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
-import { getRanking, setRankingRating, createPost, getUserRankings, getFriendsRankings, getUserById } from './storage.js';
+import { getRanking, setRankingRating, deleteRanking, createPost, getUserRankings, getFriendsRankings, getUserById } from './storage.js';
 import { popIcon, rollNumber, flip, animateSpring, reducedMotion } from './motion.js';
 import { showToast } from './profile.js'; // ui.js re-exports it; importing ui.js here would close a cycle
 import { openRankingView } from './rankingCard.js';
@@ -203,7 +203,7 @@ function metaLine(r) {
 }
 
 const myRowHtml = (r) => `
-  <li class="rk-entry">
+  <li class="rk-entry" data-flip-key="${esc(r.key)}">
     ${cover(r.subject?.artwork)}
     <div class="rk-entry-text">
       <span class="ranking-title">${esc(r.subject?.title)}</span>
@@ -213,6 +213,7 @@ const myRowHtml = (r) => `
     <div class="rk-entry-actions">
       <button type="button" class="doodle-btn doodle-btn-secondary" onclick="window._rankEdit(${jsArg(r.key)}, this)">Editar</button>
       <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._rankPostSaved(${jsArg(r.key)}, this)">Postar</button>
+      <button type="button" class="doodle-btn doodle-btn-ghost rk-delete" aria-label="${esc(`Apagar o ranking de ${r.subject?.title || ''}`)}" title="Apagar" onclick="window._rankDelete(${jsArg(r.key)}, this)"><span class="ui-icon" aria-hidden="true">${ICONS.trash}</span></button>
     </div>
   </li>`;
 
@@ -229,6 +230,7 @@ function friendRowHtml({ userId, ranking: r }, i) {
   </button></li>`;
 }
 
+const MINE_EMPTY = 'Você ainda não fez nenhum ranking';
 const listOrEmpty = (rows, empty) => rows.length ? `<ul class="rk-entries">${rows.join('')}</ul>` : emptyHtml(empty);
 
 /** The ranking challenge: "Novo ranking", "Meus rankings" and "Amigos" (saved rankings, never posts). */
@@ -251,7 +253,7 @@ export function renderRankingChallenge(container) {
       </section>
       <section class="rk-section" aria-labelledby="rk-mine" data-flip-key="mine">
         <h2 class="rk-section-title" id="rk-mine">Meus rankings</h2>
-        ${listOrEmpty(getUserRankings().map(myRowHtml), 'Você ainda não fez nenhum ranking')}
+        ${listOrEmpty(getUserRankings().map(myRowHtml), MINE_EMPTY)}
       </section>
       <section class="rk-section" aria-labelledby="rk-friends" data-flip-key="friends">
         <h2 class="rk-section-title" id="rk-friends">Amigos</h2>
@@ -334,6 +336,25 @@ window._rankEdit = (key, btn) => {
 };
 
 window._rankPostSaved = (key, btn) => { press(btn); postRanking(key); };
+
+window._rankDelete = (key, btn) => {
+  const r = getRanking(key);
+  if (!r || !area) return;
+  if (!confirm(`Apagar o ranking de ${r.subject?.title || 'este ranking'}? Os posts que você já publicou continuam no feed.`)) return;
+  deleteRanking(key);
+  showToast('Ranking apagado.');
+  const row = btn?.closest('li');
+  if (!row) return;
+  row.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  // The row fades out, then the rows below and "Amigos" glide up into its place
+  const close = () => flip(area?.container.querySelector('.rk-area'), '.rk-section[data-flip-key], .rk-entries > li[data-flip-key]', () => {
+    const list = row.parentElement;
+    row.remove();
+    if (list && !list.children.length) list.outerHTML = emptyHtml(MINE_EMPTY);
+  });
+  const out = reducedMotion() ? null : animateSpring(row, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.98)' }], 'snappy', { fill: 'forwards' });
+  out ? out.finished.then(close, close) : close();
+};
 
 window._rankFriend = (i, btn) => {
   const f = area?.friends[i];

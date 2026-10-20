@@ -77,6 +77,32 @@ test('a pull while my delete is still on its way does not bring the ranking back
   assert.equal(ops('star_rankings', 'delete').length, 1);
 });
 
+test('deleteRanking removes it, sends the delete (a pull meanwhile cannot bring it back) and posts keep their snapshot', async () => {
+  const other = { ...album, id: '5' };
+  Storage.setRankingRating('album', other, item('s1'), 4);
+  const post = Storage.createPost({ text: '', ranking: Storage.getRanking('album:5') });
+  await tick();
+  let release;
+  answer.star_rankings = (st) => (st.ops.some(([k]) => k === 'delete')
+    ? new Promise(r => { release = () => r({ data: null, error: null }); })
+    : { data: [{ ...row('user_me', 'album:5', 4, '2026-10-19T00:00:00Z') }], error: null });
+  const deletesBefore = ops('star_rankings', 'delete').length;
+  assert.equal(Storage.deleteRanking('album:5'), true);
+  assert.ok(!Storage.getUserRankings().some(r => r.key === 'album:5'));
+  await tick();
+  await Sync.pullNow();
+  assert.equal(Storage.getRanking('album:5'), null);
+  release();
+  await tick();
+  const del = ops('star_rankings', 'delete').slice(deletesBefore);
+  assert.equal(del.length, 1);
+  assert.ok(del[0].ops.some(([k, a]) => k === 'eq' && a[0] === 'key' && a[1] === 'album:5'));
+  const kept = Storage.getPostById(post.id);
+  assert.equal(kept.ranking.key, 'album:5');
+  assert.equal(kept.ranking.items[0].rating, 4);
+  assert.equal(Storage.deleteRanking('album:5'), false); // already gone: nothing sent
+});
+
 test('without the rankings table: no error toast, writes skipped, local ranking kept', async () => {
   answer.star_rankings = () => ({ data: null, error: { code: 'PGRST205', message: 'Could not find the table public.star_rankings' } });
   await Sync.pullNow();

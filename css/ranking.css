@@ -123,6 +123,7 @@
 .rk-entry-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rk-entry-text .ranking-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rk-entry-actions { display: flex; gap: 8px; }
+.rk-delete { min-width: 44px; padding-inline: 10px; }
 .rk-friend { width: 100%; grid-template-columns: 56px 1fr; padding: 10px 8px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .rk-friend:hover { background: var(--hover); }
 .rk-friend:focus-visible, .rk-result:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -132,7 +133,7 @@
 @media (max-width: 520px) {
   .rk-entries > li.rk-entry { grid-template-columns: 56px 1fr; }
   .rk-entry-actions { grid-column: 1 / -1; }
-  .rk-entry-actions .doodle-btn { flex: 1; }
+  .rk-entry-actions .doodle-btn:not(.rk-delete) { flex: 1; }
   /* Celular: uma coluna, capa grande (até 260px, centralizada) com título, ano e estrelas embaixo */
   .rk-grid { grid-template-columns: 1fr; }
   .rk-cell { width: 100%; max-width: 260px; justify-self: center; }

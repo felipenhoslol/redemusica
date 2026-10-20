@@ -1056,6 +1056,17 @@ export function setRankingRating(mode, subject, item, rating) {
   return null;
 }
 
+/** Removes my saved ranking; posts already published keep their own snapshot. */
+export function deleteRanking(key) {
+  const me = getActiveUserId();
+  const all = readJson(STORAGE_KEYS.RANKINGS, {});
+  if (!all[me]?.[key]) return false;
+  delete all[me][key];
+  lsSet(STORAGE_KEYS.RANKINGS, JSON.stringify(all));
+  toRemote('deleteRanking', key);
+  return true;
+}
+
 /** Server rows for `userIds`: friends are replaced wholesale; my local rankings survive when missing from the rows or newer. */
 export function mergeRemoteRankings(rows, userIds) {
   const me = getActiveUserId();

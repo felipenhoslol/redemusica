@@ -167,3 +167,18 @@ test('opening the full ranking of a post that cannot be fetched shows an error t
   byId.delete('toast-container');
   assert.deepEqual(toasts, ['Não foi possível abrir o ranking.']);
 });
+
+test('"Apagar" in Meus rankings asks first, then deletes only my saved ranking', () => {
+  storage.setRankingRating('album', { id: 'del', title: 'Disco Apagável' }, { id: 'f1', title: 'Faixa' }, 4);
+  const box = { innerHTML: '', querySelector: () => null, querySelectorAll: () => [] };
+  rankingUi.renderRankingChallenge(box);
+  assert.match(box.innerHTML, /aria-label="Apagar o ranking de Disco Apagável"/);
+  const asked = [];
+  globalThis.confirm = (msg) => { asked.push(msg); return false; };
+  window._rankDelete('album:del', null);
+  assert.ok(storage.getRanking('album:del'));
+  globalThis.confirm = () => true;
+  window._rankDelete('album:del', null);
+  assert.equal(storage.getRanking('album:del'), null);
+  assert.match(asked[0], /Apagar o ranking de Disco Apagável\? Os posts que você já publicou continuam no feed\./);
+});
