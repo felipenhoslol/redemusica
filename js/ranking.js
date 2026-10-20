@@ -4,14 +4,15 @@ import { normalize } from './musicResults.js';
 export const RANKING_MAX_ITEMS = 300;
 export const RANKING_CHALLENGE_ID = 'stars_ranking';
 
-const EDITION_SUFFIX = /\s*(\([^()]*\)|\[[^[\]]*\]| - [^-]*)$/;
+const EDITION_SUFFIX = /\s*(\([^()]*\)|\[[^[\]]*\]| - [^-()[\]]*)$/;
 // "version", "live" and "ao vivo" stay: Taylor's Version and live albums are different records.
+const LIVE_WORD = /\b(live|ao vivo)\b/;
 const EDITION_WORD = /\b(deluxe|remaster|expanded|edition|edicao|anniversary|bonus|special|especial|explicit|clean|collector|platinum)/;
 
 /** Lowercase, accent-free title with edition suffixes ("(Deluxe Edition)", "- Remastered") stripped. */
 export function editionBase(title) {
   let base = normalize(title);
-  for (let m; (m = base.match(EDITION_SUFFIX)) && EDITION_WORD.test(m[1]);) base = base.slice(0, m.index);
+  for (let m; (m = base.match(EDITION_SUFFIX)) && EDITION_WORD.test(m[1]) && !LIVE_WORD.test(m[1]);) base = base.slice(0, m.index);
   return base.trim();
 }
 
@@ -61,9 +62,9 @@ export function cleanRanking(raw) {
   const items = [];
   for (const i of Array.isArray(raw.items) ? raw.items : []) {
     if (items.length >= RANKING_MAX_ITEMS) break;
-    const n = Number(i?.rating);
+    const n = Number(i?.rating); // 0/null/missing = unrated: dropped below, never clamped up to 1 star
     const id = str(i?.id);
-    if (!Number.isFinite(n) || !id || seen.has(id)) continue;
+    if (!(n > 0) || !id || seen.has(id)) continue;
     seen.add(id);
     items.push({ id, title: str(i.title), kind: str(i.kind), year: year(i.year), released: str(i.released), artwork: url(i.artwork),
       order: Number.isFinite(i.order) ? i.order : 0, rating: Math.min(5, Math.max(1, Math.round(n * 2) / 2)) });

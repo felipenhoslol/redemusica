@@ -13,6 +13,8 @@ test('editionBase strips edition suffixes only', () => {
   assert.equal(editionBase('Acabou Chorare (Edição Especial)'), editionBase('Acabou Chorare'));
   assert.notEqual(editionBase("Fearless (Taylor's Version)"), editionBase('Fearless'));
   assert.notEqual(editionBase('MTV Unplugged in New York (Live)'), editionBase('MTV Unplugged in New York'));
+  assert.notEqual(editionBase('Rumours (Live 40th Anniversary)'), editionBase('Rumours'));
+  assert.notEqual(editionBase('Acabou Chorare (Ao Vivo - Edição Especial)'), editionBase('Acabou Chorare'));
 });
 
 test('dedupeReleases keeps the original version once', () => {
@@ -48,8 +50,8 @@ test('cleanRanking drops junk from untrusted rows', () => {
   assert.equal(r.items.length, 300);
 });
 
-test('cleanRanking clamps ratings to 1..5 in half steps', () => {
-  const r = cleanRanking({ key: 'album:2', mode: 'album', subject: { id: '2' }, items: [{ id: 'a', rating: 0.5 }, { id: 'b', rating: 'x' }] });
+test('cleanRanking clamps ratings to 1..5 in half steps and drops unrated items', () => {
+  const r = cleanRanking({ key: 'album:2', mode: 'album', subject: { id: '2' }, items: [{ id: 'a', rating: 0.5 }, { id: 'b', rating: 'x' }, { id: 'c', rating: 0 }, { id: 'd', rating: null }, { id: 'e' }] });
   assert.deepEqual(r.items.map(i => [i.id, i.rating]), [['a', 1]]);
 });
 
