@@ -67,3 +67,46 @@ test('someone with an empty showcase shows no vitrine', () => {
   profile.renderProfileView(container, 'u_ana');
   assert.doesNotMatch(container.innerHTML, /Vitrine/);
 });
+
+test('rating a release saves my ranking, and clearing the last one removes it', () => {
+  const subject = { id: '1', title: 'Daft Punk', artist: 'Daft Punk', artwork: '', year: '' };
+  const item = { id: 'd1', title: 'Discovery', kind: 'album', year: 2001, released: '2001-03-12', artwork: '', order: 0 };
+  storage.setRankingRating('artist', subject, item, 4.5);
+  assert.equal(storage.getRanking('artist:1').items[0].rating, 4.5);
+  storage.setRankingRating('artist', subject, item, 0);
+  assert.equal(storage.getRanking('artist:1'), null);
+});
+
+test('a post keeps the ranking as it was when posted', () => {
+  const subject = { id: '2', title: 'Discovery', artist: 'Daft Punk', artwork: '', year: 2001 };
+  const t = { id: 't1', title: 'One More Time', kind: 'track', year: '', released: '', artwork: '', order: 1 };
+  storage.setRankingRating('album', subject, t, 5);
+  const post = storage.createPost({ ranking: storage.getRanking('album:2') });
+  storage.setRankingRating('album', subject, t, 2);
+  assert.equal(storage.getPostById(post.id).ranking.items[0].rating, 5);
+});
+
+test('friends rankings come only from people I follow', () => {
+  storage.mergeRemoteRankings([
+    { user_id: 'u_ana', key: 'album:3', body: { key: 'album:3', mode: 'album', subject: { id: '3', title: 'A' }, items: [{ id: 'x', rating: 4 }] }, updated_at: '2026-10-19T00:00:00Z' },
+    { user_id: 'u_stranger', key: 'album:4', body: { key: 'album:4', mode: 'album', subject: { id: '4', title: 'B' }, items: [{ id: 'y', rating: 4 }] }, updated_at: '2026-10-19T00:00:00Z' }
+  ], ['u_ana', 'u_stranger']);
+  assert.deepEqual(storage.getFriendsRankings().map(f => f.userId), ['u_ana']);
+});
+
+test('mergeRemoteRankings keeps my newer local ranking', () => {
+  const me = storage.getActiveUserId();
+  const subject = { id: '5', title: 'S', artist: 'X', artwork: '', year: '' };
+  storage.setRankingRating('album', subject, { id: 'q', title: 'Q', kind: 'track', year: '', released: '', artwork: '', order: 1 }, 5);
+  storage.mergeRemoteRankings([{ user_id: me, key: 'album:5', updated_at: '2000-01-01T00:00:00Z',
+    body: { key: 'album:5', mode: 'album', subject: { id: '5', title: 'S' }, items: [{ id: 'q', rating: 1 }], updatedAt: '2000-01-01T00:00:00Z' } }], [me]);
+  assert.equal(storage.getRanking('album:5').items[0].rating, 5);
+});
+
+test('mergeRemoteRankings keeps my local rankings missing from the server, and replaces friends wholesale', () => {
+  const me = storage.getActiveUserId();
+  storage.setRankingRating('album', { id: '6', title: 'L' }, { id: 'l1', title: 'L1', kind: 'track', order: 1 }, 3);
+  storage.mergeRemoteRankings([], [me, 'u_ana']);
+  assert.equal(storage.getRanking('album:6').items[0].rating, 3);
+  assert.equal(storage.getRanking('album:3', 'u_ana'), null);
+});

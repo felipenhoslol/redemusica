@@ -1,5 +1,6 @@
 // LocalStorage state management — with follows, pins, bookmarks, notifications, reposts
 import { DEFAULT_CHALLENGES } from './questions.js';
+import { rankingKey, cleanRanking, snapshotRanking } from './ranking.js';
 
 const STORAGE_KEYS = {
   USERS: 'rmsn_users_v5',
@@ -15,6 +16,7 @@ const STORAGE_KEYS = {
   NOTIFICATIONS: 'rmsn_notifications_v5',
   BLOCKED: 'rmsn_blocked_v5',
   PLAYLISTS: 'rmsn_playlists_v5',
+  RANKINGS: 'rmsn_rankings_v1',
 };
 
 // Fresh install: just the local profile, no demo content
@@ -690,6 +692,7 @@ export function createPost(postData) {
     // Only the id is stored: the card reads the live playlist, so posts never carry a stale or heavy copy
     playlistId: postData.playlistId || null,
     poll: postData.poll || null,
+    ranking: postData.ranking ? snapshotRanking(postData.ranking) : null,
     votes: {},
     imageUrl: postData.imageUrl || (postData.images || [])[0] || '',
     images: (postData.images || []).slice(0, 4),
@@ -1011,6 +1014,62 @@ export function removeChallengeAnswer(challengeId, questionId) {
   delete answers[questionId];
   lsSet(answersKey(challengeId, userId), JSON.stringify(answers));
   publishChallengeAnswers();
+}
+
+// ──────────────────────────────────────────
+//  STAR RANKINGS — { [userId]: { [key]: Ranking } }
+// ──────────────────────────────────────────
+
+const allRankings = () => cachedJson(STORAGE_KEYS.RANKINGS, null) || {};
+const byNewest = (a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt));
+const time = (r) => Date.parse(r?.updatedAt) || 0;
+
+export function getRanking(key, userId = getActiveUserId()) {
+  return allRankings()[userId]?.[key] || null;
+}
+
+export function getUserRankings(userId = getActiveUserId()) {
+  return Object.values(allRankings()[userId] || {}).sort(byNewest);
+}
+
+export function getFriendsRankings() {
+  return getFollowing().flatMap(userId => getUserRankings(userId).map(ranking => ({ userId, ranking })))
+    .sort((a, b) => byNewest(a.ranking, b.ranking));
+}
+
+/** Upsert one item's rating in my ranking (0 removes it); an empty ranking is deleted. */
+export function setRankingRating(mode, subject, item, rating) {
+  const me = getActiveUserId();
+  const key = rankingKey(mode, subject?.id);
+  const all = readJson(STORAGE_KEYS.RANKINGS, {});
+  const mine = all[me] || {};
+  const items = (mine[key]?.items || []).filter(i => i.id !== String(item.id));
+  if (rating > 0) items.push({ ...item, rating });
+  const ranking = cleanRanking({ key, mode, subject, items, updatedAt: new Date().toISOString() });
+  if (!ranking) return null;
+  if (ranking.items.length) mine[key] = ranking;
+  else delete mine[key];
+  all[me] = mine;
+  lsSet(STORAGE_KEYS.RANKINGS, JSON.stringify(all));
+  if (ranking.items.length) { toRemote('saveRanking', ranking); return ranking; }
+  toRemote('deleteRanking', key);
+  return null;
+}
+
+/** Server rows for `userIds`: friends are replaced wholesale; my local rankings survive when missing from the rows or newer. */
+export function mergeRemoteRankings(rows, userIds) {
+  const me = getActiveUserId();
+  const all = readJson(STORAGE_KEYS.RANKINGS, {});
+  const fresh = Object.fromEntries(userIds.map(id => [id, id === me ? { ...(all[me] || {}) } : {}]));
+  for (const row of rows || []) {
+    const bucket = fresh[row?.user_id];
+    if (!bucket) continue;
+    const r = cleanRanking({ ...row.body, key: row.key, updatedAt: row.body?.updatedAt || row.updated_at });
+    if (!r || !r.items.length) continue;
+    if (row.user_id === me && time(bucket[r.key]) > time(r)) continue;
+    bucket[r.key] = r;
+  }
+  lsSet(STORAGE_KEYS.RANKINGS, JSON.stringify({ ...all, ...fresh }));
 }
 
 // ──────────────────────────────────────────
