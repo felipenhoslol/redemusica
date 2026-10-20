@@ -125,13 +125,23 @@
 .rk-choice .doodle-btn, .rk-entry-actions .doodle-btn, .rk-back { min-height: 44px; }
 .rk-choice .doodle-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .rk-pick { display: flex; flex-direction: column; gap: 6px; }
-.rk-pick[hidden] { display: none; }
+.rk-pick[hidden], .rk-pick > [hidden] { display: none; }
 .rk-results { list-style: none; margin: 0; padding: 0; }
 .rk-result { width: 100%; padding: 8px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; }
 .rk-result .ranking-cover, .rk-result-icon { width: 44px; flex-shrink: 0; }
 .rk-result-icon { display: grid; place-items: center; aspect-ratio: 1; border-radius: var(--radius-sm); background: var(--hover); color: var(--text-2); }
 .rk-result-photo { border-radius: 50%; overflow: hidden; }
 .rk-result-photo img { width: 100%; height: 100%; object-fit: cover; }
+.rk-disco-cta { color: var(--accent); font-weight: 800; }
+.rk-result-chevron { display: grid; color: var(--accent); }
+.rk-more { min-height: 44px; padding: 0 8px; }
+/* Discografia na busca de álbum: só capas para escolher, sem estrelas, então cabem mais por linha */
+.rk-disco { margin-top: 4px; }
+.rk-disco .rk-back { margin-bottom: 0; }
+.rk-disco .rk-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.rk-cell-pick { padding: 0 0 12px; border-width: 0 0 1px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: transform var(--spring-press-dur, .15s) var(--spring-press, ease); }
+.rk-cell-pick:active { transform: scale(.98); }
+.rk-cell-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
 .rk-no-results { padding: 8px; font-size: var(--fs-detail); color: var(--text-2); }
 
 .rk-entries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -155,6 +165,8 @@
   /* Celular: uma coluna, capa grande (até 260px, centralizada) com título, ano e estrelas embaixo */
   .rk-grid { grid-template-columns: 1fr; }
   .rk-cell { width: 100%; max-width: 260px; justify-self: center; }
+  .rk-disco .rk-grid { grid-template-columns: repeat(2, 1fr); }
+  .rk-disco .rk-cell { max-width: none; }
   /* Faixas: estrelas numa linha própria, embaixo do título */
   .rk-track { grid-template-columns: 3ch 1fr; row-gap: 0; padding-top: 8px; }
   .rk-track .rk-stars { grid-column: 2; }

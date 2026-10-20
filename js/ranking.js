@@ -48,6 +48,12 @@ export function albumSearchResults(albums, query = '') {
   return unique.sort((a, b) => score.get(b) - score.get(a) || (a.kind === 'single') - (b.kind === 'single'));
 }
 
+/** Album search: the artist whose name is the query (or starts with it, from 4 letters on), shown above the albums; else null. */
+export function matchingArtist(artists, query) {
+  const q = normalize(query).trim();
+  return (q && artists.find(a => { const m = titleMatch(normalize(a.name).trim(), q); return m === 3 || (m === 2 && q.length >= 4); })) || null;
+}
+
 export function groupReleases(releases) {
   const sorted = [...releases].sort(newestFirst);
   return {

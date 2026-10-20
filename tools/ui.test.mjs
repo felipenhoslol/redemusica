@@ -196,3 +196,87 @@ test('"Apagar" in Meus rankings asks first, then deletes only my saved ranking',
   assert.equal(storage.getRanking('album:del'), null);
   assert.match(asked[0], /Apagar o ranking de Disco Apagável\? Os posts que você já publicou continuam no feed\./);
 });
+
+// ── Album search in the ranking area: a fake DOM just big enough for the pick box
+function rankingArea() {
+  const list = { innerHTML: '', hidden: false, querySelectorAll: () => [],
+    insertAdjacentHTML(_, html) { this.innerHTML += html; },
+    querySelector(sel) { return sel === '.rk-more-row' && this.innerHTML.includes('rk-more-row') ? { remove: () => { list.innerHTML = list.innerHTML.replace(/<li class="rk-more-row">[\s\S]*?<\/li>/, ''); } } : null; } };
+  const disco = { innerHTML: '', hidden: true, setAttribute() {}, querySelector: () => null };
+  const bar = { hidden: false };
+  const host = { innerHTML: '' };
+  const parts = { '.search-bar': bar, '.rk-results': list, '.rk-disco': disco };
+  const pick = { hidden: true, querySelector: sel => parts[sel] };
+  const box = { innerHTML: '', querySelectorAll: () => [],
+    querySelector: sel => ({ '.rk-pick': pick, '.rk-results': list, '.rk-disco': disco, '.rk-editor-host': host,
+      '.rk-pick-input': { value: '', focus() {}, setAttribute() {} } })[sel] ?? null };
+  return { box, list, disco, bar, host };
+}
+
+const rows = (html) => (html.match(/data-flip-key="r\d+"/g) || []).length;
+const settle = () => new Promise(r => setTimeout(r, 400));
+const json = (results) => ({ ok: true, text: async () => JSON.stringify({ results }) });
+const col = (id, name, extra = {}) => ({ wrapperType: 'collection', collectionId: id, collectionName: name, artistId: 9, artistName: 'Pink Floyd', releaseDate: '1975-01-01T00:00:00Z', ...extra });
+
+test('album search: "Ver mais" shows 20 more each tap from the same results, then goes away', async () => {
+  const urls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    urls.push(url);
+    return json(url.includes('entity=album') ? Array.from({ length: 45 }, (_, i) => col(100 + i, `Disco ${i}`, { artistName: `Banda ${i}` }))
+      : url.includes('entity=musicArtist') ? [{ artistId: 9, artistName: 'Pink Floyd' }] : []);
+  };
+  try {
+    const { box, list } = rankingArea();
+    rankingUi.renderRankingChallenge(box);
+    window._rankPick('album', null);
+    window._rankSearch('pink floyd');
+    await settle();
+    assert.equal(rows(list.innerHTML), 20);
+    assert.match(list.innerHTML, /Ver discografia/);
+    assert.match(list.innerHTML, />Ver mais</);
+    const asked = urls.length;
+    window._rankMore(null);
+    assert.equal(rows(list.innerHTML), 40);
+    window._rankMore(null);
+    assert.equal(rows(list.innerHTML), 45);
+    assert.doesNotMatch(list.innerHTML, /Ver mais/);
+    assert.equal(urls.length, asked); // paging never asks iTunes again
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('album search → artist discography: covers without stars, Voltar keeps the results, a cover opens the album editor', async () => {
+  const urls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    urls.push(url);
+    if (url.includes('lookup?id=9&entity=album')) return json([{ wrapperType: 'artist', artistId: 9 }, col(1, 'Wish You Were Here'),
+      col(2, 'Wish You Were Here (Deluxe Edition)', { releaseDate: '2011-01-01T00:00:00Z' }), col(3, 'Have a Cigar - Single')]);
+    if (url.includes('lookup?id=1&entity=song')) return json([col(1, 'Wish You Were Here'), { wrapperType: 'track', trackId: 11, trackName: 'Shine On', collectionId: 1, artistName: 'Pink Floyd', trackNumber: 1, discNumber: 1 }]);
+    return json(url.includes('entity=musicArtist') ? [{ artistId: 9, artistName: 'Pink Floyd' }] : []);
+  };
+  try {
+    const { box, list, disco, bar, host } = rankingArea();
+    rankingUi.renderRankingChallenge(box);
+    window._rankPick('album', null);
+    window._rankSearch('pink floyd');
+    await settle();
+    const results = list.innerHTML;
+    await window._rankDisco(null);
+    assert.equal(disco.hidden, false);
+    assert.equal(bar.hidden, true);
+    assert.equal((disco.innerHTML.match(/rk-cell-pick/g) || []).length, 1); // the deluxe edition is the same album
+    assert.match(disco.innerHTML, /Wish You Were Here/);
+    assert.doesNotMatch(disco.innerHTML, /rk-stars|rk-half|_rankStar/);
+    assert.match(disco.innerHTML, />Voltar</);
+    window._rankDiscoBack(null);
+    assert.equal(disco.hidden, true);
+    assert.equal(list.innerHTML, results);
+    await window._rankDisco(null);
+    window._rankDiscoPick(0, null);
+    assert.match(box.innerHTML, /rk-editor-host/);
+    await settle();
+    assert.ok(urls.some(u => u.includes('lookup?id=1&entity=song')));
+    assert.match(host.innerHTML, /data-mode="album"/);
+  } finally { globalThis.fetch = realFetch; }
+});

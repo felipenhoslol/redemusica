@@ -1,7 +1,7 @@
 // Star ranking: the screen where you rate an artist's releases (grid + tabs) or an album's tracks.
 // Every tap saves (setRankingRating); posting is a separate button.
 import { lookupArtist, lookupAlbum, searchArtists, searchAlbums, searchAlbumsBySongs } from './api.js';
-import { albumSearchResults, dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
+import { albumSearchResults, matchingArtist, dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
 import { getRanking, setRankingRating, deleteRanking, createPost, getUserRankings, getFriendsRankings, getUserById } from './storage.js';
 import { popIcon, rollNumber, flip, animateSpring, reducedMotion } from './motion.js';
 import { getArtistImage } from './lastfm.js';
@@ -58,13 +58,18 @@ const cover = (art) => {
   return `<div class="ranking-cover">${src ? `<img src="${src}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</div>`;
 };
 
+// Álbuns / EPs / Singles: the editor's grid and the discography picker in album search share it
+const tabsHtml = (groups, active, handler) => `<div class="feed-filter-bar rk-tabs" role="tablist" aria-label="Tipo de lançamento">${TABS.map(([id, name]) => {
+  const count = groups[id].length;
+  return `<button type="button" role="tab" class="feed-filter-btn${active === id ? ' active' : ''}" data-tab="${id}" aria-selected="${active === id}" ${count ? '' : 'disabled'} onclick="window.${handler}('${id}', this)">${name} <span class="rk-tab-count">${count}</span></button>`;
+}).join('')}</div>`;
+
+const firstTab = (groups) => TABS.map(([id]) => id).find(id => groups[id].length);
+
 function headerHtml() {
   const n = ratedCount();
   const s = ed.subject;
-  const tabs = ed.mode === 'artist' ? `<div class="feed-filter-bar rk-tabs" role="tablist" aria-label="Tipo de lançamento">${TABS.map(([id, name]) => {
-    const count = ed.groups[id].length;
-    return `<button type="button" role="tab" class="feed-filter-btn${ed.tab === id ? ' active' : ''}" data-tab="${id}" aria-selected="${ed.tab === id}" ${count ? '' : 'disabled'} onclick="window._rankTab('${id}', this)">${name} <span class="rk-tab-count">${count}</span></button>`;
-  }).join('')}</div>` : '';
+  const tabs = ed.mode === 'artist' ? tabsHtml(ed.groups, ed.tab, '_rankTab') : '';
   return `
     <div class="rk-header">
       ${ed.mode === 'album' ? `<div class="rk-album-cover">${cover(s.artwork)}</div>` : ''}
@@ -137,7 +142,7 @@ export async function openRankingEditor(container, { mode, subject }) {
       return;
     }
     ed = { container, mode, subject: fullSubject, key: rankingKey(mode, subject.id), items, groups,
-      tab: groups ? TABS.map(([id]) => id).find(id => groups[id].length) : null };
+      tab: groups ? firstTab(groups) : null };
     renderEditor();
   } catch {
     if (token !== loadToken) return;
@@ -173,16 +178,20 @@ window._rankStar = (id, value, btn) => {
   if (hint) hint.textContent = n ? 'Salvo enquanto você dá notas' : EMPTY_HINT;
 };
 
-window._rankTab = (tab, btn) => {
-  if (!ed?.groups?.[tab]?.length || ed.tab === tab) return;
-  ed.tab = tab;
-  ed.container.querySelectorAll('.rk-tabs [role="tab"]').forEach(t => {
+function switchTab(root, tab, btn, html) {
+  root.querySelectorAll('.rk-tabs [role="tab"]').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === tab);
     t.setAttribute('aria-selected', String(t.dataset.tab === tab));
   });
   press(btn);
-  const grid = ed.container.querySelector('.rk-grid');
-  flip(grid, '.rk-cell', () => { grid.innerHTML = gridHtml(); });
+  const grid = root.querySelector('.rk-grid');
+  flip(grid, '.rk-cell', () => { grid.innerHTML = html(); });
+}
+
+window._rankTab = (tab, btn) => {
+  if (!ed?.groups?.[tab]?.length || ed.tab === tab) return;
+  ed.tab = tab;
+  switchTab(ed.container, tab, btn, gridHtml);
   lastGridCount = ed.groups[tab].length;
 };
 
@@ -203,9 +212,10 @@ window._rankPost = (btn) => {
 // CHALLENGE AREA: start a ranking, my saved rankings, the ones from people I follow
 // ──────────────────────────────────────────
 
-let area = null;      // { container, pick: 'artist'|'album'|null, results: [], friends: [] }
+let area = null;      // { container, pick: 'artist'|'album'|null, results: [], shown, artist, disco, friends: [] }
 let searchTimer = 0;
-let searchToken = 0;
+let searchToken = 0;  // also guards the discography: a slow search can't land on it, nor it on a newer search
+const ALBUM_PAGE = 20;
 
 const MODE_LABEL = { artist: 'Artista', album: 'Álbum' };
 
@@ -250,7 +260,7 @@ export function renderRankingChallenge(container) {
   ++loadToken; // an editor still loading must not land on top of this screen
   ed = null;
   const friends = getFriendsRankings();
-  area = { container, pick: null, results: [], friends };
+  area = { container, pick: null, results: [], shown: 0, artist: null, disco: null, friends };
   container.innerHTML = `
     <div class="rk-area">
       <section class="rk-section" aria-labelledby="rk-new">
@@ -261,6 +271,7 @@ export function renderRankingChallenge(container) {
         <div class="rk-pick" hidden>
           <label class="search-bar">${ICONS.search}<input type="search" class="rk-pick-input" autocomplete="off" oninput="window._rankSearch(this.value)"></label>
           <ul class="rk-results" aria-live="polite"></ul>
+          <div class="rk-editor rk-disco" hidden></div>
         </div>
       </section>
       <section class="rk-section" aria-labelledby="rk-mine" data-flip-key="mine">
@@ -295,6 +306,7 @@ window._rankPick = (mode, btn) => {
   area.pick = mode;
   area.results = [];
   const c = area.container;
+  showDisco(false);
   c.querySelectorAll('[data-pick]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pick === mode)));
   const box = c.querySelector('.rk-pick');
   if (box) glide(() => { box.hidden = false; });
@@ -307,13 +319,31 @@ window._rankPick = (mode, btn) => {
 };
 
 const resultHtml = (r, i) => `
-  <li><button type="button" class="search-row rk-result" onclick="window._rankChoose(${i})">
+  <li data-flip-key="r${i}"><button type="button" class="search-row rk-result" onclick="window._rankChoose(${i})">
     ${area.pick === 'album' ? cover(r.artwork) : `<span class="rk-result-icon rk-result-photo" data-rk-photo="${esc(r.name)}">${ICONS.music}</span>`}
     <span class="search-row-text">
       <span class="search-row-title">${esc(r.title || r.name)}</span>
       <span class="search-row-sub">${esc(area.pick === 'album' ? [r.artist, r.year].filter(Boolean).join(' · ') : r.genre)}</span>
     </span>
   </button></li>`;
+
+const moreHtml = () => area.shown < area.results.length
+  ? '<li class="rk-more-row"><button type="button" class="ranking-more rk-more" onclick="window._rankMore(this)">Ver mais</button></li>' : '';
+
+const artistRowHtml = (a) => `
+  <li data-flip-key="artist"><button type="button" class="search-row rk-result" onclick="window._rankDisco(this)">
+    <span class="rk-result-icon rk-result-photo" data-rk-photo="${esc(a.name)}">${ICONS.music}</span>
+    <span class="search-row-text">
+      <span class="search-row-title">${esc(a.name)}</span>
+      <span class="search-row-sub rk-disco-cta">Ver discografia</span>
+    </span>
+    <span class="rk-result-chevron" aria-hidden="true">${ICONS.chevronRight}</span>
+  </button></li>`;
+
+function resultsHtml() {
+  if (!area.results.length && !area.artist) return '<li class="rk-no-results">Nada encontrado</li>';
+  return (area.artist ? artistRowHtml(area.artist) : '') + area.results.slice(0, area.shown).map(resultHtml).join('') + moreHtml();
+}
 
 window._rankSearch = (query) => {
   clearTimeout(searchTimer);
@@ -324,19 +354,36 @@ window._rankSearch = (query) => {
   if (!q) { glide(() => { list.innerHTML = ''; }); return; }
   searchTimer = setTimeout(async () => {
     const mode = area.pick;
-    let results = [];
-    // 80 for 20: deluxe/explicit editions and singles used to fill the slots and push real albums out.
+    let results = [], artist = null;
+    // 80 albums: deluxe/explicit editions and singles used to fill the first page and push real albums out.
     // Song search in parallel: iTunes' album search never returns some albums (The Dark Side of the Moon); songs first, they come by popularity.
+    // Artists too: typing a band's name offers its whole discography above the albums.
     try {
-      results = mode === 'album'
-        ? albumSearchResults((await Promise.all([searchAlbumsBySongs(q).catch(() => []), searchAlbums(q, 80).catch(() => [])])).flat(), q).slice(0, 20)
-        : await searchArtists(q, 12);
+      if (mode === 'album') {
+        const [songs, albums, artists] = await Promise.all([searchAlbumsBySongs(q).catch(() => []), searchAlbums(q, 80).catch(() => []), searchArtists(q, 5).catch(() => [])]);
+        results = albumSearchResults([...songs, ...albums], q);
+        artist = matchingArtist(artists, q);
+      } else results = await searchArtists(q, 12);
     } catch { /* shown as nothing found */ }
     if (token !== searchToken || mode !== area?.pick) return;
-    area.results = results;
-    glide(() => { list.innerHTML = results.length ? results.map(resultHtml).join('') : '<li class="rk-no-results">Nada encontrado</li>'; });
+    Object.assign(area, { results, artist, shown: mode === 'album' ? ALBUM_PAGE : results.length });
+    glide(() => { list.innerHTML = resultsHtml(); });
     hydrateResultPhotos(list);
   }, 300);
+};
+
+// The next 20 of the already ranked list; the rows above stay put, the new ones spring in
+window._rankMore = (btn) => {
+  const list = area?.container.querySelector('.rk-results');
+  if (!list || area.shown >= area.results.length) return;
+  press(btn);
+  const from = area.shown;
+  area.shown = Math.min(from + ALBUM_PAGE, area.results.length);
+  flip(area.container.querySelector('.rk-area'), '.rk-section[data-flip-key], .rk-results > li[data-flip-key]', () => {
+    list.querySelector('.rk-more-row')?.remove();
+    list.insertAdjacentHTML('beforeend', area.results.slice(from, area.shown).map((r, i) => resultHtml(r, from + i)).join('') + moreHtml());
+  });
+  list.querySelector(`[data-flip-key="r${from}"] button`)?.focus({ preventScroll: true }); // the tapped button is gone: keyboard users land on the first new album
 };
 
 // iTunes has no artist photos: Deezer's come in one by one (cached) into the fixed round slot, the icon stays when there is none
@@ -351,6 +398,80 @@ function hydrateResultPhotos(list) {
     img.src = url;
   });
 }
+
+// ── Discography picker (album search → artist row): covers by Álbuns/EPs/Singles, no stars; a tap opens that album's editor
+
+function showDisco(on) {
+  const box = area?.container.querySelector('.rk-pick');
+  if (!box) return;
+  if (!on) { area.disco = null; ++searchToken; }
+  glide(() => {
+    box.querySelector('.search-bar').hidden = on;
+    box.querySelector('.rk-results').hidden = on;
+    box.querySelector('.rk-disco').hidden = !on;
+  });
+}
+
+const discoCellHtml = (r, i) => `
+  <button type="button" class="rk-cell rk-cell-pick" data-flip-key="${esc(r.id)}" onclick="window._rankDiscoPick(${i}, this)">
+    ${cover(r.artwork)}
+    <span class="rk-cell-line"><span class="ranking-title" title="${esc(r.title)}">${esc(r.title)}</span>${r.year ? `<span class="ranking-meta">· ${esc(r.year)}</span>` : ''}</span>
+  </button>`;
+
+const discoGridHtml = () => area.disco.groups[area.disco.tab].map(discoCellHtml).join('');
+
+function renderDisco(body, busy = false) {
+  const el = area.container.querySelector('.rk-disco');
+  el.setAttribute('aria-busy', String(busy));
+  el.innerHTML = `<button type="button" class="doodle-btn doodle-btn-secondary rk-back" onclick="window._rankDiscoBack(this)">Voltar</button>
+    <div class="rk-head-text"><span class="ranking-kicker">Discografia</span><span class="rk-subject">${esc(area.disco.artist.name)}</span></div>${body}`;
+  return el;
+}
+
+window._rankDisco = async (btn) => {
+  const artist = area?.disco?.artist || area?.artist; // "Tentar de novo" retries the one on screen
+  if (!artist) return;
+  press(btn);
+  clearTimeout(searchTimer);
+  const token = ++searchToken;
+  area.disco = { artist, groups: null, tab: null };
+  renderDisco(`<p class="rk-loading-text">Carregando a discografia…</p><div class="rk-grid">${'<div class="rk-cell"><div class="ranking-cover"></div></div>'.repeat(8)}</div>`, true);
+  showDisco(true);
+  try {
+    const { albums = [], singles = [] } = await lookupArtist(artist.id);
+    if (token !== searchToken) return;
+    const groups = groupReleases(dedupeReleases([...albums, ...singles]));
+    area.disco = { artist, groups, tab: firstTab(groups) };
+    if (!area.disco.tab) { renderDisco(emptyHtml('Esse artista ainda não tem lançamentos no iTunes')); return; }
+    const el = renderDisco(`${tabsHtml(groups, area.disco.tab, '_rankDiscoTab')}<div class="rk-grid">${discoGridHtml()}</div>`);
+    mountTabIndicator(el.querySelector('.rk-tabs'), { key: 'ranking-disco' });
+  } catch {
+    if (token !== searchToken) return;
+    renderDisco(`<div class="rk-state"><p>Não foi possível carregar a discografia.</p>
+      <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._rankDisco(this)">Tentar de novo</button></div>`);
+  }
+};
+
+window._rankDiscoTab = (tab, btn) => {
+  const d = area?.disco;
+  if (!d?.groups?.[tab]?.length || d.tab === tab) return;
+  d.tab = tab;
+  switchTab(area.container.querySelector('.rk-disco'), tab, btn, discoGridHtml);
+};
+
+window._rankDiscoBack = (btn) => {
+  press(btn);
+  showDisco(false);
+  area?.container.querySelector('.rk-pick-input')?.focus();
+};
+
+window._rankDiscoPick = (i, btn) => {
+  const d = area?.disco;
+  const r = d?.groups?.[d.tab]?.[i];
+  if (!r) return;
+  press(btn);
+  openInArea('album', { id: r.id, title: r.title, artist: r.artist || d.artist.name, artwork: r.artwork });
+};
 
 window._rankChoose = (i) => {
   const r = area?.results[i];

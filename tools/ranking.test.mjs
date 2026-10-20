@@ -1,7 +1,7 @@
 // Guards the star-ranking logic in js/ranking.js: run with node --test tools/ranking.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { editionBase, dedupeReleases, albumSearchResults, albumMatchScore, groupReleases, rankItems, cleanRanking, snapshotRanking, rankingKey } from '../js/ranking.js';
+import { editionBase, dedupeReleases, albumSearchResults, albumMatchScore, matchingArtist, groupReleases, rankItems, cleanRanking, snapshotRanking, rankingKey } from '../js/ranking.js';
 
 const al = (id, title, released, kind = 'album') => ({ id, title, kind, artist: 'X', artwork: `https://a/${id}.jpg`, year: Number(released.slice(0, 4)), released });
 
@@ -221,4 +221,15 @@ test('an empty ranking shows a message, no podium or list', () => {
   const html = rankingSummaryHtml(snap('artist', 0));
   assert.match(html, /Nenhuma nota ainda/);
   assert.doesNotMatch(html, /rk-sum-slot|rk-sum-row|rk-sum-avg/);
+});
+
+test('matchingArtist: the band typed as the album query gets the discography row, an album title does not', () => {
+  const artists = [{ id: '1', name: 'Pink Floyd' }, { id: '2', name: 'Radiohead' }];
+  assert.equal(matchingArtist(artists, 'pink floyd')?.id, '1');
+  assert.equal(matchingArtist(artists, 'Pink Flo')?.id, '1');
+  assert.equal(matchingArtist([{ id: '3', name: 'Björk' }], 'bjork')?.id, '3');
+  assert.equal(matchingArtist(artists, 'the dark side of the moon'), null);
+  assert.equal(matchingArtist(artists, 'ok computer'), null);
+  assert.equal(matchingArtist(artists, 'pin'), null); // 3 letters: too early to guess
+  assert.equal(matchingArtist(artists, ''), null);
 });
