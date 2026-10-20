@@ -205,12 +205,13 @@ function rankingArea() {
   const disco = { innerHTML: '', hidden: true, setAttribute() {}, querySelector: () => null };
   const bar = { hidden: false };
   const host = { innerHTML: '' };
+  const input = { value: '', focus() {}, setAttribute() {} };
   const parts = { '.search-bar': bar, '.rk-results': list, '.rk-disco': disco };
   const pick = { hidden: true, querySelector: sel => parts[sel] };
   const box = { innerHTML: '', querySelectorAll: () => [],
     querySelector: sel => ({ '.rk-pick': pick, '.rk-results': list, '.rk-disco': disco, '.rk-editor-host': host,
-      '.rk-pick-input': { value: '', focus() {}, setAttribute() {} } })[sel] ?? null };
-  return { box, list, disco, bar, host };
+      '.rk-pick-input': input })[sel] ?? null };
+  return { box, list, disco, bar, host, input };
 }
 
 const rows = (html) => (html.match(/data-flip-key="r\d+"/g) || []).length;
@@ -256,10 +257,11 @@ test('album search → artist discography: covers without stars, Voltar keeps th
     return json(url.includes('entity=musicArtist') ? [{ artistId: 9, artistName: 'Pink Floyd' }] : []);
   };
   try {
-    const { box, list, disco, bar, host } = rankingArea();
+    const { box, list, disco, bar, host, input } = rankingArea();
     rankingUi.renderRankingChallenge(box);
     window._rankPick('album', null);
-    window._rankSearch('pink floyd');
+    input.value = 'pink floyd';
+    window._rankSearch(input.value);
     await settle();
     const results = list.innerHTML;
     await window._rankDisco(null);
@@ -278,5 +280,26 @@ test('album search → artist discography: covers without stars, Voltar keeps th
     await settle();
     assert.ok(urls.some(u => u.includes('lookup?id=1&entity=song')));
     assert.match(host.innerHTML, /data-mode="album"/);
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('discography opened before the typed search ran: Voltar runs the search for what is in the box', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => json(url.includes('lookup?id=9&entity=album') ? [col(1, 'Animals')]
+    : url.includes('entity=musicArtist') ? [{ artistId: 9, artistName: 'Pink Floyd' }] : []);
+  try {
+    const { box, list, input } = rankingArea();
+    rankingUi.renderRankingChallenge(box);
+    window._rankPick('album', null);
+    input.value = 'pink floyd';
+    window._rankSearch(input.value);
+    await settle();
+    assert.match(list.innerHTML, /Ver discografia/);
+    input.value = 'wish you were here';
+    window._rankSearch(input.value); // still in the 300ms debounce when the artist row is tapped
+    await window._rankDisco(null);
+    window._rankDiscoBack(null);
+    await settle();
+    assert.doesNotMatch(list.innerHTML, /Ver discografia/); // results now belong to "wish you were here"
   } finally { globalThis.fetch = realFetch; }
 });

@@ -366,7 +366,7 @@ window._rankSearch = (query) => {
       } else results = await searchArtists(q, 12);
     } catch { /* shown as nothing found */ }
     if (token !== searchToken || mode !== area?.pick) return;
-    Object.assign(area, { results, artist, shown: mode === 'album' ? ALBUM_PAGE : results.length });
+    Object.assign(area, { query: q, results, artist, shown: mode === 'album' ? ALBUM_PAGE : results.length });
     glide(() => { list.innerHTML = resultsHtml(); });
     hydrateResultPhotos(list);
   }, 300);
@@ -462,7 +462,11 @@ window._rankDiscoTab = (tab, btn) => {
 window._rankDiscoBack = (btn) => {
   press(btn);
   showDisco(false);
-  area?.container.querySelector('.rk-pick-input')?.focus();
+  const input = area?.container.querySelector('.rk-pick-input');
+  if (!input) return;
+  input.focus();
+  // Typed then tapped the artist within the debounce: that search was dropped, run it now
+  if (input.value.trim() !== area.query) window._rankSearch(input.value);
 };
 
 window._rankDiscoPick = (i, btn) => {
