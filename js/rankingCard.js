@@ -23,6 +23,7 @@ const slot = (item, place, withCover) => `
     ${renderRatingStars(Number(item.rating) || 0, withCover ? 14 : 13)}
   </div>`;
 
+// Tapping anywhere on the card opens the full list; the button (no handler: its click bubbles here) is the keyboard path
 export function rankingPostHtml(post) {
   const r = post?.ranking;
   if (!r || typeof r !== 'object') return '';
@@ -36,7 +37,7 @@ export function rankingPostHtml(post) {
   const row = album ? '' : items.slice(3, 3 + RANKING_ROW_COUNT).map((it, i) => `
     <div class="ranking-row-item" title="${esc(it.title)}">${cover(it.artwork)}<span class="ranking-place">${i + 4}</span></div>`).join('');
   return `
-    <div class="post-ranking" data-mode="${album ? 'album' : 'artist'}">
+    <div class="post-ranking" data-mode="${album ? 'album' : 'artist'}" onclick="window._openRankingView(${jsArg(post.id)})">
       <div class="ranking-head">
         <span class="ranking-kicker">${album ? 'Ranking do álbum' : 'Ranking do artista'}</span>
         <span class="ranking-subject">${esc(r.subject?.title)}${album && r.subject?.artist ? ` · ${esc(r.subject.artist)}` : ''}</span>
@@ -44,7 +45,7 @@ export function rankingPostHtml(post) {
       ${album ? `<div class="ranking-album">${cover(r.subject?.artwork, 'ranking-album-cover')}<div class="ranking-podium">${podium}</div></div>`
         : `<div class="ranking-podium">${podium}</div>`}
       ${row ? `<div class="ranking-row">${row}</div>` : ''}
-      ${items.length > 3 ? `<button type="button" class="ranking-more" onclick="window._openRankingView(${jsArg(post.id)})">ver ranking completo (${items.length})</button>` : ''}
+      ${items.length ? `<button type="button" class="ranking-more">ver ranking completo (${items.length})</button>` : ''}
     </div>`;
 }
 

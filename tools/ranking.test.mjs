@@ -96,6 +96,15 @@ test('a ranking with one rated item still renders, without an empty podium slot'
   assert.equal((rankingPostHtml({ id: 'p3', ranking: snap('artist', 1) }).match(/class="ranking-podium-slot/g) || []).length, 1);
 });
 
+test('every ranking post opens the full list: link always shown, the whole card is tappable', () => {
+  for (const [mode, n] of [['artist', 1], ['artist', 3], ['album', 2], ['album', 9]]) {
+    const html = rankingPostHtml({ id: 'px', ranking: snap(mode, n) });
+    assert.ok(html.includes(`ver ranking completo (${n})`));
+    assert.match(html, /class="post-ranking"[^>]*onclick="window\._openRankingView\(&quot;px&quot;\)"/);
+    assert.equal((html.match(/_openRankingView/g) || []).length, 1); // the button bubbles: one open per tap
+  }
+});
+
 test('a post without ranking renders nothing', () => assert.equal(rankingPostHtml({ id: 'p4' }), ''));
 
 test('snapshot text is escaped and bad cover URLs are dropped', () => {

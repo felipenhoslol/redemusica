@@ -1,6 +1,7 @@
 /* Ranking por estrelas: card do pódio no feed (js/rankingCard.js) e a lista completa no modal */
 
-.post-ranking { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 4px; }
+.post-ranking { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 4px; cursor: pointer; transition: transform var(--spring-press-dur, .15s) var(--spring-press, ease); }
+.post-ranking:active { transform: scale(.99); }
 
 .ranking-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ranking-kicker { font-size: var(--fs-detail); color: var(--text-2); }
