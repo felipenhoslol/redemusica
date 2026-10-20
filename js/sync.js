@@ -29,7 +29,7 @@ let profileDirty = false;   // your own profile has local changes not on the ser
 let profileTimer = null;
 let warnedProfileSql = false;
 let votesTable = true;      // false until supabase/004_polls.sql has been run
-let rankingsTable = true;   // false until supabase/014_rankings.sql has been run
+let rankingsTable = true;   // false until supabase/014_rankings.sql has been run (tabela star_rankings)
 let commentLikesTable = true; // false until supabase/005_comment_likes.sql has been run
 let presenceOn = true;      // false until supabase/006_presence.sql has been run
 let presenceTimer = null;
@@ -576,7 +576,7 @@ export function pullNow() {
       must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
       fetchProfiles(db, q => (fullProfiles ? q : q.gt('updated_at', profilesSince)).eq('banned', false).limit(1000)),
       fetchPresence(db),
-      rankingsTable ? must(db.from('rankings').select('user_id, key, body, updated_at').in('user_id', rankingIds)) : null
+      rankingsTable ? must(db.from('star_rankings').select('user_id, key, body, updated_at').in('user_id', rankingIds)) : null
     ]);
     const rows = postsRes.status === 'fulfilled' ? postsRes.value : null;
     const follows = followsRes.status === 'fulfilled' ? followsRes.value : null;
@@ -1001,11 +1001,11 @@ function rankingWrite(key, ranking, task) {
 
 const hooks = {
   saveRanking(ranking) {
-    rankingWrite(ranking.key, ranking, db => db.from('rankings')
+    rankingWrite(ranking.key, ranking, db => db.from('star_rankings')
       .upsert({ user_id: me, key: ranking.key, body: ranking, updated_at: ranking.updatedAt }, { onConflict: 'user_id,key' }));
   },
   deleteRanking(key) {
-    rankingWrite(key, null, db => db.from('rankings').delete().eq('user_id', me).eq('key', key));
+    rankingWrite(key, null, db => db.from('star_rankings').delete().eq('user_id', me).eq('key', key));
   },
   vote(postId, option) {
     if (!votesTable) return;

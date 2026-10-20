@@ -43,9 +43,9 @@ const errors = [];
 const ops = (table, op) => calls.filter(c => c.table === table && c.ops.some(([k]) => k === op));
 
 test('pull brings friends\' rankings from the rankings table', async () => {
-  answer.rankings = () => ({ data: [row('u_ana', 'album:1', 4, '2026-10-01T00:00:00Z')], error: null });
+  answer.star_rankings = () => ({ data: [row('u_ana', 'album:1', 4, '2026-10-01T00:00:00Z')], error: null });
   await Sync.startSync('user_me', { onError: m => errors.push(m) });
-  const sel = ops('rankings', 'select').at(-1);
+  const sel = ops('star_rankings', 'select').at(-1);
   assert.deepEqual(sel.ops.find(([k]) => k === 'in')[1], ['user_id', ['user_me', 'u_ana']]);
   assert.equal(Storage.getRanking('album:1', 'u_ana').items[0].rating, 4);
 });
@@ -53,7 +53,7 @@ test('pull brings friends\' rankings from the rankings table', async () => {
 test('a save goes up as an upsert of the ranking body', async () => {
   Storage.setRankingRating('album', album, item('s1'), 3);
   await tick();
-  const up = ops('rankings', 'upsert').at(-1);
+  const up = ops('star_rankings', 'upsert').at(-1);
   const [payload, opts] = up.ops.find(([k]) => k === 'upsert')[1];
   assert.equal(payload.key, 'album:1');
   assert.equal(payload.user_id, 'user_me');
@@ -64,7 +64,7 @@ test('a save goes up as an upsert of the ranking body', async () => {
 
 test('a pull while my delete is still on its way does not bring the ranking back', async () => {
   let release;
-  answer.rankings = (st) => (st.ops.some(([k]) => k === 'delete')
+  answer.star_rankings = (st) => (st.ops.some(([k]) => k === 'delete')
     ? new Promise(r => { release = () => r({ data: null, error: null }); })
     : { data: [row('user_me', 'album:1', 3, '2026-10-19T00:00:00Z')], error: null });
   Storage.setRankingRating('album', album, item('s1'), 0); // empties it → deleteRanking
@@ -74,16 +74,16 @@ test('a pull while my delete is still on its way does not bring the ranking back
   assert.equal(Storage.getRanking('album:1'), null);
   release();
   await tick();
-  assert.equal(ops('rankings', 'delete').length, 1);
+  assert.equal(ops('star_rankings', 'delete').length, 1);
 });
 
 test('without the rankings table: no error toast, writes skipped, local ranking kept', async () => {
-  answer.rankings = () => ({ data: null, error: { code: 'PGRST205', message: 'Could not find the table public.rankings' } });
+  answer.star_rankings = () => ({ data: null, error: { code: 'PGRST205', message: 'Could not find the table public.star_rankings' } });
   await Sync.pullNow();
   const before = calls.length;
   assert.ok(Storage.setRankingRating('album', album, item('s2'), 5));
   await tick();
-  assert.equal(calls.slice(before).filter(c => c.table === 'rankings').length, 0);
+  assert.equal(calls.slice(before).filter(c => c.table === 'star_rankings').length, 0);
   assert.equal(Storage.getRanking('album:1').items[0].rating, 5);
   assert.deepEqual(errors, []);
 });
