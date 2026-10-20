@@ -1,7 +1,7 @@
 // Guards the star-ranking logic in js/ranking.js: run with node --test tools/ranking.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { editionBase, dedupeReleases, albumSearchResults, groupReleases, rankItems, cleanRanking, snapshotRanking, rankingKey } from '../js/ranking.js';
+import { editionBase, dedupeReleases, albumSearchResults, albumMatchScore, groupReleases, rankItems, cleanRanking, snapshotRanking, rankingKey } from '../js/ranking.js';
 
 const al = (id, title, released, kind = 'album') => ({ id, title, kind, artist: 'X', artwork: `https://a/${id}.jpg`, year: Number(released.slice(0, 4)), released });
 
@@ -123,6 +123,28 @@ test('albumSearchResults: one edition per artist, other artists kept, singles la
     r('2', '1989 (Deluxe Edition)', 'Taylor Swift', '2014-11-03'), r('3', '1989', 'Taylor Swift', '2014-10-27'),
     r('4', '1989', 'Ryan Adams', '2015-09-21'), r('5', "1989 (Taylor's Version)", 'Taylor Swift', '2023-10-27')]);
   assert.deepEqual(out.map(a => a.id), ['3', '4', '5', '1']);
+});
+
+test('albumSearchResults with a query: title match first, editions merged, then albums before singles', () => {
+  const r = (id, title, artist, released, kind = 'album') => ({ id, title, artist, kind, released });
+  const list = [
+    r('1', 'The Dark Side of the Moon', 'Chimera', '2020-01-01', 'single'),
+    r('2', 'Metamorphosis', 'The Dark Side of the Moon', '2022-01-01'),
+    r('3', 'The Dark Side of the Moon (50th Anniversary) [Remastered]', 'Pink Floyd', '2023-03-24'),
+    r('4', 'The Dark Side of the Moon', 'Pink Floyd', '1973-03-01'),
+    r('5', 'Dub Side of the Moon', 'Easy Star All-Stars', '2003-01-01')];
+  assert.deepEqual(albumSearchResults(list, 'the dark side of the moon').map(a => a.id), ['4', '1', '2', '5']);
+});
+
+test('albumMatchScore: title + artist typed together, accents and case ignored', () => {
+  const a = { title: 'For the Rest of Your Life', artist: 'twikipedia' };
+  assert.equal(albumMatchScore(a, 'for the rest of your life'), 3);
+  assert.equal(albumMatchScore(a, 'For the rest of your life twikipedia'), 3.5);
+  assert.equal(albumMatchScore(a, 'twikipedia for the rest'), 2.5);
+  assert.equal(albumMatchScore({ title: 'Malásia', artist: 'Djavan' }, 'djavan malasia'), 3.5);
+  assert.equal(albumMatchScore(a, 'radiohead'), 0);
+  const out = albumSearchResults([{ id: '1', title: 'Unfiltered', artist: 'X', kind: 'album' }, { id: '2', ...a, kind: 'album' }], 'for the rest of your life twikipedia');
+  assert.equal(out[0].id, '2');
 });
 
 // ── Summary screen (rankingSummaryHtml): replaces the old full list everywhere

@@ -171,6 +171,15 @@ export async function searchAlbums(query, limit = 24) {
   return (data?.results || []).filter(r => r.collectionId).map(toAlbum);
 }
 
+/** Albums of the songs that match: iTunes' album search misses some (Pink Floyd's The Dark Side of the Moon, small artists' records). */
+export async function searchAlbumsBySongs(query, limit = 100) {
+  if (!query?.trim()) return [];
+  const data = await fetchItunesData(query, limit, 'song');
+  const seen = new Set();
+  return (data?.results || []).filter(r => r.collectionId && !seen.has(r.collectionId) && seen.add(r.collectionId))
+    .map(r => toAlbum({ ...r, artistName: r.collectionArtistName || r.artistName }));
+}
+
 /** An artist's most popular songs, albums and singles/EPs (the whole catalog, not just the first 24). */
 const ITUNES_LOOKUP_MAX = 200;
 export const RECENT_LOOKUP_TIMEOUT_MS = 4000;

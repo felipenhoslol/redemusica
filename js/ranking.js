@@ -30,10 +30,22 @@ export function dedupeReleases(releases, keyOf = (r) => `${r.kind}|${editionBase
   return [...kept.values()];
 }
 
-/** Album search for a ranking: editions (deluxe, explicit/clean) once per artist, albums and EPs before singles. */
-export function albumSearchResults(albums) {
+const titleMatch = (base, q) => !q ? 0 : base === q ? 3 : base.startsWith(q) ? 2 : base.includes(q) ? 1 : 0;
+
+/** How well a release answers the query: title exact > starts with > contains; "title artist" typed together counts too. */
+export function albumMatchScore(album, query) {
+  const q = normalize(query).trim();
+  const base = editionBase(album.title);
+  const artist = normalize(album.artist).trim();
+  const withArtist = artist && q.includes(artist) ? titleMatch(base, q.replace(artist, ' ').replace(/\s+/g, ' ').trim()) : 0;
+  return Math.max(titleMatch(base, q), withArtist) + (withArtist ? 0.5 : 0);
+}
+
+/** Album search for a ranking: editions (deluxe, explicit/clean) once per artist, best title match first, then albums and EPs before singles. */
+export function albumSearchResults(albums, query = '') {
   const unique = dedupeReleases(albums, (a) => `${a.kind}|${normalize(a.artist)}|${editionBase(a.title)}`);
-  return [...unique.filter(a => a.kind !== 'single'), ...unique.filter(a => a.kind === 'single')];
+  const score = new Map(unique.map(a => [a, albumMatchScore(a, query)]));
+  return unique.sort((a, b) => score.get(b) - score.get(a) || (a.kind === 'single') - (b.kind === 'single'));
 }
 
 export function groupReleases(releases) {
