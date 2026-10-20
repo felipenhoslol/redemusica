@@ -115,3 +115,14 @@ test('tapping a ranking card does not open the post', async () => {
   const { POST_TAP_IGNORE } = await import('../js/feed.js');
   assert.match(POST_TAP_IGNORE, /\.post-ranking/);
 });
+
+const rankingUi = await import('../js/rankingUi.js'); // real import: node --check misses broken modules
+
+test('tapping the same star value again clears the rating', () => {
+  assert.equal(rankingUi.rateFromStarTap(3.5, 3.5), 0);
+  assert.equal(rankingUi.rateFromStarTap(3.5, 4), 4);
+});
+
+test('posting an empty ranking is refused', () => {
+  assert.equal(rankingUi.postRanking('artist:nobody'), null);
+});

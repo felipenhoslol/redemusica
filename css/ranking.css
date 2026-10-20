@@ -43,3 +43,52 @@
 .ranking-list-text { display: flex; flex-direction: column; min-width: 0; }
 .ranking-meta { font-size: var(--fs-detail); color: var(--text-2); }
 .ranking-empty { color: var(--text-2); font-size: var(--fs-text); }
+
+/* Tela de dar notas (js/rankingUi.js) */
+.rk-editor { display: flex; flex-direction: column; gap: 14px; }
+.rk-header { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.rk-editor[data-mode="album"] .rk-header { grid-template-columns: minmax(96px, 30%) 1fr; align-items: end; }
+.rk-editor[data-mode="album"] .rk-header > :not(.rk-album-cover):not(.rk-head-text) { grid-column: 1 / -1; }
+.rk-head-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rk-subject { font-size: var(--fs-title); font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rk-count { margin-right: auto; font-size: var(--fs-detail); color: var(--text-2); }
+.rk-count-n { display: inline-block; min-width: 2ch; text-align: right; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.rk-actions .doodle-btn { min-height: 44px; }
+.rk-actions .doodle-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+/* Uma linha só: trocar o texto não muda a altura do cabeçalho */
+.rk-hint { margin: 0; font-size: var(--fs-detail); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.rk-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--line); }
+.rk-tab { min-height: 44px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-2); font: inherit; font-size: var(--fs-text); font-weight: 800; cursor: pointer; }
+.rk-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.rk-tab:disabled { opacity: .4; cursor: default; }
+.rk-tab-count { font-size: var(--fs-detail); font-weight: 400; font-variant-numeric: tabular-nums; }
+
+.rk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 12px; }
+.rk-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rk-cell .ranking-meta { min-height: 1.3em; }
+
+/* Estrelas: 44px de altura de toque; cada estrela tem metade esquerda (.5) e direita (inteira) */
+.rk-stars { display: grid; grid-template-columns: repeat(5, 1fr); max-width: 220px; }
+.rk-star { position: relative; display: flex; align-items: center; justify-content: center; min-height: 44px; line-height: 0; }
+.rk-star svg { pointer-events: none; }
+.rk-half { position: absolute; top: 0; bottom: 0; width: 50%; padding: 0; border: 0; background: none; cursor: pointer; }
+.rk-left { left: 0; }
+.rk-right { right: 0; }
+.rk-whole { left: 0; right: 0; width: auto; }
+.rk-half:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); }
+
+.rk-tracks { list-style: none; margin: 0; padding: 0; }
+.rk-track { display: grid; grid-template-columns: 3ch 1fr minmax(150px, 200px); align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
+.rk-track:last-child { border-bottom: 0; }
+.rk-track .ranking-place { text-align: right; }
+
+.rk-loading-text { margin: 0; font-size: var(--fs-detail); color: var(--text-2); }
+.rk-editor[aria-busy="true"] .ranking-cover { animation: rk-pulse 1.2s ease-in-out infinite alternate; }
+@keyframes rk-pulse { to { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .rk-editor[aria-busy="true"] .ranking-cover { animation: none; } }
+
+.rk-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 16px; text-align: center; color: var(--text-2); font-size: var(--fs-text); }
+.rk-state p { margin: 0; }
+.rk-state .cat { width: 72px; height: 72px; }
