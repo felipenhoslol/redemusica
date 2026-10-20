@@ -65,12 +65,14 @@
 .rk-tab:disabled { opacity: .4; cursor: default; }
 .rk-tab-count { font-size: var(--fs-detail); font-weight: 400; font-variant-numeric: tabular-nums; }
 
-.rk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 12px; }
+/* Células de ≥240px: cada meia estrela fica com ≥24px de largura (WCAG 2.5.8) */
+.rk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px 12px; }
 .rk-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .rk-cell .ranking-meta { min-height: 1.3em; }
 
 /* Estrelas: 44px de altura de toque; cada estrela tem metade esquerda (.5) e direita (inteira) */
-.rk-stars { display: grid; grid-template-columns: repeat(5, 1fr); max-width: 220px; }
+/* 240–260px de largura: cada metade (1/10 da linha) tem 24–26px */
+.rk-stars { display: grid; grid-template-columns: repeat(5, 1fr); width: 100%; max-width: 260px; }
 .rk-star { position: relative; display: flex; align-items: center; justify-content: center; min-height: 44px; line-height: 0; }
 .rk-star svg { pointer-events: none; }
 .rk-half { position: absolute; top: 0; bottom: 0; width: 50%; padding: 0; border: 0; background: none; cursor: pointer; }
@@ -80,7 +82,7 @@
 .rk-half:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); }
 
 .rk-tracks { list-style: none; margin: 0; padding: 0; }
-.rk-track { display: grid; grid-template-columns: 3ch 1fr minmax(150px, 200px); align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
+.rk-track { display: grid; grid-template-columns: 3ch 1fr minmax(240px, 260px); align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .rk-track:last-child { border-bottom: 0; }
 .rk-track .ranking-place { text-align: right; }
 
@@ -125,4 +127,12 @@
   .rk-entries > li.rk-entry { grid-template-columns: 56px 1fr; }
   .rk-entry-actions { grid-column: 1 / -1; }
   .rk-entry-actions .doodle-btn { flex: 1; }
+  /* Celular: um lançamento por linha, capa quadrada pequena ao lado do título e estrelas na largura toda */
+  .rk-grid { grid-template-columns: 1fr; gap: 12px; }
+  .rk-cell { display: grid; grid-template-columns: 72px 1fr; grid-auto-rows: min-content; column-gap: 12px; row-gap: 2px; }
+  .rk-cell > .ranking-cover { grid-row: 1 / span 3; }
+  .rk-cell > :not(.ranking-cover) { grid-column: 2; }
+  /* Faixas: estrelas numa linha própria, embaixo do título */
+  .rk-track { grid-template-columns: 3ch 1fr; row-gap: 0; padding-top: 8px; }
+  .rk-track .rk-stars { grid-column: 2; }
 }

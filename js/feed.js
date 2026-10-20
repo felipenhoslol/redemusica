@@ -1509,7 +1509,11 @@ window._openPostView = async (postId, opts = {}) => {
 // links, buttons, pictures, songs, polls and comments keep doing their own thing, and selecting text doesn't open it
 export const POST_TAP_IGNORE = 'a, button, input, textarea, label, img, video, [onclick], [role="button"], .mention-link, '
   + '.post-attached-song, .post-attached-playlist, .post-poll, .post-ranking, .post-comments-section, .rich-link-card';
-window._openRankingView = async (postId) => openRankingView((Storage.getPostById(postId) || await fetchPostById(postId))?.ranking);
+window._openRankingView = async (postId) => {
+  const ranking = await Promise.resolve(Storage.getPostById(postId) || fetchPostById(postId)).then(p => p?.ranking, () => null);
+  if (ranking) openRankingView(ranking);
+  else (await import('./ui.js')).showToast('Não foi possível abrir o ranking.');
+};
 document.addEventListener('click', (e) => {
   if (!isPhoneLayout()) return;
   const card = e.target.closest('.post-card');

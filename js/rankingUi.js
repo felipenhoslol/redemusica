@@ -202,7 +202,7 @@ const myRowHtml = (r) => `
     <div class="rk-entry-text">
       <span class="ranking-title">${esc(r.subject?.title)}</span>
       <span class="ranking-meta">${metaLine(r)}</span>
-      <span class="ranking-meta">${r.items.length} com nota</span>
+      <span class="ranking-meta">${r.items?.length || 0} com nota</span>
     </div>
     <div class="rk-entry-actions">
       <button type="button" class="doodle-btn doodle-btn-secondary" onclick="window._rankEdit(${jsArg(r.key)}, this)">Editar</button>
@@ -243,11 +243,11 @@ export function renderRankingChallenge(container) {
           <ul class="rk-results" aria-live="polite"></ul>
         </div>
       </section>
-      <section class="rk-section" aria-labelledby="rk-mine">
+      <section class="rk-section" aria-labelledby="rk-mine" data-flip-key="mine">
         <h2 class="rk-section-title" id="rk-mine">Meus rankings</h2>
         ${listOrEmpty(getUserRankings().map(myRowHtml), 'Você ainda não fez nenhum ranking')}
       </section>
-      <section class="rk-section" aria-labelledby="rk-friends">
+      <section class="rk-section" aria-labelledby="rk-friends" data-flip-key="friends">
         <h2 class="rk-section-title" id="rk-friends">Amigos</h2>
         ${listOrEmpty(friends.map(friendRowHtml), 'Ninguém que você segue fez um ranking ainda')}
       </section>
@@ -259,12 +259,15 @@ export function renderRankingChallenge(container) {
 /** Editor inside the challenge area, with a way back to the lists (which then show the new ratings). */
 function openInArea(mode, subject) {
   const { container } = area;
-  container.innerHTML = `<button type="button" class="doodle-btn doodle-btn-secondary rk-back" onclick="window._rankBack()">Voltar</button><div class="rk-editor-host"></div>`;
+  container.innerHTML = `<button type="button" class="doodle-btn doodle-btn-secondary rk-back" onclick="window._rankBack(this)">Voltar</button><div class="rk-editor-host"></div>`;
   window.scrollTo?.({ top: 0 });
   return openRankingEditor(container.querySelector('.rk-editor-host'), { mode, subject });
 }
 
-window._rankBack = () => { if (area) renderRankingChallenge(area.container); };
+window._rankBack = (btn) => { if (!area) return; press(btn); renderRankingChallenge(area.container); };
+
+// The pick box and its results grow above "Meus rankings"/"Amigos": those glide down instead of jumping
+const glide = (mutate) => flip(area?.container.querySelector('.rk-area'), '.rk-section[data-flip-key]', mutate);
 
 window._rankPick = (mode, btn) => {
   if (!area) return;
@@ -274,7 +277,7 @@ window._rankPick = (mode, btn) => {
   const c = area.container;
   c.querySelectorAll('[data-pick]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pick === mode)));
   const box = c.querySelector('.rk-pick');
-  if (box) box.hidden = false;
+  if (box) glide(() => { box.hidden = false; });
   const input = c.querySelector('.rk-pick-input');
   if (!input) return;
   input.placeholder = mode === 'artist' ? 'Buscar artista' : 'Buscar álbum';
@@ -298,14 +301,14 @@ window._rankSearch = (query) => {
   if (!list) return;
   const q = String(query || '').trim();
   const token = ++searchToken;
-  if (!q) { list.innerHTML = ''; return; }
+  if (!q) { glide(() => { list.innerHTML = ''; }); return; }
   searchTimer = setTimeout(async () => {
     const mode = area.pick;
     let results = [];
     try { results = await (mode === 'album' ? searchAlbums(q, 12) : searchArtists(q, 12)); } catch { /* shown as nothing found */ }
     if (token !== searchToken || mode !== area?.pick) return;
     area.results = results;
-    list.innerHTML = results.length ? results.map(resultHtml).join('') : '<li class="rk-no-results">Nada encontrado</li>';
+    glide(() => { list.innerHTML = results.length ? results.map(resultHtml).join('') : '<li class="rk-no-results">Nada encontrado</li>'; });
   }, 300);
 };
 

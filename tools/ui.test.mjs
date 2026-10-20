@@ -146,3 +146,24 @@ test('the ranking area lists my rankings and the ones from people I follow', () 
   assert.match(box.innerHTML, /ana/);
   assert.match(box.innerHTML, /Disco da Ana/);
 });
+
+test('a saved ranking without items still renders in "Meus rankings"', () => {
+  const all = JSON.parse(store.get('rmsn_rankings_v1') || '{}');
+  all.user_me = { ...all.user_me, 'artist:quebrado': { key: 'artist:quebrado', mode: 'artist', subject: { id: 'quebrado', title: 'Sem Itens' } } };
+  store.set('rmsn_rankings_v1', JSON.stringify(all));
+  // Any ranking write re-reads storage and drops the parsed cache
+  storage.setRankingRating('album', { id: 'tmp' }, { id: 'x', title: 'x' }, 1);
+  storage.setRankingRating('album', { id: 'tmp' }, { id: 'x', title: 'x' }, 0);
+  const box = { innerHTML: '', querySelector: () => null, querySelectorAll: () => [] };
+  rankingUi.renderRankingChallenge(box);
+  assert.match(box.innerHTML, /Sem Itens/);
+  assert.match(box.innerHTML, /0 com nota/);
+});
+
+test('opening the full ranking of a post that cannot be fetched shows an error toast', async () => {
+  const toasts = [];
+  byId.set('toast-container', { appendChild: t => toasts.push(t.textContent) });
+  await window._openRankingView('post-que-nao-existe');
+  byId.delete('toast-container');
+  assert.deepEqual(toasts, ['Não foi possível abrir o ranking.']);
+});
