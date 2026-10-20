@@ -1,7 +1,7 @@
 // Star ranking: the screen where you rate an artist's releases (grid + tabs) or an album's tracks.
 // Every tap saves (setRankingRating); posting is a separate button.
 import { lookupArtist, lookupAlbum, searchArtists, searchAlbums } from './api.js';
-import { dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
+import { albumSearchResults, dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
 import { getRanking, setRankingRating, deleteRanking, createPost, getUserRankings, getFriendsRankings, getUserById } from './storage.js';
 import { popIcon, rollNumber, flip, animateSpring, reducedMotion } from './motion.js';
 import { getArtistImage } from './lastfm.js';
@@ -314,7 +314,8 @@ window._rankSearch = (query) => {
   searchTimer = setTimeout(async () => {
     const mode = area.pick;
     let results = [];
-    try { results = await (mode === 'album' ? searchAlbums(q, 12) : searchArtists(q, 12)); } catch { /* shown as nothing found */ }
+    // 80 for 20: deluxe/explicit editions and singles used to fill the slots and push real albums out
+    try { results = mode === 'album' ? albumSearchResults(await searchAlbums(q, 80)).slice(0, 20) : await searchArtists(q, 12); } catch { /* shown as nothing found */ }
     if (token !== searchToken || mode !== area?.pick) return;
     area.results = results;
     glide(() => { list.innerHTML = results.length ? results.map(resultHtml).join('') : '<li class="rk-no-results">Nada encontrado</li>'; });

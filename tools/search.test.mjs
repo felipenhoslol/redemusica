@@ -46,3 +46,22 @@ test('relevantArtists matches names written without spaces or punctuation', () =
 test('relevantArtists keeps iTunes first guess when nothing matches (misspelled query)', () => {
   assert.deepEqual(relevantArtists([{ id: 1, name: 'The Weeknd' }, { id: 2, name: 'Drake' }], 'the weekend').map(a => a.name), ['The Weeknd']);
 });
+
+test('lookupArtist merges the newest releases when iTunes caps the catalog at 200', async () => {
+  const { lookupArtist } = await import('../js/api.js');
+  const col = (id, name, artistId = 1) => ({ wrapperType: 'collection', collectionId: id, collectionName: name, artistId, artistName: 'A', releaseDate: '2020-01-01T00:00:00Z' });
+  const full = Array.from({ length: 200 }, (_, i) => col(i, `Old ${i} - Single`));
+  const urls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    urls.push(url);
+    const results = url.includes('entity=song') ? [] : url.includes('sort=recent') ? [col(0, 'Old 0 - Single'), col(999, 'New Album')] : full;
+    return { ok: true, text: async () => JSON.stringify({ results }) };
+  };
+  try {
+    const { albums, singles } = await lookupArtist('1');
+    assert.deepEqual(albums.map(a => a.title), ['New Album']);
+    assert.equal(singles.length, 200);
+    assert.equal(urls.filter(u => u.includes('sort=recent')).length, 1);
+  } finally { globalThis.fetch = realFetch; }
+});

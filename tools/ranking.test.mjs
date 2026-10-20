@@ -1,7 +1,7 @@
 // Guards the star-ranking logic in js/ranking.js: run with node --test tools/ranking.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { editionBase, dedupeReleases, groupReleases, rankItems, cleanRanking, snapshotRanking, rankingKey } from '../js/ranking.js';
+import { editionBase, dedupeReleases, albumSearchResults, groupReleases, rankItems, cleanRanking, snapshotRanking, rankingKey } from '../js/ranking.js';
 
 const al = (id, title, released, kind = 'album') => ({ id, title, kind, artist: 'X', artwork: `https://a/${id}.jpg`, year: Number(released.slice(0, 4)), released });
 
@@ -105,4 +105,13 @@ test('snapshot text is escaped and bad cover URLs are dropped', () => {
   const html = rankingPostHtml({ id: 'p5', ranking: s });
   assert.doesNotMatch(html, /<img src=x/);
   assert.doesNotMatch(html, /javascript:/);
+});
+
+test('albumSearchResults: one edition per artist, other artists kept, singles last', () => {
+  const r = (id, title, artist, released, kind = 'album') => ({ id, title, artist, kind, released });
+  const out = albumSearchResults([
+    r('1', 'Ok Computer', 'Lemaitre', '2020-01-01', 'single'),
+    r('2', '1989 (Deluxe Edition)', 'Taylor Swift', '2014-11-03'), r('3', '1989', 'Taylor Swift', '2014-10-27'),
+    r('4', '1989', 'Ryan Adams', '2015-09-21'), r('5', "1989 (Taylor's Version)", 'Taylor Swift', '2023-10-27')]);
+  assert.deepEqual(out.map(a => a.id), ['3', '4', '5', '1']);
 });

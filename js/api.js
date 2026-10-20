@@ -172,15 +172,30 @@ export async function searchAlbums(query, limit = 24) {
 }
 
 /** An artist's most popular songs, albums and singles/EPs (the whole catalog, not just the first 24). */
+const ITUNES_LOOKUP_MAX = 200;
+
+// iTunes lookup stops at 200 releases, counting ones the artist is only featured on: big catalogs
+// (Taylor Swift, Anitta) lost their newest singles/EPs. When the first page is full, the newest 200 are merged in.
+async function lookupReleases(artistId) {
+  const url = `https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=album&limit=${ITUNES_LOOKUP_MAX}&country=BR`;
+  const first = (await fetchItunesUrl(url))?.results || [];
+  const releases = first.filter(r => r.wrapperType === 'collection');
+  if (releases.length < ITUNES_LOOKUP_MAX) return releases;
+  const seen = new Set(releases.map(r => r.collectionId));
+  const recent = ((await fetchItunesUrl(`${url}&sort=recent`))?.results || [])
+    .filter(r => r.wrapperType === 'collection' && !seen.has(r.collectionId));
+  return [...releases, ...recent];
+}
+
 export async function lookupArtist(artistId) {
   const [songs, albums] = await Promise.all([
     fetchItunesUrl(`https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=song&limit=25&country=BR`),
-    fetchItunesUrl(`https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=album&limit=200&country=BR`)
+    lookupReleases(artistId)
   ]);
   return {
     songs: dedupeTracks((songs?.results || []).filter(r => r.wrapperType === 'track').map(toTrack)),
     // Lookup also lists other artists' releases they appear on ("Starboy (feat. Daft Punk)"): keep only theirs
-    ...organizeAlbums((albums?.results || []).filter(r => r.wrapperType === 'collection' && String(r.artistId) === String(artistId)).map(toAlbum))
+    ...organizeAlbums(albums.filter(r => r.wrapperType === 'collection' && String(r.artistId) === String(artistId)).map(toAlbum))
   };
 }
 

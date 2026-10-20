@@ -20,14 +20,20 @@ const byId = (a, b) => String(a.id).localeCompare(String(b.id), undefined, { num
 const newestFirst = (a, b) => String(b.released || b.year || '').localeCompare(String(a.released || a.year || ''));
 
 /** One release per kind + edition-free title: the earliest released (then smallest id) wins. */
-export function dedupeReleases(releases) {
+export function dedupeReleases(releases, keyOf = (r) => `${r.kind}|${editionBase(r.title)}`) {
   const kept = new Map();
   for (const r of releases) {
-    const key = `${r.kind}|${editionBase(r.title)}`;
+    const key = keyOf(r);
     const old = kept.get(key);
     if (!old || String(r.released || '').localeCompare(String(old.released || '')) < 0 || (r.released === old.released && byId(r, old) < 0)) kept.set(key, r);
   }
   return [...kept.values()];
+}
+
+/** Album search for a ranking: editions (deluxe, explicit/clean) once per artist, albums and EPs before singles. */
+export function albumSearchResults(albums) {
+  const unique = dedupeReleases(albums, (a) => `${a.kind}|${normalize(a.artist)}|${editionBase(a.title)}`);
+  return [...unique.filter(a => a.kind !== 'single'), ...unique.filter(a => a.kind === 'single')];
 }
 
 export function groupReleases(releases) {
