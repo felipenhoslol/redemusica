@@ -24,13 +24,22 @@ let lastGridCount = 8;
 /** Tapping the value already set clears it. */
 export const rateFromStarTap = (current, tapped) => (current === tapped ? 0 : tapped);
 
+// key → updatedAt when posted: a new rating changes updatedAt, which unlocks posting again
+const postedAt = new Map();
+/** Already posted as it is now (this session): Postar shows "Postado", disabled. */
+export const isPosted = (key) => !!key && postedAt.has(key) && postedAt.get(key) === getRanking(key)?.updatedAt;
+
 export function postRanking(key) {
   const ranking = getRanking(key);
   if (!ranking?.items?.length) { showToast(EMPTY_HINT); return null; }
+  if (isPosted(key)) return null;
   const post = createPost({ text: '', ranking });
+  postedAt.set(key, ranking.updatedAt);
   showToast('Ranking postado');
   return post;
 }
+
+const showPosted = (btn) => { if (btn) { btn.disabled = true; btn.textContent = 'Postado'; } };
 
 const ratingOf = (id) => getRanking(ed.key)?.items.find(i => i.id === String(id))?.rating || 0;
 const ratedCount = () => getRanking(ed.key)?.items.length || 0;
@@ -67,7 +76,7 @@ function headerHtml() {
       <div class="rk-actions">
         <span class="rk-count"><span class="rk-count-n">${n}</span> com nota</span>
         <button type="button" class="doodle-btn doodle-btn-secondary rk-view" ${n ? '' : 'disabled'} onclick="window._rankView(this)">Concluir</button>
-        <button type="button" class="doodle-btn doodle-btn-primary rk-post" ${n ? '' : 'disabled'} aria-describedby="rk-hint" onclick="window._rankPost(this)">Postar</button>
+        <button type="button" class="doodle-btn doodle-btn-primary rk-post" ${n && !isPosted(ed.key) ? '' : 'disabled'} aria-describedby="rk-hint" onclick="window._rankPost(this)">${isPosted(ed.key) ? 'Postado' : 'Postar'}</button>
       </div>
       <p class="rk-hint" id="rk-hint">${n ? 'Salvo enquanto você dá notas' : EMPTY_HINT}</p>
       ${tabs}
@@ -155,9 +164,11 @@ window._rankStar = (id, value, btn) => {
   });
   popIcon(btn?.closest('.rk-star'));
   const n = ratedCount();
+  const post = ed.container.querySelector('.rk-post');
+  if (post) { post.disabled = !n; post.textContent = 'Postar'; } // edited: posting is open again
   if (n === before) return;
   rollNumber(ed.container.querySelector('.rk-count-n'), n, n > before ? 1 : -1);
-  ed.container.querySelectorAll('.rk-view, .rk-post').forEach(b => { b.disabled = !n; });
+  ed.container.querySelectorAll('.rk-view').forEach(b => { b.disabled = !n; });
   const hint = ed.container.querySelector('.rk-hint');
   if (hint) hint.textContent = n ? 'Salvo enquanto você dá notas' : EMPTY_HINT;
 };
@@ -179,13 +190,13 @@ window._rankView = (btn) => {
   const ranking = ed && getRanking(ed.key);
   if (!ranking) return;
   press(btn);
-  openRankingView(ranking, { own: true }); // ratings are already saved: Concluir only changes screen
+  openRankingView(ranking, { own: true, posted: isPosted(ed.key) }); // ratings are already saved: Concluir only changes screen
 };
 
 window._rankPost = (btn) => {
   if (!ed) return;
   press(btn);
-  postRanking(ed.key);
+  if (postRanking(ed.key)) showPosted(btn);
 };
 
 // ──────────────────────────────────────────
@@ -213,7 +224,7 @@ const myRowHtml = (r) => `
     </div>
     <div class="rk-entry-actions">
       <button type="button" class="doodle-btn doodle-btn-secondary" onclick="window._rankEdit(${jsArg(r.key)}, this)">Editar</button>
-      <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._rankPostSaved(${jsArg(r.key)}, this)">Postar</button>
+      <button type="button" class="doodle-btn doodle-btn-primary" ${isPosted(r.key) ? 'disabled' : ''} onclick="window._rankPostSaved(${jsArg(r.key)}, this)">${isPosted(r.key) ? 'Postado' : 'Postar'}</button>
       <button type="button" class="doodle-btn doodle-btn-ghost rk-delete" aria-label="${esc(`Apagar o ranking de ${r.subject?.title || ''}`)}" title="Apagar" onclick="window._rankDelete(${jsArg(r.key)}, this)"><span class="ui-icon" aria-hidden="true">${ICONS.trash}</span></button>
     </div>
   </li>`;
@@ -351,7 +362,13 @@ window._rankEdit = (key, btn) => {
   openInArea(r.mode, r.subject);
 };
 
-window._rankPostSaved = (key, btn) => { press(btn); postRanking(key); };
+// Meus rankings and the summary; the editor underneath the summary follows along
+window._rankPostSaved = (key, btn) => {
+  press(btn);
+  if (!postRanking(key)) return;
+  showPosted(btn);
+  if (ed?.key === key) showPosted(ed.container.querySelector('.rk-post'));
+};
 
 window._rankDelete = (key, btn) => {
   const r = getRanking(key);

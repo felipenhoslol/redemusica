@@ -69,7 +69,7 @@ const sumSlot = (it, place, art) => `
   </div>`;
 
 /** The ranking summary: header with the average, top-3 podium, every rated item; own rankings get Editar/Postar. */
-export function rankingSummaryHtml(ranking, { own = false } = {}) {
+export function rankingSummaryHtml(ranking, { own = false, posted = false } = {}) {
   const r = ranking || {};
   const s = r.subject || {};
   const album = r.mode === 'album';
@@ -99,7 +99,7 @@ export function rankingSummaryHtml(ranking, { own = false } = {}) {
         </li>`).join('')}</ol>` : '<p class="rk-sum-empty">Nenhuma nota ainda.</p>'}
       ${own ? `<div class="rk-sum-actions">
         <button type="button" class="doodle-btn doodle-btn-secondary" onclick="closeDoodleModal('ranking-view-modal')">Editar notas</button>
-        <button type="button" class="doodle-btn doodle-btn-primary" ${items.length ? '' : 'disabled'} onclick="window._rankPostSaved(${jsArg(r.key)}, this)">Postar no feed</button>
+        <button type="button" class="doodle-btn doodle-btn-primary" ${items.length && !posted ? '' : 'disabled'} onclick="window._rankPostSaved(${jsArg(r.key)}, this)">${posted ? 'Postado' : 'Postar no feed'}</button>
       </div>` : ''}
     </div>`;
 }
@@ -119,10 +119,10 @@ function hydrateSummaryPhoto(el) {
 }
 
 /** Opens any ranking (a post's snapshot, a friend's or my saved one) as the summary in #ranking-view-modal. */
-export function openRankingView(ranking, { own = false } = {}) {
+export function openRankingView(ranking, { own = false, posted = false } = {}) {
   const body = document.getElementById('ranking-view-modal')?.querySelector('.modal-body');
   if (!body || !ranking) return;
-  body.innerHTML = rankingSummaryHtml(ranking, { own });
+  body.innerHTML = rankingSummaryHtml(ranking, { own, posted });
   window.openModal('ranking-view-modal');
   body.scrollTo?.(0, 0);
   hydrateSummaryPhoto(body.querySelector('[data-rk-photo]'));

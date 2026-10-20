@@ -171,6 +171,12 @@ test('only my own summary gets Editar notas / Postar no feed', () => {
   }
 });
 
+test('a summary already posted shows "Postado", disabled', () => {
+  const html = rankingSummaryHtml(snap('artist', 3), { own: true, posted: true });
+  assert.match(html, /disabled onclick="window\._rankPostSaved[^>]*>Postado</);
+  assert.doesNotMatch(html, /Postar no feed/);
+});
+
 test('summary escapes hostile snapshot text and drops bad URLs', () => {
   const s = snap('artist', 4);
   s.subject.title = '"><script>alert(1)</script>';

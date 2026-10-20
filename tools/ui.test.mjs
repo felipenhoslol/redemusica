@@ -127,6 +127,20 @@ test('posting an empty ranking is refused', () => {
   assert.equal(rankingUi.postRanking('artist:nobody'), null);
 });
 
+test('posting locks Postar ("Postado") until the ranking gets a new rating', async () => {
+  const subject = { id: 'dup', title: 'Disco Duplo' };
+  const t = { id: 'd1', title: 'Faixa', kind: 'track', order: 1 };
+  storage.setRankingRating('album', subject, t, 4);
+  const btn = { disabled: false, textContent: 'Postar no feed' };
+  window._rankPostSaved('album:dup', btn);
+  assert.deepEqual([btn.disabled, btn.textContent], [true, 'Postado']);
+  assert.equal(rankingUi.postRanking('album:dup'), null); // a second tap cannot post again
+  await new Promise(r => setTimeout(r, 5)); // a new updatedAt
+  storage.setRankingRating('album', subject, t, 3);
+  assert.equal(rankingUi.isPosted('album:dup'), false);
+  assert.ok(rankingUi.postRanking('album:dup'));
+});
+
 test('opening the ranking pill keeps the active question challenge', () => {
   const before = storage.getActiveChallengeId();
   const box = { innerHTML: '' };
