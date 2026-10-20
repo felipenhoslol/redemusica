@@ -159,6 +159,7 @@ function toAlbum(r) {
     artist: r.artistName,
     artwork: getHighResArtwork(r.artworkUrl100 || r.artworkUrl60, 400),
     year: r.releaseDate ? new Date(r.releaseDate).getFullYear() : '',
+    released: r.releaseDate || '',
     trackCount: r.trackCount || 0,
     genre: r.primaryGenreName || ''
   };
