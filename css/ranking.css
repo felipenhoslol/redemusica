@@ -2,10 +2,6 @@
 
 .post-ranking { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 4px; }
 
-/* Estrelas: o mesmo desenho do site (getStarSVG), com as cores da paleta. Roxo só onde se toca (tela de dar notas) */
-.post-ranking .doodle-star, .ranking-list .doodle-star { color: var(--text); }
-.rk-stars .doodle-star { color: var(--accent); }
-:is(.post-ranking, .ranking-list, .rk-stars) .doodle-star.empty { color: var(--text-2); opacity: 1; }
 .ranking-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ranking-kicker { font-size: var(--fs-detail); color: var(--text-2); }
 .ranking-subject { font-size: var(--fs-name); font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

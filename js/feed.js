@@ -328,7 +328,7 @@ export function renderPostCard(post, options = {}) {
   const ratingHtml = post.rating > 0 ? `
     <div class="post-rating-display">
       ${renderRatingStars(post.rating, 18)}
-      <span>${post.rating.toFixed(1)}</span>
+      <span aria-hidden="true">${post.rating.toFixed(1)}</span>
     </div>` : '';
 
   const pinnedLabel = isPinned ? `<div class="pinned-label">${ICONS.pin} Post Fixado</div>` : '';
@@ -695,7 +695,7 @@ function renderCreatorRating(el) {
       <!-- Quick Decimal Rating Preset Pills -->
       <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
         ${presets.map(p => `
-          <button type="button" class="rating-preset-btn${currentRating === p ? ' active' : ''}" onclick="window._pickStar(${p})" style="padding:2px 6px;font-size:var(--fs-detail);background:${currentRating === p ? 'color-mix(in srgb, var(--star) 20%, transparent)' : 'var(--bg-card)'};border:1px solid ${currentRating === p ? 'var(--star)' : 'var(--border)'};color:${currentRating === p ? 'var(--star)' : 'var(--muted)'};border-radius:4px;cursor:pointer;">
+          <button type="button" class="rating-preset-btn${currentRating === p ? ' active' : ''}" onclick="window._pickStar(${p})" style="padding:2px 6px;font-size:var(--fs-detail);background:${currentRating === p ? 'var(--accent-soft)' : 'var(--bg-card)'};border:1px solid ${currentRating === p ? 'var(--accent)' : 'var(--border)'};color:${currentRating === p ? 'var(--accent)' : 'var(--muted)'};border-radius:4px;cursor:pointer;">
             ${p.toFixed(1)}
           </button>
         `).join('')}

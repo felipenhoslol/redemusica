@@ -918,7 +918,7 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
           <!-- Quick Rating Presets -->
           <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:8px;">
             ${[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0].map(p => `
-              <button type="button" onclick="window._setReviewRating(${p})" style="padding:3px 8px;font-size:var(--fs-detail);font-weight:800;background:${currentReviewRating === p ? 'color-mix(in srgb, var(--star) 25%, transparent)' : 'var(--bg-input)'};border:1.5px solid ${currentReviewRating === p ? 'var(--star)' : 'var(--border)'};color:${currentReviewRating === p ? 'var(--star)' : 'var(--muted)'};border-radius:6px;cursor:pointer;transition:all 0.15s ease;">
+              <button type="button" onclick="window._setReviewRating(${p})" style="padding:3px 8px;font-size:var(--fs-detail);font-weight:800;background:${currentReviewRating === p ? 'var(--accent-soft)' : 'var(--bg-input)'};border:1.5px solid ${currentReviewRating === p ? 'var(--accent)' : 'var(--border)'};color:${currentReviewRating === p ? 'var(--accent)' : 'var(--muted)'};border-radius:6px;cursor:pointer;transition:all 0.15s ease;">
                 ${p.toFixed(1)}
               </button>
             `).join('')}

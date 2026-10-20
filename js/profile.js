@@ -565,7 +565,7 @@ function loadProfileTab(tabId, userId) {
                   </div>
                   <div class="post-rating-display" style="margin:0;padding:2px 8px;flex-shrink:0;">
                     ${renderRatingStars(item.rating, 14)}
-                    <span style="font-size:var(--fs-detail);font-weight:800;">${item.rating.toFixed(1)}</span>
+                    <span aria-hidden="true" style="font-size:var(--fs-detail);font-weight:800;">${item.rating.toFixed(1)}</span>
                   </div>
                 </div>
                 ${item.comment ? `

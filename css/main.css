@@ -26,10 +26,6 @@
   --dimmed:          #463e57;
   --pink:            var(--accent);
 
-  --star-color:      #f5a623;
-  --star-empty:      var(--tint-2);
-  --star-stroke:     rgba(0, 0, 0, 0.6);
-
   --border:          1px solid var(--hover);
   --border-accent:   1px solid var(--purple-mid);
   --border-active:   1px solid var(--purple-accent);
@@ -570,23 +566,13 @@ body {
   vertical-align: middle;
   display: inline-block;
   flex-shrink: 0;
-  color: var(--star); /* cada tela pode trocar: o desenho usa currentColor */
+  color: var(--star); /* o desenho usa currentColor: só leitura = --text */
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-  filter: none !important;
 }
 
-.doodle-star.filled {
-  filter: none !important;
-}
-
-.doodle-star.half {
-  filter: none !important;
-}
-
-.doodle-star.empty {
-  opacity: 0.6;
-  filter: none !important;
-}
+/* Estrelas que se tocam (postar, avaliar, ranking) ficam roxas; vazias em --text-2, sem opacidade (contraste 3:1) */
+:is(#creator-stars-row, #review-stars-row, .rk-stars) .doodle-star:not(.empty) { color: var(--accent); }
+.doodle-star.empty { color: var(--text-2); }
 
 /* Global Avatar 1:1 Aspect Ratio Enforcement */
 .avatar-circle-sm,
