@@ -127,11 +127,9 @@
   .rk-entries > li.rk-entry { grid-template-columns: 56px 1fr; }
   .rk-entry-actions { grid-column: 1 / -1; }
   .rk-entry-actions .doodle-btn { flex: 1; }
-  /* Celular: um lançamento por linha, capa quadrada pequena ao lado do título e estrelas na largura toda */
-  .rk-grid { grid-template-columns: 1fr; gap: 12px; }
-  .rk-cell { display: grid; grid-template-columns: 72px 1fr; grid-auto-rows: min-content; column-gap: 12px; row-gap: 2px; }
-  .rk-cell > .ranking-cover { grid-row: 1 / span 3; }
-  .rk-cell > :not(.ranking-cover) { grid-column: 2; }
+  /* Celular: uma coluna, capa grande (até 260px, centralizada) com título, ano e estrelas embaixo */
+  .rk-grid { grid-template-columns: 1fr; }
+  .rk-cell { width: 100%; max-width: 260px; justify-self: center; }
   /* Faixas: estrelas numa linha própria, embaixo do título */
   .rk-track { grid-template-columns: 3ch 1fr; row-gap: 0; padding-top: 8px; }
   .rk-track .rk-stars { grid-column: 2; }
