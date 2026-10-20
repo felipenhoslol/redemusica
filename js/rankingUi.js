@@ -4,6 +4,7 @@ import { lookupArtist, lookupAlbum, searchArtists, searchAlbums } from './api.js
 import { dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
 import { getRanking, setRankingRating, deleteRanking, createPost, getUserRankings, getFriendsRankings, getUserById } from './storage.js';
 import { popIcon, rollNumber, flip, animateSpring, reducedMotion } from './motion.js';
+import { getArtistImage } from './lastfm.js';
 import { showToast } from './profile.js'; // ui.js re-exports it; importing ui.js here would close a cycle
 import { openRankingView } from './rankingCard.js';
 import { ICONS, getStarSVG } from './icons.js';
@@ -296,7 +297,7 @@ window._rankPick = (mode, btn) => {
 
 const resultHtml = (r, i) => `
   <li><button type="button" class="search-row rk-result" onclick="window._rankChoose(${i})">
-    ${area.pick === 'album' ? cover(r.artwork) : `<span class="rk-result-icon">${ICONS.music}</span>`}
+    ${area.pick === 'album' ? cover(r.artwork) : `<span class="rk-result-icon rk-result-photo" data-rk-photo="${esc(r.name)}">${ICONS.music}</span>`}
     <span class="search-row-text">
       <span class="search-row-title">${esc(r.title || r.name)}</span>
       <span class="search-row-sub">${esc(area.pick === 'album' ? [r.artist, r.year].filter(Boolean).join(' · ') : r.genre)}</span>
@@ -317,8 +318,22 @@ window._rankSearch = (query) => {
     if (token !== searchToken || mode !== area?.pick) return;
     area.results = results;
     glide(() => { list.innerHTML = results.length ? results.map(resultHtml).join('') : '<li class="rk-no-results">Nada encontrado</li>'; });
+    hydrateResultPhotos(list);
   }, 300);
 };
+
+// iTunes has no artist photos: Deezer's come in one by one (cached) into the fixed round slot, the icon stays when there is none
+function hydrateResultPhotos(list) {
+  list.querySelectorAll('[data-rk-photo]').forEach(async el => {
+    const url = safeUrl(await getArtistImage(el.dataset.rkPhoto).catch(() => ''));
+    if (!url || !el.isConnected) return;
+    const img = new Image();
+    img.alt = '';
+    img.decoding = 'async';
+    img.onload = () => { el.replaceChildren(img); if (!reducedMotion()) animateSpring(img, [{ opacity: 0 }, { opacity: 1 }], 'smooth'); };
+    img.src = url;
+  });
+}
 
 window._rankChoose = (i) => {
   const r = area?.results[i];
