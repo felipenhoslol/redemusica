@@ -1,5 +1,5 @@
 // Guards the cleanup of iTunes results in js/musicResults.js: run with `node --test tools/search.test.mjs`
-import { test } from 'node:test';
+import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { dedupeTracks, relevantArtists, albumKind, cleanAlbumTitle, organizeAlbums } from '../js/musicResults.js';
 
@@ -64,4 +64,20 @@ test('lookupArtist merges the newest releases when iTunes caps the catalog at 20
     assert.equal(singles.length, 200);
     assert.equal(urls.filter(u => u.includes('sort=recent')).length, 1);
   } finally { globalThis.fetch = realFetch; }
+});
+
+test('lookupArtist does not wait on a hung "newest releases" lookup: the first page is used after the timeout', async () => {
+  const { lookupArtist, RECENT_LOOKUP_TIMEOUT_MS } = await import('../js/api.js');
+  const full = [{ wrapperType: 'artist', artistId: 1 }, ...Array.from({ length: 199 }, (_, i) => ({ wrapperType: 'collection', collectionId: i, collectionName: `Disco ${i}`, artistId: 1, artistName: 'A' }))];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (url) => url.includes('sort=recent') ? new Promise(() => {})
+    : Promise.resolve({ ok: true, text: async () => JSON.stringify({ results: url.includes('entity=song') ? [] : full }) });
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const pending = lookupArtist('1');
+    for (let i = 0; i < 20; i++) await new Promise(r => setImmediate(r));
+    mock.timers.tick(RECENT_LOOKUP_TIMEOUT_MS);
+    const { albums } = await pending;
+    assert.equal(albums.length, 199); // artist row + 199 collections counts as capped, then falls back to page one
+  } finally { mock.timers.reset(); globalThis.fetch = realFetch; }
 });

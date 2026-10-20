@@ -173,6 +173,7 @@ export async function searchAlbums(query, limit = 24) {
 
 /** An artist's most popular songs, albums and singles/EPs (the whole catalog, not just the first 24). */
 const ITUNES_LOOKUP_MAX = 200;
+export const RECENT_LOOKUP_TIMEOUT_MS = 4000;
 
 // iTunes lookup stops at 200 releases, counting ones the artist is only featured on: big catalogs
 // (Taylor Swift, Anitta) lost their newest singles/EPs. When the first page is full, the newest 200 are merged in.
@@ -180,9 +181,14 @@ async function lookupReleases(artistId) {
   const url = `https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=album&limit=${ITUNES_LOOKUP_MAX}&country=BR`;
   const first = (await fetchItunesUrl(url))?.results || [];
   const releases = first.filter(r => r.wrapperType === 'collection');
-  if (releases.length < ITUNES_LOOKUP_MAX) return releases;
+  if (first.length < ITUNES_LOOKUP_MAX) return releases; // the artist row may count toward the cap
   const seen = new Set(releases.map(r => r.collectionId));
-  const recent = ((await fetchItunesUrl(`${url}&sort=recent`))?.results || [])
+  // Extra only: a slow fallback chain (iPhone: JSONP, proxies) must not hold the artist screen
+  let timer;
+  const late = new Promise(resolve => { timer = setTimeout(resolve, RECENT_LOOKUP_TIMEOUT_MS, null); });
+  const page = await Promise.race([fetchItunesUrl(`${url}&sort=recent`).catch(() => null), late]);
+  clearTimeout(timer);
+  const recent = (page?.results || [])
     .filter(r => r.wrapperType === 'collection' && !seen.has(r.collectionId));
   return [...releases, ...recent];
 }
