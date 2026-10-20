@@ -1,14 +1,16 @@
 // Star ranking: the screen where you rate an artist's releases (grid + tabs) or an album's tracks.
 // Every tap saves (setRankingRating); posting is a separate button.
-import { lookupArtist, lookupAlbum } from './api.js';
-import { dedupeReleases, groupReleases, rankingKey } from './ranking.js';
-import { getRanking, setRankingRating, createPost } from './storage.js';
+import { lookupArtist, lookupAlbum, searchArtists, searchAlbums } from './api.js';
+import { dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
+import { getRanking, setRankingRating, createPost, getUserRankings, getFriendsRankings, getUserById } from './storage.js';
 import { popIcon, rollNumber, flip, animateSpring, reducedMotion } from './motion.js';
 import { showToast } from './profile.js'; // ui.js re-exports it; importing ui.js here would close a cycle
 import { openRankingView } from './rankingCard.js';
-import { getStarSVG } from './icons.js';
+import { ICONS, getStarSVG } from './icons.js';
 import { catLogoHtml } from './logo.js';
-import { esc, safeUrl, jsArg } from './dom.js';
+import { esc, safeUrl, jsArg, avatarInner } from './dom.js';
+
+export { RANKING_CHALLENGE_ID };
 
 const TABS = [['albums', 'Álbuns'], ['eps', 'EPs'], ['singles', 'Singles']];
 const EMPTY_HINT = 'Dê nota a pelo menos um item para postar';
@@ -177,4 +179,156 @@ window._rankPost = (btn) => {
   if (!ed) return;
   press(btn);
   postRanking(ed.key);
+};
+
+// ──────────────────────────────────────────
+// CHALLENGE AREA: start a ranking, my saved rankings, the ones from people I follow
+// ──────────────────────────────────────────
+
+let area = null;      // { container, pick: 'artist'|'album'|null, results: [], friends: [] }
+let searchTimer = 0;
+let searchToken = 0;
+
+const MODE_LABEL = { artist: 'Artista', album: 'Álbum' };
+
+function metaLine(r) {
+  const top = rankItems(r.items || [], r.mode)[0]?.title;
+  return `${MODE_LABEL[r.mode]}${top ? ` · 1º ${esc(top)}` : ''}`;
+}
+
+const myRowHtml = (r) => `
+  <li class="rk-entry">
+    ${cover(r.subject?.artwork)}
+    <div class="rk-entry-text">
+      <span class="ranking-title">${esc(r.subject?.title)}</span>
+      <span class="ranking-meta">${metaLine(r)}</span>
+      <span class="ranking-meta">${r.items.length} com nota</span>
+    </div>
+    <div class="rk-entry-actions">
+      <button type="button" class="doodle-btn doodle-btn-secondary" onclick="window._rankEdit(${jsArg(r.key)}, this)">Editar</button>
+      <button type="button" class="doodle-btn doodle-btn-primary" onclick="window._rankPostSaved(${jsArg(r.key)}, this)">Postar</button>
+    </div>
+  </li>`;
+
+function friendRowHtml({ userId, ranking: r }, i) {
+  const u = getUserById(userId) || { name: '' };
+  return `
+  <li><button type="button" class="rk-entry rk-friend" onclick="window._rankFriend(${i}, this)">
+    ${cover(r.subject?.artwork)}
+    <div class="rk-entry-text">
+      <span class="rk-friend-who"><span class="rk-friend-avatar">${avatarInner(u.avatar, u.name)}</span>${esc(u.name)}</span>
+      <span class="ranking-title">${esc(r.subject?.title)}</span>
+      <span class="ranking-meta">${metaLine(r)}</span>
+    </div>
+  </button></li>`;
+}
+
+const listOrEmpty = (rows, empty) => rows.length ? `<ul class="rk-entries">${rows.join('')}</ul>` : emptyHtml(empty);
+
+/** The ranking challenge: "Novo ranking", "Meus rankings" and "Amigos" (saved rankings, never posts). */
+export function renderRankingChallenge(container) {
+  ++loadToken; // an editor still loading must not land on top of this screen
+  ed = null;
+  const friends = getFriendsRankings();
+  area = { container, pick: null, results: [], friends };
+  container.innerHTML = `
+    <div class="rk-area">
+      <section class="rk-section" aria-labelledby="rk-new">
+        <h2 class="rk-section-title" id="rk-new">Novo ranking</h2>
+        <div class="rk-choice">
+          ${Object.entries(MODE_LABEL).map(([mode, name]) => `<button type="button" class="doodle-btn doodle-btn-secondary" data-pick="${mode}" aria-pressed="false" onclick="window._rankPick('${mode}', this)">${name}</button>`).join('')}
+        </div>
+        <div class="rk-pick" hidden>
+          <label class="search-bar">${ICONS.search}<input type="search" class="rk-pick-input" autocomplete="off" oninput="window._rankSearch(this.value)"></label>
+          <ul class="rk-results" aria-live="polite"></ul>
+        </div>
+      </section>
+      <section class="rk-section" aria-labelledby="rk-mine">
+        <h2 class="rk-section-title" id="rk-mine">Meus rankings</h2>
+        ${listOrEmpty(getUserRankings().map(myRowHtml), 'Você ainda não fez nenhum ranking')}
+      </section>
+      <section class="rk-section" aria-labelledby="rk-friends">
+        <h2 class="rk-section-title" id="rk-friends">Amigos</h2>
+        ${listOrEmpty(friends.map(friendRowHtml), 'Ninguém que você segue fez um ranking ainda')}
+      </section>
+    </div>`;
+  if (!reducedMotion()) container.querySelectorAll('.rk-entry').forEach((el, i) =>
+    animateSpring(el, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], 'smooth', { delay: Math.min(i, 8) * 40, fill: 'backwards' }));
+}
+
+/** Editor inside the challenge area, with a way back to the lists (which then show the new ratings). */
+function openInArea(mode, subject) {
+  const { container } = area;
+  container.innerHTML = `<button type="button" class="doodle-btn doodle-btn-secondary rk-back" onclick="window._rankBack()">Voltar</button><div class="rk-editor-host"></div>`;
+  window.scrollTo?.({ top: 0 });
+  return openRankingEditor(container.querySelector('.rk-editor-host'), { mode, subject });
+}
+
+window._rankBack = () => { if (area) renderRankingChallenge(area.container); };
+
+window._rankPick = (mode, btn) => {
+  if (!area) return;
+  press(btn);
+  area.pick = mode;
+  area.results = [];
+  const c = area.container;
+  c.querySelectorAll('[data-pick]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pick === mode)));
+  const box = c.querySelector('.rk-pick');
+  if (box) box.hidden = false;
+  const input = c.querySelector('.rk-pick-input');
+  if (!input) return;
+  input.placeholder = mode === 'artist' ? 'Buscar artista' : 'Buscar álbum';
+  input.setAttribute('aria-label', input.placeholder);
+  input.focus();
+  window._rankSearch(input.value);
+};
+
+const resultHtml = (r, i) => `
+  <li><button type="button" class="search-row rk-result" onclick="window._rankChoose(${i})">
+    ${area.pick === 'album' ? cover(r.artwork) : `<span class="rk-result-icon">${ICONS.music}</span>`}
+    <span class="search-row-text">
+      <span class="search-row-title">${esc(r.title || r.name)}</span>
+      <span class="search-row-sub">${esc(area.pick === 'album' ? [r.artist, r.year].filter(Boolean).join(' · ') : r.genre)}</span>
+    </span>
+  </button></li>`;
+
+window._rankSearch = (query) => {
+  clearTimeout(searchTimer);
+  const list = area?.container.querySelector('.rk-results');
+  if (!list) return;
+  const q = String(query || '').trim();
+  const token = ++searchToken;
+  if (!q) { list.innerHTML = ''; return; }
+  searchTimer = setTimeout(async () => {
+    const mode = area.pick;
+    let results = [];
+    try { results = await (mode === 'album' ? searchAlbums(q, 12) : searchArtists(q, 12)); } catch { /* shown as nothing found */ }
+    if (token !== searchToken || mode !== area?.pick) return;
+    area.results = results;
+    list.innerHTML = results.length ? results.map(resultHtml).join('') : '<li class="rk-no-results">Nada encontrado</li>';
+  }, 300);
+};
+
+window._rankChoose = (i) => {
+  const r = area?.results[i];
+  if (!r) return;
+  openInArea(area.pick, area.pick === 'album'
+    ? { id: r.id, title: r.title, artist: r.artist, artwork: r.artwork }
+    : { id: r.id, name: r.name, title: r.name });
+};
+
+window._rankEdit = (key, btn) => {
+  const r = getRanking(key);
+  if (!r || !area) return;
+  press(btn);
+  openInArea(r.mode, r.subject);
+};
+
+window._rankPostSaved = (key, btn) => { press(btn); postRanking(key); };
+
+window._rankFriend = (i, btn) => {
+  const f = area?.friends[i];
+  if (!f) return;
+  press(btn);
+  openRankingView(f.ranking);
 };

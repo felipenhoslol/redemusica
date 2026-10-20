@@ -10,6 +10,7 @@ import { searchTracks, searchArtists, lookupArtist, lookupAlbum } from './api.js
 import { getArtistImage } from './lastfm.js';
 import { renderProfileView, renderFollowListModal, openModal, closeModal, showToast } from './profile.js';
 import { ICONS, renderRatingStars, getStarSVG } from './icons.js';
+import { RANKING_CHALLENGE_ID } from './ranking.js';
 
 let currentSearchTarget = { type: 'question', id: null, challengeId: null };
 let searchDebounceTimer = null;
@@ -962,20 +963,28 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
 // CHALLENGE PILLS
 // ──────────────────────────────────────────
 
+// The ranking challenge has no questions: it never becomes the stored active challenge (Comparar reads that)
+let rankingPillActive = false;
+export const isRankingView = () => rankingPillActive;
+
 export function renderChallengePills(container, onSwitch) {
   const all = storage.getAllChallenges();
-  const activeId = storage.getActiveChallengeId();
+  const activeId = rankingPillActive ? RANKING_CHALLENGE_ID : storage.getActiveChallengeId();
 
   container.innerHTML = all.map(c => `
     <button class="pill-btn${c.id === activeId ? ' active' : ''}" onclick="window._switchChallenge('${c.id}')">
       ${esc(c.title)}
     </button>`).join('') + `
+    <button class="pill-btn${rankingPillActive ? ' active' : ''}" onclick="window._switchChallenge('${RANKING_CHALLENGE_ID}')">
+      Ranking por estrelas
+    </button>
     <button class="pill-btn" onclick="window._openCreateChallenge()">
       + Novo Desafio
     </button>`;
 
   window._switchChallenge = (id) => {
-    storage.setActiveChallengeId(id);
+    rankingPillActive = id === RANKING_CHALLENGE_ID;
+    if (!rankingPillActive) storage.setActiveChallengeId(id);
     if (onSwitch) onSwitch(id);
     renderChallengePills(container, onSwitch);
   };
@@ -1023,6 +1032,7 @@ window._submitNewChallenge = () => {
 
   const questions = lines.map((t, i) => ({ id: i + 1, title: t, subtitle: '', category: 'Música' }));
   storage.createCustomChallenge(title, desc, questions);
+  rankingPillActive = false; // show the challenge just created
   closeDoodleModal('create-challenge-modal');
   showToast('Desafio criado!');
   window._refreshChallenges?.();

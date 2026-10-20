@@ -35,9 +35,10 @@ import {
   openDoodleModal, closeDoodleModal, showDoodleToast,
   initSearchModal, openSearchModalForFeed, openSearchModalForLyrics, openSearchModalForFeaturedSong,
   openSearchModalForChat, openSearchModalForShowcase,
-  renderMusicAskGrid, renderChallengePills, renderCompareView, openCompareWith,
+  renderMusicAskGrid, renderChallengePills, isRankingView, renderCompareView, openCompareWith,
   renderNotificationsPanel, renderPlayerBar, showNotificationPopups
 } from './ui.js';
+import { renderRankingChallenge } from './rankingUi.js';
 import {
   renderPostCreator, renderFeed,
   renderTrendingWidget, renderFriendsWidget, renderListeningRow, creatorState
@@ -646,14 +647,14 @@ function renderDesafiosTab() {
       <div id="questions-grid"></div>
     </div>`;
 
-  const pillsContainer = document.getElementById('challenge-pills');
-  renderChallengePills(pillsContainer, (id) => {
+  const showChallenge = (id) => {
     const grid = document.getElementById('questions-grid');
-    if (grid) renderMusicAskGrid(grid, id);
-  });
-
-  const grid = document.getElementById('questions-grid');
-  if (grid) renderMusicAskGrid(grid);
+    if (!grid) return;
+    if (isRankingView()) renderRankingChallenge(grid);
+    else renderMusicAskGrid(grid, id);
+  };
+  renderChallengePills(document.getElementById('challenge-pills'), showChallenge);
+  showChallenge();
 
   window._refreshChallenges = () => renderDesafiosTab();
 }

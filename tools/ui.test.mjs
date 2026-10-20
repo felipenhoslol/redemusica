@@ -126,3 +126,23 @@ test('tapping the same star value again clears the rating', () => {
 test('posting an empty ranking is refused', () => {
   assert.equal(rankingUi.postRanking('artist:nobody'), null);
 });
+
+test('opening the ranking pill keeps the active question challenge', () => {
+  const before = storage.getActiveChallengeId();
+  const box = { innerHTML: '' };
+  ui.renderChallengePills(box, () => {});
+  assert.match(box.innerHTML, /Ranking por estrelas/);
+  window._switchChallenge(rankingUi.RANKING_CHALLENGE_ID);
+  assert.equal(storage.getActiveChallengeId(), before);
+});
+
+test('the ranking area lists my rankings and the ones from people I follow', () => {
+  storage.mergeRemoteRankings([{ user_id: 'u_ana', key: 'album:7', updated_at: '2026-10-19T00:00:00Z',
+    body: { key: 'album:7', mode: 'album', subject: { id: '7', title: 'Disco da Ana' }, items: [{ id: 'z', title: 'Faixa', rating: 4 }] } }], ['u_ana']);
+  const box = { innerHTML: '', querySelector: () => null, querySelectorAll: () => [] };
+  rankingUi.renderRankingChallenge(box);
+  assert.match(box.innerHTML, /Meus rankings/);
+  assert.match(box.innerHTML, /Amigos/);
+  assert.match(box.innerHTML, /ana/);
+  assert.match(box.innerHTML, /Disco da Ana/);
+});
