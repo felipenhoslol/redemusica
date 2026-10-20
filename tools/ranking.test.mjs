@@ -68,3 +68,41 @@ test('snapshotRanking caps items', () => {
   const items = Array.from({ length: 400 }, (_, i) => ({ id: String(i), title: 't', kind: 'single', year: '', released: '', artwork: '', order: 0, rating: 3 }));
   assert.equal(snapshotRanking({ key: 'artist:1', mode: 'artist', subject: { id: '1', title: 'X' }, items }).items.length, 300);
 });
+
+// ── Feed card (js/rankingCard.js): motion.js needs window/matchMedia/document at load, so stub then import
+globalThis.window = globalThis;
+globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
+globalThis.document ??= { createElement: () => ({}), head: { appendChild() {} }, getElementById: () => null };
+const { rankingPostHtml } = await import('../js/rankingCard.js');
+
+const snap = (mode, n) => ({ key: `${mode}:1`, mode, subject: { id: '1', title: 'Disco', artist: 'X', artwork: 'https://a/s.jpg', year: 2001 },
+  items: Array.from({ length: n }, (_, i) => ({ id: `i${i}`, title: `Item ${i}`, kind: mode === 'album' ? 'track' : 'album', year: 2000 + i, released: '', artwork: `https://a/${i}.jpg`, order: i + 1, rating: 5 - i * 0.5 })) });
+
+test('artist card: podium of 3, a row of the next 4 and the full count', () => {
+  const html = rankingPostHtml({ id: 'p1', ranking: snap('artist', 9) });
+  assert.equal((html.match(/class="ranking-podium-slot/g) || []).length, 3);
+  assert.equal((html.match(/class="ranking-row-item/g) || []).length, 4);
+  assert.match(html, /ver ranking completo \(9\)/);
+});
+
+test('album card: big cover and top 3 tracks, no row', () => {
+  const html = rankingPostHtml({ id: 'p2', ranking: snap('album', 12) });
+  assert.match(html, /ranking-album-cover/);
+  assert.equal((html.match(/class="ranking-podium-slot/g) || []).length, 3);
+  assert.doesNotMatch(html, /ranking-row-item/);
+});
+
+test('a ranking with one rated item still renders, without an empty podium slot', () => {
+  assert.equal((rankingPostHtml({ id: 'p3', ranking: snap('artist', 1) }).match(/class="ranking-podium-slot/g) || []).length, 1);
+});
+
+test('a post without ranking renders nothing', () => assert.equal(rankingPostHtml({ id: 'p4' }), ''));
+
+test('snapshot text is escaped and bad cover URLs are dropped', () => {
+  const s = snap('artist', 2);
+  s.items[0].title = '<img src=x onerror=alert(1)>';
+  s.items[0].artwork = 'javascript:alert(1)';
+  const html = rankingPostHtml({ id: 'p5', ranking: s });
+  assert.doesNotMatch(html, /<img src=x/);
+  assert.doesNotMatch(html, /javascript:/);
+});

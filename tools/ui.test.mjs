@@ -110,3 +110,8 @@ test('mergeRemoteRankings keeps my local rankings missing from the server, and r
   assert.equal(storage.getRanking('album:6').items[0].rating, 3);
   assert.equal(storage.getRanking('album:3', 'u_ana'), null);
 });
+
+test('tapping a ranking card does not open the post', async () => {
+  const { POST_TAP_IGNORE } = await import('../js/feed.js');
+  assert.match(POST_TAP_IGNORE, /\.post-ranking/);
+});

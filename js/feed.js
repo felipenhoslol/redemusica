@@ -8,6 +8,7 @@ import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.js';
 import { compressImage, presenceOf, loadInlinePicture, fetchPostById } from './sync.js';
 import { pollHtml } from './poll.js';
+import { rankingPostHtml, openRankingView } from './rankingCard.js';
 import { auth } from './auth.js';
 import { adminBadge } from './badges.js';
 import { linkMentions, attachMentionAutocomplete } from './mentions.js';
@@ -378,6 +379,7 @@ export function renderPostCard(post, options = {}) {
       ${imageHtml}
       ${songHtml}
       ${pollHtml(post)}
+      ${rankingPostHtml(post)}
       ${playlistHtml}
       ${linkHtml}
 
@@ -1505,8 +1507,9 @@ window._openPostView = async (postId, opts = {}) => {
 
 // Phone: tapping anywhere on a post opens it on its own screen, like on X;
 // links, buttons, pictures, songs, polls and comments keep doing their own thing, and selecting text doesn't open it
-const POST_TAP_IGNORE = 'a, button, input, textarea, label, img, video, [onclick], [role="button"], .mention-link, '
-  + '.post-attached-song, .post-attached-playlist, .post-poll, .post-comments-section, .rich-link-card';
+export const POST_TAP_IGNORE = 'a, button, input, textarea, label, img, video, [onclick], [role="button"], .mention-link, '
+  + '.post-attached-song, .post-attached-playlist, .post-poll, .post-ranking, .post-comments-section, .rich-link-card';
+window._openRankingView = async (postId) => openRankingView((Storage.getPostById(postId) || await fetchPostById(postId))?.ranking);
 document.addEventListener('click', (e) => {
   if (!isPhoneLayout()) return;
   const card = e.target.closest('.post-card');
