@@ -66,7 +66,7 @@ function headerHtml() {
       </div>
       <div class="rk-actions">
         <span class="rk-count"><span class="rk-count-n">${n}</span> com nota</span>
-        <button type="button" class="doodle-btn doodle-btn-secondary rk-view" ${n ? '' : 'disabled'} onclick="window._rankView(this)">Ver ranking</button>
+        <button type="button" class="doodle-btn doodle-btn-secondary rk-view" ${n ? '' : 'disabled'} onclick="window._rankView(this)">Concluir</button>
         <button type="button" class="doodle-btn doodle-btn-primary rk-post" ${n ? '' : 'disabled'} aria-describedby="rk-hint" onclick="window._rankPost(this)">Postar</button>
       </div>
       <p class="rk-hint" id="rk-hint">${n ? 'Salvo enquanto você dá notas' : EMPTY_HINT}</p>
@@ -179,7 +179,7 @@ window._rankView = (btn) => {
   const ranking = ed && getRanking(ed.key);
   if (!ranking) return;
   press(btn);
-  openRankingView(ranking);
+  openRankingView(ranking, { own: true }); // ratings are already saved: Concluir only changes screen
 };
 
 window._rankPost = (btn) => {

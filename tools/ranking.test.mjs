@@ -73,7 +73,7 @@ test('snapshotRanking caps items', () => {
 globalThis.window = globalThis;
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
 globalThis.document ??= { createElement: () => ({}), head: { appendChild() {} }, getElementById: () => null };
-const { rankingPostHtml } = await import('../js/rankingCard.js');
+const { rankingPostHtml, rankingSummaryHtml, averageLabel, podiumOrder } = await import('../js/rankingCard.js');
 
 const snap = (mode, n) => ({ key: `${mode}:1`, mode, subject: { id: '1', title: 'Disco', artist: 'X', artwork: 'https://a/s.jpg', year: 2001 },
   items: Array.from({ length: n }, (_, i) => ({ id: `i${i}`, title: `Item ${i}`, kind: mode === 'album' ? 'track' : 'album', year: 2000 + i, released: '', artwork: `https://a/${i}.jpg`, order: i + 1, rating: 5 - i * 0.5 })) });
@@ -123,4 +123,68 @@ test('albumSearchResults: one edition per artist, other artists kept, singles la
     r('2', '1989 (Deluxe Edition)', 'Taylor Swift', '2014-11-03'), r('3', '1989', 'Taylor Swift', '2014-10-27'),
     r('4', '1989', 'Ryan Adams', '2015-09-21'), r('5', "1989 (Taylor's Version)", 'Taylor Swift', '2023-10-27')]);
   assert.deepEqual(out.map(a => a.id), ['3', '4', '5', '1']);
+});
+
+// ── Summary screen (rankingSummaryHtml): replaces the old full list everywhere
+const places = (html) => [...html.matchAll(/class="rk-sum-slot" data-place="(\d)"/g)].map(m => m[1]).join(',');
+
+test('average: pt-BR with one decimal, rounded half up', () => {
+  const r = (...v) => v.map(rating => ({ rating }));
+  assert.equal(averageLabel(r(4, 4, 4.5, 4, 4)), '4,1');
+  assert.equal(averageLabel(r(5)), '5,0');
+  assert.equal(averageLabel(r(4, 4.5)), '4,3'); // 4,25 → 4,3
+  assert.equal(averageLabel(Array.from({ length: 20 }, (_, i) => ({ rating: i < 1 ? 4.5 : i < 2 ? 4.5 : 4 }))), '4,1'); // 4,05 → 4,1
+  assert.equal(averageLabel([]), '');
+});
+
+test('podium reads 2nd, 1st, 3rd and keeps the winner in the middle with 1 or 2 items', () => {
+  assert.equal(places(rankingSummaryHtml(snap('artist', 1))), '1');
+  assert.equal(places(rankingSummaryHtml(snap('artist', 2))), '2,1');
+  assert.equal(places(rankingSummaryHtml(snap('album', 3))), '2,1,3');
+  assert.equal(places(rankingSummaryHtml(snap('artist', 9))), '2,1,3');
+  assert.deepEqual(podiumOrder(['a', 'b', 'c', 'd']), [['b', 2], ['a', 1], ['c', 3]]);
+});
+
+test('summary lists every rated item with the average and count', () => {
+  const html = rankingSummaryHtml(snap('artist', 9));
+  assert.equal((html.match(/class="rk-sum-row"/g) || []).length, 9);
+  assert.match(html, /9 com nota/);
+  assert.match(html, /rk-sum-avg-n">3,0</);
+  assert.match(html, /1º · 5</);
+  const big = snap('album', 1);
+  big.items = Array.from({ length: 300 }, (_, i) => ({ ...big.items[0], id: `t${i}`, order: i + 1, rating: 3 }));
+  assert.equal((rankingSummaryHtml(big).match(/class="rk-sum-row"/g) || []).length, 300);
+});
+
+test('album summary uses the album cover when a track has none', () => {
+  const s = snap('album', 2);
+  s.items.forEach(i => { i.artwork = ''; });
+  assert.equal((rankingSummaryHtml(s).match(/src="https:\/\/a\/s\.jpg"/g) || []).length, 1 + 2 + 2); // header, podium, rows
+});
+
+test('only my own summary gets Editar notas / Postar no feed', () => {
+  const mine = rankingSummaryHtml(snap('artist', 3), { own: true });
+  assert.match(mine, /Editar notas/);
+  assert.match(mine, /Postar no feed/);
+  for (const html of [rankingSummaryHtml(snap('artist', 3)), rankingSummaryHtml(snap('album', 3), { own: false })]) {
+    assert.doesNotMatch(html, /rk-sum-actions|Editar notas|Postar no feed/);
+  }
+});
+
+test('summary escapes hostile snapshot text and drops bad URLs', () => {
+  const s = snap('artist', 4);
+  s.subject.title = '"><script>alert(1)</script>';
+  s.items[0].title = '<img src=x onerror=alert(1)>';
+  s.items[3].title = '<b>x</b>';
+  s.items[1].artwork = 'javascript:alert(1)';
+  s.key = "artist:1');alert(1);//";
+  const html = rankingSummaryHtml(s, { own: true });
+  assert.doesNotMatch(html, /<script|<img src=x|<b>|javascript:/);
+  assert.doesNotMatch(html, /'\);alert/);
+});
+
+test('an empty ranking shows a message, no podium or list', () => {
+  const html = rankingSummaryHtml(snap('artist', 0));
+  assert.match(html, /Nenhuma nota ainda/);
+  assert.doesNotMatch(html, /rk-sum-slot|rk-sum-row|rk-sum-avg/);
 });
