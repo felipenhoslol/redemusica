@@ -585,7 +585,10 @@ export function pullNow() {
     if (profilesRes.status === 'rejected') profilePulls = 0; // retry a full read next time
     if (profilesRes.status === 'rejected') console.warn('Perfis não atualizados:', profilesRes.reason?.code, profilesRes.reason?.message);
     if (followsRes.status === 'rejected') console.warn('Seguidores não atualizados:', followsRes.reason?.code, followsRes.reason?.message);
-    if (rankingsRes.status === 'rejected' && isMissingTable(rankingsRes.reason)) rankingsTable = false;
+    if (rankingsRes.status === 'rejected') {
+      if (isMissingTable(rankingsRes.reason)) rankingsTable = false;
+      else console.warn('Rankings não atualizados:', rankingsRes.reason?.code, rankingsRes.reason?.message);
+    }
     const rankings = rankingsRes.status === 'fulfilled' ? rankingsRes.value : null;
     // A save/delete of mine still on its way up wins over what the server has now
     if (rankings) Storage.mergeRemoteRankings(rankings.filter(r => !(r.user_id === me && pendingRankings.has(r.key))), rankingIds);

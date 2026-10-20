@@ -3,7 +3,7 @@
 -- Rode depois do 013_security.sql, no SQL Editor do Supabase. Pode rodar de novo.
 --
 -- Cada pessoa tem um ranking por artista ou álbum (key = 'artist:<id>' ou 'album:<id>'),
--- salvo enquanto dá as notas. Todo mundo pode ler; só o dono escreve.
+-- salvo enquanto dá as notas. Quem está logado lê (menos rankings de contas banidas); só o dono escreve.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.rankings (
@@ -17,7 +17,7 @@ create table if not exists public.rankings (
 alter table public.rankings enable row level security;
 
 drop policy if exists "rankings_select" on public.rankings;
-create policy "rankings_select" on public.rankings for select using (true);
+create policy "rankings_select" on public.rankings for select to authenticated using (public.author_visible(user_id));
 
 drop policy if exists "rankings_insert_own" on public.rankings;
 create policy "rankings_insert_own" on public.rankings for insert to authenticated
