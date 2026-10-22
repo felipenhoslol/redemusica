@@ -10,7 +10,7 @@ globalThis.Audio = class { addEventListener() {} pause() {} play() { return Prom
 globalThis.CSS = { supports: () => true };
 globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 
-const { storyPalette, storyFilename, challengeGrid, rankingLayout, loadCover, storyButtonHtml, STORY_W, STORY_H } = await import('../js/storyImage.js');
+const { storyPalette, storyFilename, challengeGrid, rankingLayout, loadCover, storyButtonHtml, downloadCanvas, STORY_W, STORY_H } = await import('../js/storyImage.js');
 
 test('challenge grid: 30 equal squares, 5 per row, 6 rows, inside the 84px side margins', () => {
   const cells = challengeGrid(500);
@@ -77,4 +77,20 @@ test('button: house style, download icon, "Baixar imagem", no emoji', () => {
   assert.match(html, /Baixar imagem/);
   assert.match(html, /stroke-width="2"/);
   assert.doesNotMatch(html, /\p{Extended_Pictographic}/u);
+});
+
+test('download refuses a canvas that painted nothing (transparent PNG shows as all black)', async () => {
+  const canvas = (alpha) => ({ getContext: () => ({ getImageData: () => ({ data: [0, 0, 0, alpha] }) }), toBlob: (cb) => cb({ size: 1 }) });
+  let urls = 0;
+  const realURL = globalThis.URL;
+  globalThis.URL = { createObjectURL: () => { urls++; return 'blob:x'; }, revokeObjectURL() {} };
+  const prevCreate = document.createElement;
+  document.body = { appendChild() {} };
+  document.createElement = () => ({ click() {}, remove() {} });
+  try {
+    await assert.rejects(downloadCanvas(canvas(0), 'x.png'), /blank canvas/);
+    assert.equal(urls, 0, 'nothing downloaded');
+    await downloadCanvas(canvas(255), 'x.png');
+    assert.equal(urls, 1);
+  } finally { globalThis.URL = realURL; document.createElement = prevCreate; }
 });

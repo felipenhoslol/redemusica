@@ -197,7 +197,8 @@ function drawFooter(ctx, p, username, cat) {
 function newCanvas(p) {
   const canvas = document.createElement('canvas');
   canvas.width = STORY_W; canvas.height = STORY_H;
-  const ctx = canvas.getContext('2d');
+  // Software canvas: a one-shot export gains nothing from the GPU, and a broken GPU canvas silently drops every draw
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.fillStyle = p.bg;
   ctx.fillRect(0, 0, STORY_W, STORY_H);
   return { canvas, ctx };
@@ -267,8 +268,10 @@ export async function renderRankingStory(ranking, items, username) {
   return canvas;
 }
 
-/** canvas → PNG file download. */
+/** canvas → PNG file download. Refuses a canvas that didn't paint (its opaque background is missing). */
 export function downloadCanvas(canvas, filename) {
+  // A dead canvas exports a fully transparent PNG, which viewers show as all black
+  if (canvas.getContext('2d').getImageData(0, 0, 1, 1).data[3] !== 255) return Promise.reject(new Error('blank canvas'));
   return new Promise((resolve, reject) => canvas.toBlob(blob => {
     if (!blob) return reject(new Error('toBlob'));
     const url = URL.createObjectURL(blob);
