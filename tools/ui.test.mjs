@@ -55,6 +55,18 @@ test('rating a song in Comparar keeps the person you were comparing with', () =>
   assert.match(container.innerHTML, /compare-user-card selected[^>]*_setCompareUser\('u_bia'\)/);
 });
 
+test('opening a modal moves it to the end of body, so it shows above a dialog opened before it (post view)', () => {
+  const added = [];
+  const modal = { ...el(), classList: { add: c => added.push(c), remove() {}, toggle() {}, contains: () => false } };
+  byId.set('comment-image-modal', modal);
+  const appended = [];
+  const orig = document.body.appendChild;
+  document.body.appendChild = n => appended.push(n);
+  try { window.openDoodleModal('comment-image-modal'); } finally { document.body.appendChild = orig; }
+  assert.deepEqual(appended, [modal]);
+  assert.deepEqual(added, ['active']);
+});
+
 test('my profile shows the song showcase (vitrine) with my picks', () => {
   const container = el();
   profile.renderProfileView(container, 'user_me');

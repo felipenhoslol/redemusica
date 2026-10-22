@@ -794,7 +794,12 @@ export function refreshProfileFollowState() {
 
 // helpers re-exported for app.js
 export function openModal(id) {
-  document.getElementById(id)?.classList.add('active');
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  // Modais e diálogos dividem o mesmo z-index: ir para o fim do body põe este por cima do que já estava aberto
+  document.body.appendChild(modal);
+  void modal.offsetWidth; // nó recém-movido: sem isso o fade de entrada não roda
+  modal.classList.add('active');
 }
 export function closeModal(id) {
   document.getElementById(id)?.classList.remove('active');

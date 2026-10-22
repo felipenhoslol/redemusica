@@ -1206,8 +1206,6 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   margin-top: 4px;
 }
 
-/* A busca de música abre por cima de outros modais (ex.: editar perfil → música em destaque) */
-#search-modal, #follow-list-modal { z-index: 1100; }
 
 /* Tirar música de uma questão do desafio */
 .q-card-remove:hover { color: var(--danger, #f4212e) !important; }

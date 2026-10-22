@@ -21,7 +21,7 @@ let currentReviewRating = 4.0;
 // ──────────────────────────────────────────
 
 export function openDoodleModal(modalId) {
-  document.getElementById(modalId)?.classList.add('active');
+  openModal(modalId);
 }
 
 export function closeDoodleModal(modalId) {

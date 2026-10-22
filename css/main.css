@@ -466,7 +466,8 @@ body {
   inset: 0;
   background: rgba(0,0,0,0.92);
   backdrop-filter: blur(8px);
-  z-index: 1000;
+  /* Mesma camada de .app-dialog e .photo-editor: o último aberto fica por cima (openModal o põe no fim do body) */
+  z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
