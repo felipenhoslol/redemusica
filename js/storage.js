@@ -912,7 +912,9 @@ export function getAllChallenges() {
   let list;
   try { list = JSON.parse(lsGet(STORAGE_KEYS.CHALLENGES)) || DEFAULT_CHALLENGES; }
   catch { list = DEFAULT_CHALLENGES; }
-  return list.filter(c => !REMOVED_CHALLENGES.includes(c.id));
+  // Built-in titles come from code so renames reach browsers that saved the old list
+  return list.filter(c => !REMOVED_CHALLENGES.includes(c.id))
+    .map(c => { const d = DEFAULT_CHALLENGES.find(x => x.id === c.id); return d ? { ...c, title: d.title } : c; });
 }
 
 export function getActiveChallengeId() {

@@ -3,7 +3,7 @@
 export const DEFAULT_CHALLENGES = [
   {
     id: 'classic_30',
-    title: 'Desafio Clássico das 30 Músicas',
+    title: 'Desafio das 30 Músicas',
     description: 'O desafio mais popular com 30 categorias para definir sua identidade musical.',
     questions: [
       { id: 1, title: 'Uma música com uma cor no título', subtitle: 'A song with a color in the title', category: 'Cores' },
