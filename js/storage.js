@@ -1058,6 +1058,18 @@ export function setRankingRating(mode, subject, item, rating) {
   return null;
 }
 
+/** Marks my ranking as posted at its current updatedAt; synced with the ranking row so it survives reloads. */
+export function markRankingPosted(key) {
+  const me = getActiveUserId();
+  const all = readJson(STORAGE_KEYS.RANKINGS, {});
+  const r = all[me]?.[key];
+  if (!r) return null;
+  all[me][key] = { ...r, postedUpdatedAt: r.updatedAt };
+  lsSet(STORAGE_KEYS.RANKINGS, JSON.stringify(all));
+  toRemote('saveRanking', all[me][key]);
+  return all[me][key];
+}
+
 /** Removes my saved ranking; posts already published keep their own snapshot. */
 export function deleteRanking(key) {
   const me = getActiveUserId();
@@ -1079,7 +1091,9 @@ export function mergeRemoteRankings(rows, userIds) {
     if (!bucket) continue;
     const r = cleanRanking({ ...row.body, key: row.key, updatedAt: row.body?.updatedAt || row.updated_at });
     if (!r || !r.items.length) continue;
-    if (row.user_id === me && time(bucket[r.key]) > time(r)) continue;
+    const local = row.user_id === me && bucket[r.key];
+    if (local && time(local) > time(r)) continue;
+    if (local && time(local) === time(r) && local.postedUpdatedAt && !r.postedUpdatedAt) continue; // marker not synced yet
     bucket[r.key] = r;
   }
   lsSet(STORAGE_KEYS.RANKINGS, JSON.stringify({ ...all, ...fresh }));

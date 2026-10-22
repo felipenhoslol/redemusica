@@ -11,6 +11,7 @@ import { getArtistImage } from './lastfm.js';
 import { renderProfileView, renderFollowListModal, openModal, closeModal, showToast } from './profile.js';
 import { ICONS, renderRatingStars, getStarSVG } from './icons.js';
 import { RANKING_CHALLENGE_ID } from './ranking.js';
+import { storyButtonHtml, runStoryButton, renderChallengeStory, storyFilename } from './storyImage.js';
 
 let currentSearchTarget = { type: 'question', id: null, challengeId: null };
 let searchDebounceTimer = null;
@@ -426,8 +427,19 @@ export function renderMusicAskGrid(container, challengeId, userId) {
       </div>`;
   }).join('');
 
-  container.innerHTML = `<div class="questions-grid">${cards}</div>`;
+  // All 30 answered: the story image (only for your own Desafio das 30 Músicas)
+  const done = isMe && cid === 'classic_30' && questions.every(q => answers[q.id]);
+  const doneHtml = done ? `<div class="challenge-done"><span class="challenge-done-text"><span class="ui-icon" aria-hidden="true">${ICONS.check}</span>Desafio concluído</span>${storyButtonHtml('window._downloadChallengeStory(this)')}</div>` : '';
+  container.innerHTML = `${doneHtml}<div class="questions-grid">${cards}</div>`;
 }
+
+window._downloadChallengeStory = (btn) => {
+  const cid = 'classic_30';
+  const answers = storage.getChallengeAnswers(cid);
+  const questions = storage.getAllChallenges().find(c => c.id === cid)?.questions || [];
+  runStoryButton(btn, () => renderChallengeStory(questions.map(q => answers[q.id]), storage.getActiveUser()?.handle),
+    storyFilename('challenge'), showToast);
+};
 
 window._removeAnswer = (challengeId, questionId) => {
   const ans = storage.getChallengeAnswers(challengeId)[questionId];

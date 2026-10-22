@@ -143,14 +143,47 @@ test('posting locks Postar ("Postado") until the ranking gets a new rating', asy
   const subject = { id: 'dup', title: 'Disco Duplo' };
   const t = { id: 'd1', title: 'Faixa', kind: 'track', order: 1 };
   storage.setRankingRating('album', subject, t, 4);
-  const btn = { disabled: false, textContent: 'Postar no feed' };
+  let after = '';
+  const btn = { disabled: false, textContent: 'Postar no feed', insertAdjacentHTML: (where, html) => { after = html; } };
   window._rankPostSaved('album:dup', btn);
   assert.deepEqual([btn.disabled, btn.textContent], [true, 'Postado']);
+  assert.match(after, /story-btn[^>]*_rankStory\(&quot;album:dup&quot;, this\)[\s\S]*Baixar imagem/); // the story image button shows up next to it
   assert.equal(rankingUi.postRanking('album:dup'), null); // a second tap cannot post again
   await new Promise(r => setTimeout(r, 5)); // a new updatedAt
   storage.setRankingRating('album', subject, t, 3);
   assert.equal(rankingUi.isPosted('album:dup'), false);
   assert.ok(rankingUi.postRanking('album:dup'));
+});
+
+test('"Postado" is saved with the ranking: survives a reload and a sync round-trip, resets on a new rating', async () => {
+  const me = storage.getActiveUserId();
+  const subject = { id: 'keep', title: 'Disco Salvo' };
+  const t = { id: 'k1', title: 'Faixa', kind: 'track', order: 1 };
+  storage.setRankingRating('album', subject, t, 4);
+  assert.ok(rankingUi.postRanking('album:keep'));
+  const saved = JSON.parse(localStorage.getItem('rmsn_rankings_v1'))[me]['album:keep']; // what a reload reads back
+  assert.equal(saved.postedUpdatedAt, saved.updatedAt);
+  storage.deleteRanking('album:keep'); // another device: only the server row is left
+  storage.mergeRemoteRankings([{ user_id: me, key: 'album:keep', body: saved, updated_at: saved.updatedAt }], [me]);
+  assert.equal(rankingUi.isPosted('album:keep'), true);
+  await new Promise(r => setTimeout(r, 5));
+  storage.setRankingRating('album', subject, t, 2);
+  assert.equal(rankingUi.isPosted('album:keep'), false);
+});
+
+test('tapping my ranking bar in "Meus rankings" opens its summary popup with "Baixar imagem"', () => {
+  storage.setRankingRating('album', { id: 'bar', title: 'Disco Barra' }, { id: 'b1', title: 'Faixa', kind: 'track', order: 1 }, 4.5);
+  const box = { innerHTML: '', querySelector: () => null, querySelectorAll: () => [] };
+  rankingUi.renderRankingChallenge(box);
+  assert.match(box.innerHTML, /<button type="button" class="rk-entry-open" aria-label="Ver o ranking de Disco Barra" onclick="window\._rankOpen\(&quot;album:bar&quot;, this\)"/);
+  const body = { innerHTML: '', querySelector: () => null, querySelectorAll: () => [] };
+  const opened = [];
+  byId.set('ranking-view-modal', { querySelector: () => body });
+  const orig = window.openModal;
+  window.openModal = id => opened.push(id);
+  try { window._rankOpen('album:bar', null); } finally { window.openModal = orig; byId.delete('ranking-view-modal'); }
+  assert.deepEqual(opened, ['ranking-view-modal']);
+  assert.match(body.innerHTML, /Disco Barra[\s\S]*Postar no feed[\s\S]*_rankStory\(&quot;album:bar&quot;, this\)[\s\S]*Baixar imagem/); // not posted yet: download is there anyway
 });
 
 test('opening the ranking pill keeps the active question challenge', () => {
@@ -348,4 +381,15 @@ test('Comparar: a long song title cannot make one side wider than the other', as
   const rule = (sel) => css.match(new RegExp(`\n${sel.replace('.', '\.')} \{([^}]*)\}`))?.[1] ?? '';
   assert.match(rule('.compare-q-grid'), /grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(rule('.compare-song-title'), /-webkit-line-clamp:\s*2/);
+});
+
+test('Desafio das 30 Músicas: "Baixar imagem" shows only once all 30 are answered', () => {
+  const box = { innerHTML: '' };
+  for (let q = 1; q <= 29; q++) storage.saveChallengeAnswer('classic_30', q, { id: `s${q}`, title: `S${q}`, artist: 'A', artwork: '' });
+  ui.renderMusicAskGrid(box, 'classic_30');
+  assert.doesNotMatch(box.innerHTML, /Baixar imagem/);
+  storage.saveChallengeAnswer('classic_30', 30, { id: 's30', title: 'S30', artist: 'A', artwork: '' });
+  ui.renderMusicAskGrid(box, 'classic_30');
+  assert.match(box.innerHTML, /challenge-done[\s\S]*_downloadChallengeStory\(this\)[\s\S]*Baixar imagem/);
+  for (let q = 1; q <= 30; q++) storage.removeChallengeAnswer('classic_30', q);
 });

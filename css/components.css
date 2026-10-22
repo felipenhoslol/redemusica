@@ -1213,3 +1213,9 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
 
 /* Tirar música de uma questão do desafio */
 .q-card-remove:hover { color: var(--danger, #f4212e) !important; }
+
+/* Desafio das 30 Músicas concluído: faixa acima da grade com "Baixar imagem" (story) */
+.challenge-done { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.challenge-done-text { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: var(--accent); font-size: var(--fs-detail); letter-spacing: .04em; text-transform: uppercase; }
+.challenge-done .doodle-btn { min-height: 40px; }
+.story-btn[aria-busy="true"] { cursor: progress; opacity: .7; }

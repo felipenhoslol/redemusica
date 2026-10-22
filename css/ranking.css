@@ -148,6 +148,9 @@
 .rk-entries > li { border-bottom: 1px solid var(--line); }
 .rk-entries > li:last-child { border-bottom: 0; }
 .rk-entry { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 12px; padding: 10px 0; }
+.rk-entry-open { grid-column: 1 / 3; display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 12px; min-width: 0; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: transform var(--spring-press-dur, .15s) var(--spring-press, ease); }
+.rk-entry-open:active { transform: scale(.98); }
+.rk-entry-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .rk-entry-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rk-entry-text .ranking-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rk-entry-actions { display: flex; gap: 8px; }

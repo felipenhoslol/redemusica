@@ -2,7 +2,8 @@
 // Every tap saves (setRankingRating); posting is a separate button.
 import { lookupArtist, lookupAlbum, searchArtists, searchAlbums, searchAlbumsBySongs } from './api.js';
 import { albumSearchResults, matchingArtist, dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
-import { getRanking, setRankingRating, deleteRanking, createPost, getUserRankings, getFriendsRankings, getUserById } from './storage.js';
+import { getRanking, setRankingRating, markRankingPosted, deleteRanking, createPost, getUserRankings, getFriendsRankings, getUserById, getActiveUser } from './storage.js';
+import { storyButtonHtml, runStoryButton, renderRankingStory, storyFilename } from './storyImage.js';
 import { popIcon, rollNumber, flip, animateSpring, reducedMotion } from './motion.js';
 import { getArtistImage } from './lastfm.js';
 import { showToast } from './profile.js'; // ui.js re-exports it; importing ui.js here would close a cycle
@@ -24,22 +25,37 @@ let lastGridCount = 8;
 /** Tapping the value already set clears it. */
 export const rateFromStarTap = (current, tapped) => (current === tapped ? 0 : tapped);
 
-// key → updatedAt when posted: a new rating changes updatedAt, which unlocks posting again
-const postedAt = new Map();
-/** Already posted as it is now (this session): Postar shows "Postado", disabled. */
-export const isPosted = (key) => !!key && postedAt.has(key) && postedAt.get(key) === getRanking(key)?.updatedAt;
+/** Already posted as it is now (marker saved with the ranking; a new rating bumps updatedAt and unlocks it): Postar shows "Postado", disabled. */
+export const isPosted = (key) => { const r = key && getRanking(key); return !!r?.updatedAt && r.postedUpdatedAt === r.updatedAt; };
 
 export function postRanking(key) {
   const ranking = getRanking(key);
   if (!ranking?.items?.length) { showToast(EMPTY_HINT); return null; }
   if (isPosted(key)) return null;
   const post = createPost({ text: '', ranking });
-  postedAt.set(key, ranking.updatedAt);
+  markRankingPosted(key);
   showToast('Ranking postado');
   return post;
 }
 
-const showPosted = (btn) => { if (btn) { btn.disabled = true; btn.textContent = 'Postado'; } };
+const storyBtn = (key) => storyButtonHtml(`window._rankStory(${jsArg(key)}, this)`);
+
+// Posted: the button says so, and "Baixar imagem" (story image) appears right after it
+function showPosted(btn, key) {
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = 'Postado';
+  if (!key || btn.nextElementSibling?.classList.contains('story-btn')) return;
+  btn.insertAdjacentHTML('afterend', storyBtn(key));
+  if (!reducedMotion()) animateSpring(btn.nextElementSibling, [{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'none' }], 'pop');
+}
+
+window._rankStory = (key, btn) => {
+  const ranking = getRanking(key);
+  if (!ranking) return;
+  runStoryButton(btn, () => renderRankingStory(ranking, rankItems(ranking.items || [], ranking.mode), getActiveUser()?.handle),
+    storyFilename('ranking', ranking.subject?.title), showToast);
+};
 
 const ratingOf = (id) => getRanking(ed.key)?.items.find(i => i.id === String(id))?.rating || 0;
 const ratedCount = () => getRanking(ed.key)?.items.length || 0;
@@ -81,7 +97,7 @@ function headerHtml() {
       <div class="rk-actions">
         <span class="rk-count"><span class="rk-count-n">${n}</span> com nota</span>
         <button type="button" class="doodle-btn doodle-btn-secondary rk-view" ${n ? '' : 'disabled'} onclick="window._rankView(this)">Concluir</button>
-        <button type="button" class="doodle-btn doodle-btn-primary rk-post" ${n && !isPosted(ed.key) ? '' : 'disabled'} aria-describedby="rk-hint" onclick="window._rankPost(this)">${isPosted(ed.key) ? 'Postado' : 'Postar'}</button>
+        <button type="button" class="doodle-btn doodle-btn-primary rk-post" ${n && !isPosted(ed.key) ? '' : 'disabled'} aria-describedby="rk-hint" onclick="window._rankPost(this)">${isPosted(ed.key) ? 'Postado' : 'Postar'}</button>${isPosted(ed.key) ? storyBtn(ed.key) : ''}
       </div>
       <p class="rk-hint" id="rk-hint">${n ? 'Salvo enquanto você dá notas' : EMPTY_HINT}</p>
       ${tabs}
@@ -205,7 +221,7 @@ window._rankView = (btn) => {
 window._rankPost = (btn) => {
   if (!ed) return;
   press(btn);
-  if (postRanking(ed.key)) showPosted(btn);
+  if (postRanking(ed.key)) showPosted(btn, ed.key);
 };
 
 // ──────────────────────────────────────────
@@ -226,15 +242,17 @@ function metaLine(r) {
 
 const myRowHtml = (r) => `
   <li class="rk-entry" data-flip-key="${esc(r.key)}">
-    ${cover(r.subject?.artwork)}
-    <div class="rk-entry-text">
-      <span class="ranking-title">${esc(r.subject?.title)}</span>
-      <span class="ranking-meta">${metaLine(r)}</span>
-      <span class="ranking-meta">${r.items?.length || 0} com nota</span>
-    </div>
+    <button type="button" class="rk-entry-open" aria-label="${esc(`Ver o ranking de ${r.subject?.title || ''}`)}" onclick="window._rankOpen(${jsArg(r.key)}, this)">
+      ${cover(r.subject?.artwork)}
+      <span class="rk-entry-text">
+        <span class="ranking-title">${esc(r.subject?.title)}</span>
+        <span class="ranking-meta">${metaLine(r)}</span>
+        <span class="ranking-meta">${r.items?.length || 0} com nota</span>
+      </span>
+    </button>
     <div class="rk-entry-actions">
       <button type="button" class="doodle-btn doodle-btn-secondary" onclick="window._rankEdit(${jsArg(r.key)}, this)">Editar</button>
-      <button type="button" class="doodle-btn doodle-btn-primary" ${isPosted(r.key) ? 'disabled' : ''} onclick="window._rankPostSaved(${jsArg(r.key)}, this)">${isPosted(r.key) ? 'Postado' : 'Postar'}</button>
+      <button type="button" class="doodle-btn doodle-btn-primary" ${isPosted(r.key) ? 'disabled' : ''} onclick="window._rankPostSaved(${jsArg(r.key)}, this)">${isPosted(r.key) ? 'Postado' : 'Postar'}</button>${isPosted(r.key) ? storyBtn(r.key) : ''}
       <button type="button" class="doodle-btn doodle-btn-ghost rk-delete" aria-label="${esc(`Apagar o ranking de ${r.subject?.title || ''}`)}" title="Apagar" onclick="window._rankDelete(${jsArg(r.key)}, this)"><span class="ui-icon" aria-hidden="true">${ICONS.trash}</span></button>
     </div>
   </li>`;
@@ -496,8 +514,8 @@ window._rankEdit = (key, btn) => {
 window._rankPostSaved = (key, btn) => {
   press(btn);
   if (!postRanking(key)) return;
-  showPosted(btn);
-  if (ed?.key === key) showPosted(ed.container.querySelector('.rk-post'));
+  showPosted(btn, key);
+  if (ed?.key === key) showPosted(ed.container.querySelector('.rk-post'), key);
 };
 
 window._rankDelete = (key, btn) => {
@@ -517,6 +535,14 @@ window._rankDelete = (key, btn) => {
   });
   const out = reducedMotion() ? null : animateSpring(row, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.98)' }], 'snappy', { fill: 'forwards' });
   out ? out.finished.then(close, close) : close();
+};
+
+// Tapping my ranking's bar opens its summary (Editar / Postar / Baixar imagem)
+window._rankOpen = (key, btn) => {
+  const r = getRanking(key);
+  if (!r) return;
+  press(btn);
+  openRankingView(r, { own: true, posted: isPosted(key) });
 };
 
 window._rankFriend = (i, btn) => {

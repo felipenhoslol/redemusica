@@ -93,8 +93,9 @@ export function cleanRanking(raw) {
     items.push({ id, title: str(i.title), kind: str(i.kind), year: year(i.year), released: str(i.released), artwork: url(i.artwork),
       order: Number.isFinite(i.order) ? i.order : 0, rating: Math.min(5, Math.max(1, Math.round(n * 2) / 2)) });
   }
+  const updatedAt = Number.isFinite(Date.parse(raw.updatedAt)) ? raw.updatedAt : '';
   return { key: raw.key, mode: raw.mode, subject: { id: str(s.id), title: str(s.title), artist: str(s.artist), artwork: url(s.artwork), year: year(s.year) },
-    items, updatedAt: Number.isFinite(Date.parse(raw.updatedAt)) ? raw.updatedAt : '' };
+    items, updatedAt, ...(updatedAt && raw.postedUpdatedAt === updatedAt ? { postedUpdatedAt: updatedAt } : {}) }; // posted marker: stale once a rating bumps updatedAt
 }
 
 /** Frozen copy for a post: ranked, validated, capped; later edits to the live ranking don't reach it. */

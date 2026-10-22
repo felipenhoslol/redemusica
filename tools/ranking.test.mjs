@@ -207,6 +207,13 @@ test('a summary already posted shows "Postado", disabled', () => {
   assert.doesNotMatch(html, /Postar no feed/);
 });
 
+test(`my summary always offers "Baixar imagem" once something is rated; other people's summaries never do`, () => {
+  assert.match(rankingSummaryHtml(snap('artist', 3), { own: true }), /story-btn[\s\S]*Baixar imagem/);
+  assert.match(rankingSummaryHtml(snap('artist', 3), { own: true, posted: true }), /Baixar imagem/);
+  assert.doesNotMatch(rankingSummaryHtml(snap('artist', 0), { own: true }), /Baixar imagem/);
+  assert.doesNotMatch(rankingSummaryHtml(snap('artist', 3)), /Baixar imagem/);
+});
+
 test('summary escapes hostile snapshot text and drops bad URLs', () => {
   const s = snap('artist', 4);
   s.subject.title = '"><script>alert(1)</script>';

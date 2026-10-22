@@ -4,6 +4,7 @@ import { esc, safeUrl, jsArg } from './dom.js';
 import { renderRatingStars, getStarSVG, ICONS } from './icons.js';
 import { animateSpring, reducedMotion } from './motion.js';
 import { rankItems } from './ranking.js';
+import { storyButtonHtml } from './storyImage.js';
 
 export const RANKING_ROW_COUNT = 4;
 
@@ -68,7 +69,7 @@ const sumSlot = (it, place, art) => `
     <span class="ranking-title" title="${esc(it.title)}">${esc(it.title)}</span>
   </div>`;
 
-/** The ranking summary: header with the average, top-3 podium, every rated item; own rankings get Editar/Postar. */
+/** The ranking summary: header with the average, top-3 podium, every rated item; own rankings get Editar/Postar/Baixar imagem. */
 export function rankingSummaryHtml(ranking, { own = false, posted = false } = {}) {
   const r = ranking || {};
   const s = r.subject || {};
@@ -100,6 +101,7 @@ export function rankingSummaryHtml(ranking, { own = false, posted = false } = {}
       ${own ? `<div class="rk-sum-actions">
         <button type="button" class="doodle-btn doodle-btn-secondary" onclick="closeDoodleModal('ranking-view-modal')">Editar notas</button>
         <button type="button" class="doodle-btn doodle-btn-primary" ${items.length && !posted ? '' : 'disabled'} onclick="window._rankPostSaved(${jsArg(r.key)}, this)">${posted ? 'Postado' : 'Postar no feed'}</button>
+        ${items.length ? storyButtonHtml(`window._rankStory(${jsArg(r.key)}, this)`) : ''}
       </div>` : ''}
     </div>`;
 }
