@@ -1,7 +1,7 @@
 // Last.fm client (top artists / top tracks of a user, global chart) + real artist photos (Deezer).
 // Last.fm sends CORS headers, so it is called directly; Deezer does not, so it is called via JSONP.
 import { LASTFM_API_KEY } from './config.js';
-import { searchTracks } from './api.js';
+import { searchTracks, timeoutSignal } from './api.js';
 
 const LASTFM_URL = 'https://ws.audioscrobbler.com/2.0/';
 const REQUEST_TIMEOUT_MS = 10000;
@@ -69,7 +69,7 @@ async function callLastFm(method, params = {}, { ttl = CACHE_TTL_MS } = {}) {
 
   let json;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    const res = await fetch(url, { signal: timeoutSignal(REQUEST_TIMEOUT_MS) });
     json = await res.json().catch(() => null);
     if (!json) throw new Error(`HTTP ${res.status}`);
   } catch (err) {

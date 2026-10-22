@@ -81,3 +81,20 @@ test('lookupArtist does not wait on a hung "newest releases" lookup: the first p
     assert.equal(albums.length, 199); // artist row + 199 collections counts as capped, then falls back to page one
   } finally { mock.timers.reset(); globalThis.fetch = realFetch; }
 });
+
+// iPhone bug: /search?media=music answers 301 → musics:// for iOS User-Agents, so fetch and JSONP both
+// fail and every music search broke on iPhone. AbortSignal.timeout is missing before Safari 16.
+test('iTunes search URL has no media=music and js/ avoids AbortSignal.timeout', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const urls = [];
+  mock.method(globalThis, 'fetch', async (url) => { urls.push(String(url)); return new Response('{"results":[]}'); });
+  const { searchTracks, searchAlbums, searchArtists } = await import('../js/api.js');
+  await searchTracks('anitta'); await searchAlbums('anitta'); await searchArtists('anitta');
+  mock.restoreAll();
+  assert.ok(urls.length >= 3);
+  for (const u of urls) assert.doesNotMatch(u, /media=music/);
+  const dir = new URL('../js/', import.meta.url);
+  for (const f of readdirSync(dir).filter(f => f.endsWith('.js'))) {
+    assert.doesNotMatch(readFileSync(new URL(f, dir), 'utf8'), /AbortSignal\.timeout\(/, f);
+  }
+});

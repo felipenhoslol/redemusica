@@ -36,15 +36,24 @@ export function getHighResArtwork(url, size = 600) {
  */
 async function fetchItunesData(term, limit = 25, entity = 'song') {
   const cleanTerm = term.trim();
-  const directUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTerm)}&media=music&entity=${entity}&limit=${limit}&country=BR`;
+  const directUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTerm)}&entity=${entity}&limit=${limit}&country=BR`;
   return fetchItunesUrl(directUrl);
 }
 
-// iTunes requests: on iPhones (Safari/WebKit) the plain fetch to itunes.apple.com often fails on CORS
-// or simply hangs, which broke every music search there (attach a song, featured song, showcase,
-// lyric excerpt). The chain is now: fetch with a time limit → JSONP (the iTunes API supports
-// ?callback=, no CORS involved) → public proxies. Whatever worked last is tried first next time.
+// No media=music in the search URL: with an iPhone User-Agent, /search?media=music answers
+// 301 → musics://… (the Music app), which fetch and <script> both refuse, so every music search
+// failed on iPhone. The entity alone (song/album/musicArtist) gives the same results with a 200.
+// Fallback chain kept: fetch with a time limit → JSONP (?callback=, no CORS) → public proxies.
+// Whatever worked last is tried first next time.
 const ITUNES_TIMEOUT_MS = 6000;
+
+/** Abort signal that fires after ms. AbortSignal.timeout only exists from Safari 16; without it a
+ *  stuck request on older iPhones never ends (search spinner forever). */
+export function timeoutSignal(ms) {
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
 let itunesPreferJsonp = false;
 
 function itunesJsonp(url, timeoutMs = 8000) {
@@ -61,7 +70,7 @@ function itunesJsonp(url, timeoutMs = 8000) {
 }
 
 async function fetchJson(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(ITUNES_TIMEOUT_MS) : undefined });
+  const res = await fetch(url, { signal: timeoutSignal(ITUNES_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const text = (await res.text()).trim();
   if (!text) throw new Error('empty');
