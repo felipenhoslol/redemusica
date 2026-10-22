@@ -345,7 +345,7 @@ function resultsHtml() {
   return (area.artist ? artistRowHtml(area.artist) : '') + area.results.slice(0, area.shown).map(resultHtml).join('') + moreHtml();
 }
 
-window._rankSearch = (query) => {
+window._rankSearch = (query, delay = 300) => {
   clearTimeout(searchTimer);
   const list = area?.container.querySelector('.rk-results');
   if (!list) return;
@@ -366,10 +366,10 @@ window._rankSearch = (query) => {
       } else results = await searchArtists(q, 12);
     } catch { /* shown as nothing found */ }
     if (token !== searchToken || mode !== area?.pick) return;
-    Object.assign(area, { query: q, results, artist, shown: mode === 'album' ? ALBUM_PAGE : results.length });
+    Object.assign(area, { results, artist, shown: mode === 'album' ? ALBUM_PAGE : results.length });
     glide(() => { list.innerHTML = resultsHtml(); });
     hydrateResultPhotos(list);
-  }, 300);
+  }, delay);
 };
 
 // The next 20 of the already ranked list; the rows above stay put, the new ones spring in
@@ -465,8 +465,8 @@ window._rankDiscoBack = (btn) => {
   const input = area?.container.querySelector('.rk-pick-input');
   if (!input) return;
   input.focus();
-  // Typed then tapped the artist within the debounce: that search was dropped, run it now
-  if (input.value.trim() !== area.query) window._rankSearch(input.value);
+  // The disco cancelled any pending search (new text or a switched Álbum/Artista): redo it now, no debounce over stale rows
+  window._rankSearch(input.value, 0);
 };
 
 window._rankDiscoPick = (i, btn) => {

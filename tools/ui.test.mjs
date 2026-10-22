@@ -284,9 +284,10 @@ test('album search → artist discography: covers without stars, Voltar keeps th
 });
 
 test('discography opened before the typed search ran: Voltar runs the search for what is in the box', async () => {
+  const urls = [];
   const realFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => json(url.includes('lookup?id=9&entity=album') ? [col(1, 'Animals')]
-    : url.includes('entity=musicArtist') ? [{ artistId: 9, artistName: 'Pink Floyd' }] : []);
+  globalThis.fetch = async (url) => (urls.push(url), json(url.includes('lookup?id=9&entity=album') ? [col(1, 'Animals')]
+    : url.includes('entity=musicArtist') ? [{ artistId: 9, artistName: 'Pink Floyd' }] : []));
   try {
     const { box, list, input } = rankingArea();
     rankingUi.renderRankingChallenge(box);
@@ -300,6 +301,31 @@ test('discography opened before the typed search ran: Voltar runs the search for
     await window._rankDisco(null);
     window._rankDiscoBack(null);
     await settle();
+    assert.ok(urls.some(u => u.includes('wish')));
     assert.doesNotMatch(list.innerHTML, /Ver discografia/); // results now belong to "wish you were here"
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('switched to Artista, then opened the old album search discography: Voltar runs the artist search', async () => {
+  const urls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => (urls.push(url), json(url.includes('lookup?id=9&entity=album') ? [col(1, 'Animals')]
+    : url.includes('entity=musicArtist') ? [{ artistId: 9, artistName: 'Pink Floyd', primaryGenreName: 'Rock' }] : []));
+  try {
+    const { box, list, input } = rankingArea();
+    rankingUi.renderRankingChallenge(box);
+    window._rankPick('album', null);
+    input.value = 'pink floyd';
+    window._rankSearch(input.value);
+    await settle();
+    window._rankPick('artist', null); // the album rows and artist row stay on screen during the debounce
+    await window._rankDisco(null);
+    const asked = urls.length;
+    window._rankDiscoBack(null);
+    await settle();
+    assert.ok(urls.slice(asked).some(u => u.includes('entity=musicArtist')));
+    assert.doesNotMatch(list.innerHTML, /Ver discografia/);
+    assert.equal(rows(list.innerHTML), 1);
+    assert.match(list.innerHTML, /Pink Floyd/);
   } finally { globalThis.fetch = realFetch; }
 });
