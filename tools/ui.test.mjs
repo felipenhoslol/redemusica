@@ -341,3 +341,11 @@ test('switched to Artista, then opened the old album search discography: Voltar 
     assert.match(list.innerHTML, /Pink Floyd/);
   } finally { globalThis.fetch = realFetch; }
 });
+
+test('Comparar: a long song title cannot make one side wider than the other', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const rule = (sel) => css.match(new RegExp(`\n${sel.replace('.', '\.')} \{([^}]*)\}`))?.[1] ?? '';
+  assert.match(rule('.compare-q-grid'), /grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(rule('.compare-song-title'), /-webkit-line-clamp:\s*2/);
+});

@@ -629,14 +629,14 @@
 
 .compare-q-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* minmax(0,…): a long title can't widen its side */
   gap: 10px;
   padding: 12px;
 }
 
 @media (max-width: 600px) {
   .compare-q-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -711,10 +711,14 @@
   font-size: var(--fs-detail);
   font-weight: 800;
   color: var(--white);
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   line-height: 1.2;
+  min-height: 2.4em; /* always 2 lines tall, so both sides' covers line up */
 }
 
 .compare-song-artist {
