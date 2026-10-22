@@ -1,7 +1,7 @@
 // Star ranking in the feed: the podium card a post carries and the summary screen in a modal.
 // Renders only from the post's frozen snapshot (untrusted: other users' posts), never the live ranking.
 import { esc, safeUrl, jsArg } from './dom.js';
-import { renderRatingStars, ICONS } from './icons.js';
+import { renderRatingStars, getStarSVG, ICONS } from './icons.js';
 import { animateSpring, reducedMotion } from './motion.js';
 import { rankItems } from './ranking.js';
 
@@ -64,7 +64,7 @@ export const podiumOrder = (items) => [[items[1], 2], [items[0], 1], [items[2], 
 const sumSlot = (it, place, art) => `
   <div class="rk-sum-slot" data-place="${place}">
     ${cover(art)}
-    <span class="rk-sum-place">${place}º · ${comma(Number(it.rating) || 0)}</span>
+    <span class="rk-sum-place" aria-label="${place}º, nota ${comma(Number(it.rating) || 0)} de 5">${place}º · ${getStarSVG(1, 12)}${comma(Number(it.rating) || 0)}</span>
     <span class="ranking-title" title="${esc(it.title)}">${esc(it.title)}</span>
   </div>`;
 

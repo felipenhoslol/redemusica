@@ -172,7 +172,9 @@ test('summary lists every rated item with the average and count', () => {
   assert.equal((html.match(/class="rk-sum-row"/g) || []).length, 9);
   assert.match(html, /9 com nota/);
   assert.match(html, /rk-sum-avg-n">3,0</);
-  assert.match(html, /1º · 5</);
+  // The podium score carries a star so a bare "5" never reads as a count
+  assert.match(html, /1º · <svg[^>]*doodle-star filled[^]*?<\/svg>5</);
+  assert.match(html, /aria-label="1º, nota 5 de 5"/);
   const big = snap('album', 1);
   big.items = Array.from({ length: 300 }, (_, i) => ({ ...big.items[0], id: `t${i}`, order: i + 1, rating: 3 }));
   assert.equal((rankingSummaryHtml(big).match(/class="rk-sum-row"/g) || []).length, 300);
