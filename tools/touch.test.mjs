@@ -79,13 +79,20 @@ test('no hover done in JavaScript', () => {
   for (const f of readdirSync('js').filter(f => f.endsWith('.js')))
     assert.doesNotMatch(readFileSync(`js/${f}`, 'utf8'), /onmouse(over|out|enter|leave)=/, f);
 });
-test('tapping a button or link does not flash', () => {
-  assert.ok(cssRules('motion.css').some(r => ['button', 'a', '[role="button"]'].every(s => r.selectors.includes(s)) && /-webkit-tap-highlight-color:\s*transparent/.test(r.body)));
+test('tapping anything, even a clickable div, does not flash', () => {
+  assert.ok(cssRules('motion.css').some(r => r.selectors.includes('html') && /-webkit-tap-highlight-color:\s*transparent/.test(r.body)));
 });
-test('cards and list rows sink when pressed, but not when the press is on a button inside', () => {
-  const press = cssRules('motion.css').filter(r => /transform:\s*scale\(0\.98/.test(r.body)).flatMap(r => r.selectors);
+// cssRules splits selectors on every comma, so the :has() list is rejoined before matching
+const INSIDE = ':not(:has(button:active, a:active, [onclick]:active, [role="button"]:active))';
+test('cards and list rows sink when pressed, but not when the press is on a button or clickable child inside', () => {
+  const press = cssRules('motion.css').filter(r => /transform:\s*scale\(0\.98/.test(r.body)).map(r => r.selectors.join(', ')).join(', ');
   for (const c of ['.playlist-card', '.q-card', '.chat-contact-card', '.search-row', '.playlist-track-row', '.me-sheet-item'])
-    assert.ok(press.some(s => s.startsWith(c + ':active') && s.includes(':not(:has(')), c);
+    assert.ok(press.includes(c + ':active' + INSIDE), c);
+});
+test('on desktop a lifted card stays lifted while the mouse button is held', () => {
+  const held = cssRules().filter(mouseOnly).map(r => [r.selectors.join(', '), r.body]);
+  for (const [c, y] of [['.playlist-card', -4], ['.profile-playlist-card', -4], ['.share-option-card', -2]])
+    assert.ok(held.some(([s, b]) => s.includes(c + ':hover:active' + INSIDE) && b.includes(`translateY(${y}px) scale(.98)`)), c);
 });
 test('delete-comment and review stars have a 40px touch area', () => {
   const del = cssRules('feed.css').find(r => r.selectors.includes('.comment-delete-btn::before'));

@@ -14,8 +14,8 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* ─── Toque: sem o flash azul/cinza do navegador; o feedback é o "afundar" abaixo ─── */
-button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
+/* ─── Toque: sem o flash azul/cinza do navegador (herdado, cobre também os <div onclick>); o feedback é o "afundar" abaixo ─── */
+html { -webkit-tap-highlight-color: transparent; }
 
 /* ─── Toque: todo botão "afunda" um pouco ao ser pressionado (feedback, ~120ms perceptíveis) ─── */
 .btn-post-action, .doodle-btn, .btn-attach, .player-play-btn, .player-vol-btn,
@@ -40,21 +40,27 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 }
 .player-play-btn:active, .featured-play-btn:active { transform: scale(0.94); } /* controle principal: um pouco mais de "clique" */
 /* Cards e linhas de lista afundam menos; um toque num botão dentro deles (play, curtir) só afunda o botão */
-.playlist-card:active:not(:has(button:active, a:active)),
-.profile-playlist-card:active:not(:has(button:active, a:active)),
-.q-card:active:not(:has(button:active, a:active)),
-.chat-contact-card:active:not(:has(button:active, a:active)),
-.dm-contact-item:active:not(:has(button:active, a:active)),
-.compare-user-card:active:not(:has(button:active, a:active)),
-.share-option-card:active:not(:has(button:active, a:active)) { transform: scale(0.98); }
-.search-row:active:not(:has(button:active, a:active)),
-.friend-item:active:not(:has(button:active, a:active)),
-.playlist-track-row:active:not(:has(button:active, a:active)),
-.post-options-item:active:not(:has(button:active, a:active)),
-.trending-item:active:not(:has(button:active, a:active)),
-.playlist-picker-item:active:not(:has(button:active, a:active)),
-.me-sheet-item:active:not(:has(button:active, a:active)),
-.notif-item:not(.no-link):active:not(:has(button:active, a:active)) { transform: scale(0.985); }
+.playlist-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.profile-playlist-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.q-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.chat-contact-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.dm-contact-item:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.compare-user-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.share-option-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)) { transform: scale(0.98); }
+.search-row:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.friend-item:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.playlist-track-row:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.post-options-item:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.trending-item:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.playlist-picker-item:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.me-sheet-item:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.notif-item:not(.no-link):active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)) { transform: scale(0.985); }
+
+/* No desktop o card levantado pelo hover continua levantado enquanto o botão do mouse está apertado */
+@media (hover: hover) and (pointer: fine) {
+  .playlist-card:hover:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)), .profile-playlist-card:hover:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)) { transform: translateY(-4px) scale(.98); }
+  .share-option-card:hover:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)) { transform: translateY(-2px) scale(.98); }
+}
 
 /* ─── Hover só com mouse (no toque, um tap deixaria o hover preso) ─── */
 @media (hover: none) {
