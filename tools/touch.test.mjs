@@ -74,3 +74,22 @@ test('player bars change size with transform or clip-path only', () => {
   assert.ok(!/player-vol-fill[^>]*width:/.test(ui) && !/fill\.style\.width/.test(ui));
   assert.match(ui, /scaleX\(/);
 });
+
+test('no hover done in JavaScript', () => {
+  for (const f of readdirSync('js').filter(f => f.endsWith('.js')))
+    assert.doesNotMatch(readFileSync(`js/${f}`, 'utf8'), /onmouse(over|out|enter|leave)=/, f);
+});
+test('tapping a button or link does not flash', () => {
+  assert.ok(cssRules('motion.css').some(r => ['button', 'a', '[role="button"]'].every(s => r.selectors.includes(s)) && /-webkit-tap-highlight-color:\s*transparent/.test(r.body)));
+});
+test('cards and list rows sink when pressed, but not when the press is on a button inside', () => {
+  const press = cssRules('motion.css').filter(r => /transform:\s*scale\(0\.98/.test(r.body)).flatMap(r => r.selectors);
+  for (const c of ['.playlist-card', '.q-card', '.chat-contact-card', '.search-row', '.playlist-track-row', '.me-sheet-item'])
+    assert.ok(press.some(s => s.startsWith(c + ':active') && s.includes(':not(:has(')), c);
+});
+test('delete-comment and review stars have a 40px touch area', () => {
+  const del = cssRules('feed.css').find(r => r.selectors.includes('.comment-delete-btn::before'));
+  assert.match(del.body, /width:\s*40px/); assert.match(del.body, /height:\s*40px/);
+  assert.match(cssRules('feed.css').find(r => r.selectors.includes('.review-star')).body, /padding:\s*4px/);
+  assert.ok(cssRules().some(r => mouseOnly(r) && r.selectors.includes('.review-star:hover')));
+});

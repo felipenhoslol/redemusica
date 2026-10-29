@@ -188,6 +188,49 @@
   .star-pick-btn:hover { transform: scale(1.2); }
 }
 
+/* Apagar comentário: mesmo tamanho visual, área de toque de 40px sem a linha crescer */
+.comment-delete-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: var(--fs-detail);
+  line-height: 1;
+  border-radius: 4px;
+  opacity: .6;
+  transition-property: transform, color, opacity;
+  transition-duration: var(--spring-press-dur, 160ms), 150ms, 150ms;
+  transition-timing-function: var(--spring-press, var(--ease-out)), ease, ease;
+}
+.comment-delete-btn::before {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+}
+.comment-delete-btn:active { opacity: 1; color: var(--danger); transform: scale(.94); }
+
+/* Estrelas do modal de review: 32px + 4px de cada lado = 40px de toque */
+.review-star {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  padding: 4px;
+  cursor: pointer;
+  transition: transform var(--spring-press-dur, 160ms) var(--spring-press, var(--ease-out));
+}
+.review-star:active { transform: scale(.9); }
+
+@media (hover: hover) and (pointer: fine) {
+  .comment-delete-btn:hover { opacity: 1; color: var(--danger); }
+  .review-star:hover { transform: scale(1.15); }
+}
+
 .rating-value-badge { font-size: var(--fs-detail); color: var(--muted); }
 
 /* Creator action bar (toolbar) */

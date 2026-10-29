@@ -182,7 +182,7 @@ export function renderCommentRow(c, postId, isMaximized = false) {
     </div>` : '';
 
   const deleteBtnHtml = canDelete ? `
-    <button class="comment-delete-btn" title="Excluir comentário" onclick="event.stopPropagation();window._deleteComment('${postId}', '${c.id}')" style="background:transparent;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;font-size:var(--fs-detail);line-height:1;border-radius:4px;transition:all 0.15s;opacity:0.6;" onmouseover="this.style.opacity=1;this.style.color='#ff5555'" onmouseout="this.style.opacity=0.6;this.style.color='var(--muted)'">
+    <button class="comment-delete-btn" title="Excluir comentário" onclick="event.stopPropagation();window._deleteComment('${postId}', '${c.id}')">
       ${ICONS.trash || '✕'}
     </button>` : '';
 

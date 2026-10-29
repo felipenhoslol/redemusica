@@ -915,11 +915,11 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
           </div>
 
           <!-- Interactive 5 Stars with Half-Star Click Zones -->
-          <div id="review-stars-row" style="display:flex;gap:8px;align-items:center;justify-content:center;padding:8px 0;">
+          <div id="review-stars-row" style="display:flex;gap:0;align-items:center;justify-content:center;padding:8px 0;">
             ${[1, 2, 3, 4, 5].map(n => {
               const fill = currentReviewRating >= n ? 1 : (currentReviewRating >= n - 0.5 ? 0.5 : 0);
               return `
-                <div style="position:relative;display:inline-block;cursor:pointer;line-height:0;transition:transform 0.15s ease;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'" title="Nota ${n}">
+                <div class="review-star" title="Nota ${n}">
                   ${getStarSVG(fill, 32)}
                   <div onclick="window._setReviewRating(${n - 0.5})" style="position:absolute;top:0;left:0;width:50%;height:100%;z-index:2;" title="Nota ${n - 0.5}"></div>
                   <div onclick="window._setReviewRating(${n})" style="position:absolute;top:0;right:0;width:50%;height:100%;z-index:2;" title="Nota ${n}.0"></div>

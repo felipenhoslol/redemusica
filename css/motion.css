@@ -14,13 +14,24 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* ─── Toque: sem o flash azul/cinza do navegador; o feedback é o "afundar" abaixo ─── */
+button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
+
 /* ─── Toque: todo botão "afunda" um pouco ao ser pressionado (feedback, ~120ms perceptíveis) ─── */
 .btn-post-action, .doodle-btn, .btn-attach, .player-play-btn, .player-vol-btn,
 .feed-filter-btn, .nav-item, .nav-post-btn, .poll-vote, .poll-play, .search-icon-btn,
-.mobile-tab, .comment-like-btn, .comment-reply-btn, .featured-play-btn {
+.mobile-tab, .comment-like-btn, .comment-reply-btn, .featured-play-btn,
+.playlist-card, .profile-playlist-card, .q-card, .chat-contact-card, .dm-contact-item, .compare-user-card, .share-option-card,
+.search-row, .friend-item, .playlist-track-row, .post-options-item, .trending-item, .playlist-picker-item, .me-sheet-item, .notif-item {
   transition-property: transform, background-color, color, border-color, opacity;
   transition-duration: var(--spring-press-dur, 160ms), 150ms, 150ms, 150ms, 150ms;
   transition-timing-function: var(--spring-press, var(--ease-out)), ease, ease, ease, ease;
+}
+/* O card de playlist animava `all`: a sombra do hover no desktop continua suave */
+.playlist-card {
+  transition-property: transform, background-color, color, border-color, opacity, box-shadow;
+  transition-duration: var(--spring-press-dur, 160ms), 150ms, 150ms, 150ms, 150ms, 250ms;
+  transition-timing-function: var(--spring-press, var(--ease-out)), ease, ease, ease, ease, ease;
 }
 .btn-post-action:active, .doodle-btn:active, .btn-attach:active, .player-vol-btn:active,
 .feed-filter-btn:active, .nav-item:active, .nav-post-btn:active, .poll-vote:active, .poll-play:active,
@@ -28,6 +39,22 @@
   transform: scale(0.97);
 }
 .player-play-btn:active, .featured-play-btn:active { transform: scale(0.94); } /* controle principal: um pouco mais de "clique" */
+/* Cards e linhas de lista afundam menos; um toque num botão dentro deles (play, curtir) só afunda o botão */
+.playlist-card:active:not(:has(button:active, a:active)),
+.profile-playlist-card:active:not(:has(button:active, a:active)),
+.q-card:active:not(:has(button:active, a:active)),
+.chat-contact-card:active:not(:has(button:active, a:active)),
+.dm-contact-item:active:not(:has(button:active, a:active)),
+.compare-user-card:active:not(:has(button:active, a:active)),
+.share-option-card:active:not(:has(button:active, a:active)) { transform: scale(0.98); }
+.search-row:active:not(:has(button:active, a:active)),
+.friend-item:active:not(:has(button:active, a:active)),
+.playlist-track-row:active:not(:has(button:active, a:active)),
+.post-options-item:active:not(:has(button:active, a:active)),
+.trending-item:active:not(:has(button:active, a:active)),
+.playlist-picker-item:active:not(:has(button:active, a:active)),
+.me-sheet-item:active:not(:has(button:active, a:active)),
+.notif-item:not(.no-link):active:not(:has(button:active, a:active)) { transform: scale(0.985); }
 
 /* ─── Hover só com mouse (no toque, um tap deixaria o hover preso) ─── */
 @media (hover: none) {
