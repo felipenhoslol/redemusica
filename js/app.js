@@ -1226,7 +1226,7 @@ function bindGlobalHandlers() {
             const songs = pl.songs || [];
             const coverArt = pl.coverUrl || (songs.find(s => !!s.artwork)?.artwork || '');
             return `
-              <div class="playlist-picker-item" onclick="window._setCreatorPlaylist('${pl.id}')" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:10px;cursor:pointer;transition:all 0.15s ease;">
+              <div class="playlist-picker-item" onclick="window._setCreatorPlaylist('${pl.id}')" style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:10px;cursor:pointer;">
                 <div style="width:46px;height:46px;border-radius:6px;overflow:hidden;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
                   ${coverArt ? `<img alt="" src="${safeUrl(coverArt)}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="color:var(--purple-light);">${ICONS.playlist}</span>`}
                 </div>

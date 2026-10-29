@@ -294,7 +294,9 @@
   font-size: var(--fs-detail);
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.18s;
+  transition-timing-function: ease;
 }
 
 .chat-tab-exit-btn:hover {
@@ -469,7 +471,9 @@
   font-size: var(--fs-detail);
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
 }
 
 .chat-tool-btn:hover {
@@ -539,7 +543,9 @@
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  transition: all 0.15s ease;
+  transition-property: background-color, color, transform;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -100,3 +100,9 @@ test('delete-comment and review stars have a 40px touch area', () => {
   assert.match(cssRules('feed.css').find(r => r.selectors.includes('.review-star')).body, /padding:\s*4px/);
   assert.ok(cssRules().some(r => mouseOnly(r) && r.selectors.includes('.review-star:hover')));
 });
+
+test('no "transition: all" anywhere in CSS or inline styles', () => {
+  const hits = [...readdirSync('css').map(f => `css/${f}`), ...readdirSync('js').filter(f => f.endsWith('.js')).map(f => `js/${f}`)]
+    .flatMap(p => readFileSync(p, 'utf8').split('\n').map((l, i) => /transition(-property)?\s*:\s*all\b/.test(l) ? `${p}:${i + 1}` : null)).filter(Boolean);
+  assert.deepEqual(hits, []);
+});
