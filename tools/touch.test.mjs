@@ -65,3 +65,12 @@ test('the profile vinyl slides with translate, never animates left, and the spin
   assert.ok(disk.some(r => mouseOnly(r) && r.selectors.includes('.featured-vinyl-stage:hover .featured-vinyl-disk')));
   assert.ok(cssRules('profile.css').some(r => r.media[0] === '@keyframes spinVinyl' && /transform:\s*rotate/.test(r.body)));
 });
+
+test('player bars change size with transform or clip-path only', () => {
+  const bars = cssRules().filter(r => r.selectors.some(s => /\.(progress-track|progress-fill|player-vol-fill)\b/.test(s)));
+  assert.deepEqual(bars.filter(r => /transition[^;]*\b(width|height)\b/.test(r.body)).map(r => r.file + ' ' + r.selectors.join()), []);
+  assert.ok(!bars.some(r => r.selectors.some(s => s.includes(':hover')) && /(^|[;\s])height\s*:\s*8px/.test(r.body)));
+  const ui = readFileSync('js/ui.js', 'utf8');
+  assert.ok(!/player-vol-fill[^>]*width:/.test(ui) && !/fill\.style\.width/.test(ui));
+  assert.match(ui, /scaleX\(/);
+});

@@ -191,18 +191,12 @@
   border-radius: 4px;
   cursor: pointer;
   position: relative;
-  transition: height 0.15s;
-}
-
-.progress-track:hover {
-  height: 8px;
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent));
   border-radius: 4px;
-  transition: width 0.15s linear;
   box-shadow: none;
 }
 
@@ -262,8 +256,10 @@
   bottom: 0;
   background: linear-gradient(90deg, var(--accent), var(--accent));
   border-radius: 4px;
+  width: 100%;
   pointer-events: none;
-  transition: width 0.05s ease;
+  transform-origin: left center;
+  transition: transform var(--spring-snappy-dur, 120ms) var(--spring-snappy, var(--ease-out));
   box-shadow: none;
 }
 
