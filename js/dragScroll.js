@@ -3,7 +3,7 @@
 
 const THRESHOLD = 6; // px before a press becomes a drag
 
-function horizontalScroller(start) {
+export function horizontalScroller(start) {
   for (let el = start; el && el !== document.body; el = el.parentElement) {
     if (el.scrollWidth > el.clientWidth + 1) {
       const overflow = getComputedStyle(el).overflowX;

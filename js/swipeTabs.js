@@ -1,6 +1,8 @@
 // Swipe sideways on a panel to move to the neighbouring tab (feed: "Para você" ⇄ "Seguindo").
 // The panel follows the finger or mouse; vertical scrolling is left to the browser.
 
+import { horizontalScroller } from './dragScroll.js';
+
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const START = 10;        // px before deciding the direction
 const COMMIT = 0.22;     // share of the width that switches tabs
@@ -21,6 +23,9 @@ export function bindSwipeTabs(el, { tabs, current, onSwitch }) {
   el.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (e.target.closest('input, textarea, select, [contenteditable="true"], .progress-track, input[type="range"]')) return;
+    // A carousel inside the panel that can scroll sideways keeps the drag for itself
+    const sc = horizontalScroller(e.target);
+    if (sc && sc !== el && el.contains(sc)) return;
     s = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, dx: 0, axis: null, width: el.offsetWidth || 1 };
   });
 
