@@ -54,7 +54,8 @@ Extra: a lista de press-scale `:active` em `css/motion.css:25` não cobre cards 
 
 - **Ferramenta:** Capacitor, que embrulha o site existente num APK sem reescrever nada. *(escolha do Claude)*
 - **Os arquivos vão dentro do APK** e o app não abre o site online. *(decisão do dono)* Cada versão nova do site precisa de um APK novo. O app ainda precisa de internet para dados (Supabase, busca, Last.fm, áudio). "Offline" quer dizer só que a interface abre sem carregar o site.
-- **Nome do app:** "rede de música sem nome". *(decisão do dono)* O ícone vem do gato/logo atual.
+- **Nome do app:** "rede de música sem nome". *(decisão do dono)*
+- **Ícone:** o mesmo gato do site *(decisão do dono)*. A fonte é `assets/favicon.svg`. Gerar o ícone adaptável do Android (camadas de frente e fundo, com margem de segurança) e todos os tamanhos a partir dele. O `icon-192.png` é pequeno demais para servir de fonte.
 - **Só Android.** Sem iPhone e sem Play Store. *(decisão do dono)*
 - **Distribuição:** o APK é baixado pelo próprio site.
 
