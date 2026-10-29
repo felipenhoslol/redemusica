@@ -1105,11 +1105,11 @@
 .profile-listening-row.now .profile-listening-when { color: var(--accent); font-weight: 800; }
 .profile-listening-empty { font-size: var(--fs-detail); color: var(--text-2, var(--muted)); padding: 4px 0; }
 .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
-.eq i { width: 3px; background: currentColor; border-radius: 1px; animation: eq-bounce .9s ease-in-out infinite; }
+.eq i { width: 3px; height: 100%; transform-origin: bottom; background: currentColor; border-radius: 1px; animation: eq-bounce .9s ease-in-out infinite; }
 .eq i:nth-child(2) { animation-delay: -.3s; }
 .eq i:nth-child(3) { animation-delay: -.6s; }
-@keyframes eq-bounce { 0%, 100% { height: 3px; } 50% { height: 11px; } }
-@media (prefers-reduced-motion: reduce) { .eq i { animation: none; height: 8px; } }
+@keyframes eq-bounce { 0%, 100% { transform: scaleY(.27); } 50% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .eq i { animation: none; transform: scaleY(.73); } }
 
 /* Banner no mesmo formato do editor (3:1): mostra exatamente o enquadramento escolhido */
 .profile-banner { height: auto; aspect-ratio: 3 / 1; max-height: 300px; }
@@ -1121,11 +1121,15 @@
     radial-gradient(120% 140% at 0% 0%, var(--accent-soft), transparent 60%),
     var(--surface, var(--bg-card));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+/* O brilho pulsa só na opacidade de uma camada por cima: sem repintar a sombra a cada quadro */
+.profile-listening.is-playing::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 28%, transparent);
+  opacity: 0;
   animation: np-glow 2.4s ease-in-out infinite;
 }
-@keyframes np-glow {
-  50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 28%, transparent); }
-}
+@keyframes np-glow { 50% { opacity: 1; } }
 .np-disc {
   position: relative; flex: none; width: 52px; height: 52px; border-radius: 50%;
   background: repeating-radial-gradient(circle, #111 0 2px, #1d1d1d 2px 4px);
@@ -1142,7 +1146,7 @@
 .profile-listening.is-playing .profile-listening-head svg { animation: np-bob 1.2s ease-in-out infinite; }
 @keyframes np-bob { 50% { transform: translateY(-2px) rotate(-6deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .profile-listening.is-playing, .np-disc, .profile-listening.is-playing .profile-listening-head svg, .featured-vinyl-disk { animation: none; }
+  .profile-listening.is-playing::after, .np-disc, .profile-listening.is-playing .profile-listening-head svg, .featured-vinyl-disk { animation: none; }
 }
 
 /* Vitrine: botão de tirar música do tamanho de um dedo, vaga vazia como botão de verdade */

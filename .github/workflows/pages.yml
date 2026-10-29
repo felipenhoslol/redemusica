@@ -31,8 +31,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Testar os filtros contra XSS (se falhar, não publica)
-        run: node --test tools/security.test.mjs tools/search.test.mjs
+      - name: Testar filtros contra XSS e o toque (se falhar, não publica)
+        run: node --test tools/security.test.mjs tools/search.test.mjs tools/touch.test.mjs tools/swipeTabs.test.mjs
 
       - name: Montar _site otimizado (CSS/JS empacotados) com versão carimbada
         run: |

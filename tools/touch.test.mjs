@@ -106,3 +106,16 @@ test('no "transition: all" anywhere in CSS or inline styles', () => {
     .flatMap(p => readFileSync(p, 'utf8').split('\n').map((l, i) => /transition(-property)?\s*:\s*all\b/.test(l) ? `${p}:${i + 1}` : null)).filter(Boolean);
   assert.deepEqual(hits, []);
 });
+test('no keyframes animate layout or shadow', () => {
+  const bad = cssRules().filter(r => r.media.some(m => m.startsWith('@keyframes')) && /(^|[;\s])(width|height|top|left|right|bottom|margin[\w-]*|padding[\w-]*|box-shadow)\s*:/.test(r.body));
+  assert.deepEqual(bad.map(r => `${r.file} ${r.media.at(-1)}`), []);
+});
+test('reduced motion also stops the glow and the equalizer', () => {
+  const rm = cssRules('profile.css').filter(r => r.media.some(m => /prefers-reduced-motion:\s*reduce/.test(m)) && /animation:\s*none/.test(r.body)).flatMap(r => r.selectors);
+  assert.ok(rm.includes('.profile-listening.is-playing::after') && rm.includes('.eq i'));
+});
+test('touch screens drop the backdrop blur; desktop keeps it', () => {
+  const off = cssRules('mobile.css').filter(r => touchOnly(r) && /(^|[;\s])backdrop-filter:\s*none/.test(r.body) && /-webkit-backdrop-filter:\s*none/.test(r.body)).flatMap(r => r.selectors);
+  for (const s of ['.mobile-tabbar', '.player-bar', '.timeline-header', '.search-top', '.chat-msg-actions-bar', '.playlist-detail-hero']) assert.ok(off.includes(s), s);
+  assert.ok(cssRules('social.css').some(r => r.selectors.includes('.player-bar') && !touchOnly(r) && /blur\(14px\)/.test(r.body)));
+});
