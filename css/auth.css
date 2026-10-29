@@ -139,7 +139,9 @@ body.auth-open .app-sidebar { visibility: hidden; }
   cursor: pointer;
   transition: background .15s, transform .15s;
 }
-.auth-submit:hover:not(:disabled) { background: var(--neon-hover); transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) {
+  .auth-submit:hover:not(:disabled) { background: var(--neon-hover); transform: translateY(-1px); }
+}
 .auth-submit:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 
 .auth-notice {

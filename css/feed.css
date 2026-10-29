@@ -184,7 +184,9 @@
   transition: transform 0.1s;
 }
 
-.star-pick-btn:hover { transform: scale(1.2); }
+@media (hover: hover) and (pointer: fine) {
+  .star-pick-btn:hover { transform: scale(1.2); }
+}
 
 .rating-value-badge { font-size: var(--fs-detail); color: var(--muted); }
 
@@ -570,14 +572,18 @@
   cursor: pointer;
   transition: transform 0.2s ease;
 }
-.comment-attached-media img:hover {
-  transform: scale(1.02);
+@media (hover: hover) and (pointer: fine) {
+  .comment-attached-media img:hover {
+    transform: scale(1.02);
+  }
 }
 
-.gif-picker-item:hover {
-  transform: scale(1.04);
-  border-color: var(--purple-accent) !important;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .gif-picker-item:hover {
+    transform: scale(1.04);
+    border-color: var(--purple-accent) !important;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
 }
 
 /* Tag pill */

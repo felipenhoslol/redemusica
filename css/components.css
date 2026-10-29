@@ -141,7 +141,9 @@
   transition: color 0.15s, transform 0.15s;
 }
 
-.player-ctrl-btn:hover { color: var(--white); transform: scale(1.1); }
+@media (hover: hover) and (pointer: fine) {
+  .player-ctrl-btn:hover { color: var(--white); transform: scale(1.1); }
+}
 
 .player-play-btn {
   width: 44px;
@@ -158,10 +160,12 @@
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.player-play-btn:hover {
-  background: linear-gradient(135deg, var(--accent), var(--accent));
-  transform: scale(1.06);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .player-play-btn:hover {
+    background: linear-gradient(135deg, var(--accent), var(--accent));
+    transform: scale(1.06);
+    box-shadow: none;
+  }
 }
 
 .player-progress {
@@ -233,9 +237,11 @@
   transition: color 0.2s, transform 0.15s;
 }
 
-.player-vol-btn:hover {
-  color: var(--text);
-  transform: scale(1.1);
+@media (hover: hover) and (pointer: fine) {
+  .player-vol-btn:hover {
+    color: var(--text);
+    transform: scale(1.1);
+  }
 }
 
 .player-vol-bar-wrapper {
@@ -1094,11 +1100,13 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   box-sizing: border-box !important;
 }
 
-.gif-picker-item:hover {
-  transform: scale(1.04) !important;
-  border-color: var(--purple-accent) !important;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent) !important;
-  z-index: 2;
+@media (hover: hover) and (pointer: fine) {
+  .gif-picker-item:hover {
+    transform: scale(1.04) !important;
+    border-color: var(--purple-accent) !important;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent) !important;
+    z-index: 2;
+  }
 }
 
 .gif-picker-item img {
@@ -1127,10 +1135,12 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   box-sizing: border-box;
 }
 
-.rich-link-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--purple-accent);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .rich-link-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--purple-accent);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
 }
 
 .rich-link-cover {
@@ -1148,8 +1158,10 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   transition: transform 0.25s ease;
 }
 
-.rich-link-card:hover .rich-link-cover img {
-  transform: scale(1.03);
+@media (hover: hover) and (pointer: fine) {
+  .rich-link-card:hover .rich-link-cover img {
+    transform: scale(1.03);
+  }
 }
 
 .rich-link-body {

@@ -341,7 +341,9 @@ a { color: var(--accent); }
   border-radius: 50%;
   background: var(--accent); color: var(--on-accent); border: 0;
 }
-.post-attached-song .doodle-btn:hover { background: var(--accent-hover); transform: none; }
+@media (hover: hover) and (pointer: fine) {
+  .post-attached-song .doodle-btn:hover { background: var(--accent-hover); transform: none; }
+}
 .post-attached-image { border-radius: var(--radius); border: 1px solid var(--line); margin-bottom: 10px; }
 .post-attached-playlist { border-radius: var(--radius) !important; }
 
@@ -419,7 +421,9 @@ a { color: var(--accent); }
 
 /* ─── Botões, campos, modais ─── */
 .doodle-btn { border-radius: var(--pill); font: 800 var(--fs-detail) var(--f-ui); transition: background .15s, color .15s, border-color .15s; }
-.doodle-btn:hover { opacity: 1; transform: none; }
+@media (hover: hover) and (pointer: fine) {
+  .doodle-btn:hover { opacity: 1; transform: none; }
+}
 .doodle-btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .doodle-btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .doodle-btn-secondary { background: none; border: 1px solid var(--line); color: var(--text); }
@@ -463,7 +467,9 @@ a { color: var(--accent); }
 .player-title { font: 800 var(--fs-text) var(--f-ui); color: var(--text); }
 .player-artist { color: var(--text-2); }
 .player-play-btn { width: 40px; height: 40px; background: var(--text); color: var(--bg); transition: transform .1s; }
-.player-play-btn:hover { background: var(--text); transform: scale(1.05); }
+@media (hover: hover) and (pointer: fine) {
+  .player-play-btn:hover { background: var(--text); transform: scale(1.05); }
+}
 .player-time { font: 400 var(--fs-detail) var(--f-ui); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .progress-track,
 .progress-track:hover {
@@ -485,7 +491,9 @@ a { color: var(--accent); }
 .player-vol-container { background: none; border: 0; padding: 6px 0; }
 .player-vol-container:hover { background: none; }
 .player-vol-btn { color: var(--text-2); }
-.player-vol-btn:hover { color: var(--text); transform: none; }
+@media (hover: hover) and (pointer: fine) {
+  .player-vol-btn:hover { color: var(--text); transform: none; }
+}
 .player-vol-bar-wrapper { height: 4px; background: var(--line); }
 .player-vol-fill { background: var(--accent); }
 .player-vol-pct { font: 400 var(--fs-detail) var(--f-ui); color: var(--text-2); }
@@ -681,7 +689,9 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 
 /* Perfil: destaque do artista nº 1 — selo acima do nome, botão alinhado à direita, sem sobreposição */
 .top-artist-spotlight { box-shadow: none; background: var(--surface); border-color: var(--line); }
-.top-artist-spotlight:hover { transform: none; box-shadow: none; background: var(--hover); border-color: var(--line); }
+@media (hover: hover) and (pointer: fine) {
+  .top-artist-spotlight:hover { transform: none; box-shadow: none; background: var(--hover); border-color: var(--line); }
+}
 .spotlight-rank-crown {
   position: static; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 4px;
   backdrop-filter: none; padding: 2px 8px; font-size: var(--fs-detail); white-space: nowrap;

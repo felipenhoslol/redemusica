@@ -217,7 +217,9 @@
   transition: background 0.15s, transform 0.15s;
 }
 
-.dm-send-btn:hover { background: var(--purple-light); transform: scale(1.06); }
+@media (hover: hover) and (pointer: fine) {
+  .dm-send-btn:hover { background: var(--purple-light); transform: scale(1.06); }
+}
 
 .dm-attach-btn {
   width: 28px;
@@ -236,7 +238,9 @@
   transition: color 0.15s, transform 0.15s;
 }
 
-.dm-attach-btn:hover { color: var(--white); transform: scale(1.08); }
+@media (hover: hover) and (pointer: fine) {
+  .dm-attach-btn:hover { color: var(--white); transform: scale(1.08); }
+}
 
 /* ==========================================================================
    LARGE CHAT TAB VIEW (Spacious Messenger Layout)
@@ -538,10 +542,12 @@
   transition: all 0.15s ease;
 }
 
-.chat-action-icon-btn:hover {
-  background: color-mix(in srgb, var(--accent) 25%, transparent);
-  color: var(--white);
-  transform: scale(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .chat-action-icon-btn:hover {
+    background: color-mix(in srgb, var(--accent) 25%, transparent);
+    color: var(--white);
+    transform: scale(1.15);
+  }
 }
 
 .chat-action-icon-btn.delete-btn:hover {

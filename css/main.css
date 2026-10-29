@@ -299,12 +299,14 @@ body {
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
-.dm-fab:hover {
-  background: var(--bg-card);
-  border-color: var(--purple-accent);
-  color: var(--text);
-  transform: scale(1.08);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+@media (hover: hover) and (pointer: fine) {
+  .dm-fab:hover {
+    background: var(--bg-card);
+    border-color: var(--purple-accent);
+    color: var(--text);
+    transform: scale(1.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  }
 }
 
 .dm-fab-badge {
@@ -418,7 +420,9 @@ body {
   white-space: nowrap;
 }
 
-.doodle-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) {
+  .doodle-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+}
 .doodle-btn:active { transform: translateY(0); }
 
 .doodle-btn-primary   { background: var(--purple-accent);  color: var(--on-accent);        border-color: var(--purple-accent);  }

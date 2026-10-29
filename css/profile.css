@@ -52,10 +52,12 @@
   pointer-events: auto;
 }
 
-.btn-edit-banner:hover {
-  background: var(--tint-3);
-  border-color: var(--purple-accent);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .btn-edit-banner:hover {
+    background: var(--tint-3);
+    border-color: var(--purple-accent);
+    transform: translateY(-1px);
+  }
 }
 
 /* Info area below banner */
@@ -226,9 +228,11 @@
   display: block;
 }
 
-.profile-social-pill:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+@media (hover: hover) and (pointer: fine) {
+  .profile-social-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
 }
 
 /* Instagram hover */
@@ -257,9 +261,11 @@
   color: var(--danger);
 }
 
-.profile-social-pill.lastfm:hover svg {
-  color: var(--danger);
-  transform: scale(1.1);
+@media (hover: hover) and (pointer: fine) {
+  .profile-social-pill.lastfm:hover svg {
+    color: var(--danger);
+    transform: scale(1.1);
+  }
 }
 
 .profile-social-add-btn {
@@ -277,11 +283,13 @@
   transition: all 0.15s ease;
 }
 
-.profile-social-add-btn:hover {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  border-style: solid;
-  color: var(--white);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .profile-social-add-btn:hover {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-style: solid;
+    color: var(--white);
+    transform: translateY(-1px);
+  }
 }
 
 .profile-social-edit-icon {
@@ -429,8 +437,10 @@
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.featured-vinyl-stage:hover .featured-album-sleeve {
-  transform: scale(1.03);
+@media (hover: hover) and (pointer: fine) {
+  .featured-vinyl-stage:hover .featured-album-sleeve {
+    transform: scale(1.03);
+  }
 }
 
 .featured-sleeve-art {
@@ -604,9 +614,11 @@
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
 }
 
-.featured-play-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 24px color-mix(in srgb, var(--accent) 70%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .featured-play-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 24px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
 }
 
 .featured-play-btn svg {
@@ -807,10 +819,12 @@
   transition: all 0.15s ease;
 }
 
-.preset-pill:hover {
-  border-color: var(--purple-accent);
-  background: var(--bg-surface);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .preset-pill:hover {
+    border-color: var(--purple-accent);
+    background: var(--bg-surface);
+    transform: translateY(-1px);
+  }
 }
 
 .preset-swatch {
@@ -890,10 +904,12 @@
   cursor: pointer;
 }
 
-.top-artist-spotlight:hover {
-  transform: translateY(-2px);
-  border-color: var(--tint-3);
-  box-shadow: inset 0 1px 0 var(--tint-2), 0 6px 22px rgba(0, 0, 0, 0.55);
+@media (hover: hover) and (pointer: fine) {
+  .top-artist-spotlight:hover {
+    transform: translateY(-2px);
+    border-color: var(--tint-3);
+    box-shadow: inset 0 1px 0 var(--tint-2), 0 6px 22px rgba(0, 0, 0, 0.55);
+  }
 }
 
 .spotlight-rank-crown {
@@ -973,10 +989,12 @@
   cursor: pointer;
 }
 
-.top-artist-item:hover {
-  background: var(--profile-featured-bg, var(--bg-card-hover));
-  border-color: var(--profile-accent, var(--purple-accent));
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .top-artist-item:hover {
+    background: var(--profile-featured-bg, var(--bg-card-hover));
+    border-color: var(--profile-accent, var(--purple-accent));
+    transform: translateY(-1px);
+  }
 }
 
 .artist-rank-badge {
@@ -1030,10 +1048,12 @@
   transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
 }
 
-.profile-playlist-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--purple-accent) !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .profile-playlist-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--purple-accent) !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
 }
 
 /* Botão de mensagem: só aparece para quem você segue */
