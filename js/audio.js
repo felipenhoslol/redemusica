@@ -219,6 +219,7 @@ const isPlayingTrack = (t) => globalAudio.getIsPlaying() && Boolean(globalAudio.
 /** Attribute that ties a button to a song: `<button ${playAttr(song)}>${playIcon(song)}</button>` */
 export const playAttr = (t) => `data-play-key="${esc(playKey(t))}"`; // search.js uses data-play for its own rows
 export const playIcon = (t) => (isPlayingTrack(t) ? ICONS.pause : ICONS.play);
+export const playClass = (t) => (isPlayingTrack(t) ? ' playing' : ''); // render-time twin of the class syncPlayButtons toggles
 
 function syncPlayButtons() {
   const cur = globalAudio.getCurrentTrack();

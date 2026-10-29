@@ -698,7 +698,8 @@
   color: #fff;
 }
 
-.compare-song-cover-wrap:hover .compare-song-play-overlay {
+.compare-song-cover-wrap:hover .compare-song-play-overlay,
+.compare-song-play-overlay.playing {
   opacity: 1;
 }
 

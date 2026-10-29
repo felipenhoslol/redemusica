@@ -1098,7 +1098,7 @@
 .profile-listening.is-playing .profile-listening-head svg { animation: np-bob 1.2s ease-in-out infinite; }
 @keyframes np-bob { 50% { transform: translateY(-2px) rotate(-6deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .profile-listening.is-playing, .np-disc, .profile-listening.is-playing .profile-listening-head svg { animation: none; }
+  .profile-listening.is-playing, .np-disc, .profile-listening.is-playing .profile-listening-head svg, .featured-vinyl-disk { animation: none; }
 }
 
 /* Vitrine: botão de tirar música do tamanho de um dedo, vaga vazia como botão de verdade */

@@ -246,7 +246,7 @@ export async function fetchLastFmUserTop(rawUsername) {
 }
 
 // ──────────────────────────────────────────
-// WHAT SOMEONE IS LISTENING TO
+// LAST.FM USER OF A PROFILE
 // ──────────────────────────────────────────
 
 /** The Last.fm username saved on a profile ('' when there is none). */
@@ -254,32 +254,6 @@ export function lastFmUserOf(user) {
   const raw = user?.lastfm || user?.socials?.lastfm || (user?.musicService === 'lastfm' ? user?.spotifyUsername : '') || '';
   const name = normalizeLastFmUsername(raw);
   return isValidLastFmUsername(name) ? name : '';
-}
-
-/**
- * Latest scrobbles of a Last.fm user; the first one may be playing right now.
- * @param {string} username
- * @param {number} limit
- * @returns {Promise<{nowPlaying: object|null, recent: Array<{title, artist, album, artwork, url, nowPlaying, playedAt}>}>}
- */
-export async function fetchLastFmRecentTracks(username, limit = 6) {
-  const json = await callLastFm('user.getrecenttracks', { user: username, limit, extended: 0 }, { ttl: 60 * 1000 });
-  const list = asArray(json.recenttracks?.track).slice(0, limit + 1).map(t => {
-    const images = asArray(t.image);
-    const art = (images.find(i => i.size === 'extralarge') || images[images.length - 1] || {})['#text'] || '';
-    return {
-      title: t.name || '',
-      artist: t.artist?.['#text'] || t.artist?.name || '',
-      album: t.album?.['#text'] || '',
-      // Last.fm's grey star is "no cover"
-      artwork: /2a96cbd8b46e442fc41c2b86b821562f/.test(art) ? '' : art,
-      url: t.url || '',
-      nowPlaying: t['@attr']?.nowplaying === 'true',
-      playedAt: t.date?.uts ? new Date(Number(t.date.uts) * 1000).toISOString() : null
-    };
-  }).filter(t => t.title);
-  const nowPlaying = list.find(t => t.nowPlaying) || null;
-  return { nowPlaying, recent: list.filter(t => !t.nowPlaying).slice(0, limit) };
 }
 
 // ──────────────────────────────────────────

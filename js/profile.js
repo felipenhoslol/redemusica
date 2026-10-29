@@ -9,6 +9,7 @@ import { presenceOf } from './sync.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { BIO_FONTS, bioFont, bioFontStyle } from './bioFonts.js';
 import { adminBadge } from './badges.js';
+import { globalAudio } from './audio.js';
 
 // ──────────────────────────────────────────
 // PROFILE RENDER
@@ -65,7 +66,7 @@ export function renderProfileView(container, targetUserId) {
           </div>
 
           <!-- Realistic Vinyl Record Disc -->
-          <div class="featured-vinyl-disk" id="featured-vinyl-img">
+          <div class="featured-vinyl-disk${globalAudio.getIsPlaying() ? ' playing' : ''}" id="featured-vinyl-img">
             <div class="vinyl-groove-rings"></div>
             <div class="vinyl-light-sheen"></div>
             <div class="vinyl-center-label">

@@ -5,7 +5,7 @@ import * as storage from './storage.js';
 import { relativeTime } from './sync.js';
 import { auth, needsEmailConfirmation, markEmailReminderSeen } from './auth.js';
 import { sendVerificationLink } from './supabase.js';
-import { globalAudio, playAttr, playIcon } from './audio.js';
+import { globalAudio, playAttr, playIcon, playClass } from './audio.js';
 import { searchTracks, searchArtists, lookupArtist, lookupAlbum } from './api.js';
 import { getArtistImage } from './lastfm.js';
 import { renderProfileView, renderFollowListModal, openModal, closeModal, showToast } from './profile.js';
@@ -626,7 +626,7 @@ export function renderCompareView(container) {
             <div class="compare-song-stage">
               <div class="compare-song-cover-wrap" onclick="window._playTrack(${jsArg(mySong)})" title="Ouvir música">
                 ${mySong.artwork ? `<img src="${safeUrl(mySong.artwork)}" alt="${esc(mySong.title)}">` : '<div style="width:100%;height:100%;background:var(--purple-dark);"></div>'}
-                <div class="compare-song-play-overlay">${ICONS.play}</div>
+                <div class="compare-song-play-overlay${playClass(mySong)}" ${playAttr(mySong)}>${playIcon(mySong)}</div>
               </div>
               <div class="compare-song-details">
                 <div class="compare-song-title" title="${esc(mySong.title)}">${esc(mySong.title)}</div>
@@ -684,7 +684,7 @@ export function renderCompareView(container) {
             <div class="compare-song-stage">
               <div class="compare-song-cover-wrap" onclick="window._playTrack(${jsArg(theirSong)})" title="Ouvir música">
                 ${theirSong.artwork ? `<img src="${safeUrl(theirSong.artwork)}" alt="${esc(theirSong.title)}">` : '<div style="width:100%;height:100%;background:var(--purple-dark);"></div>'}
-                <div class="compare-song-play-overlay">${ICONS.play}</div>
+                <div class="compare-song-play-overlay${playClass(theirSong)}" ${playAttr(theirSong)}>${playIcon(theirSong)}</div>
               </div>
               <div class="compare-song-details">
                 <div class="compare-song-title" title="${esc(theirSong.title)}">${esc(theirSong.title)}</div>
@@ -900,8 +900,8 @@ function renderReviewModal(targetUserId, challengeId, questionId) {
                 ${isSelf ? `Sua escolha para: <strong>${esc(qObj?.title || 'este item')}</strong>` : `Resposta de <strong>${esc(targetUser?.name || 'Usuário')}</strong>`}
               </div>
             </div>
-            <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${jsArg(ans)})" title="Ouvir música">
-              ${ICONS.play}
+            <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:34px;height:34px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${jsArg(ans)})" title="Ouvir música" ${playAttr(ans)}>
+              ${playIcon(ans)}
             </button>
           </div>` : ''}
 

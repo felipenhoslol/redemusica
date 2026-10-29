@@ -41,7 +41,7 @@ import {
 import { renderRankingChallenge } from './rankingUi.js';
 import {
   renderPostCreator, renderFeed,
-  renderTrendingWidget, renderFriendsWidget, renderListeningRow, creatorState
+  renderTrendingWidget, renderFriendsWidget, creatorState
 } from './feed.js';
 import {
   renderProfileView, renderProfileEditModal, renderFollowListModal,
@@ -531,9 +531,6 @@ function renderFeedTab() {
         </div>
         </div>
 
-        <!-- Who you follow is listening to right now (hidden when nobody is) -->
-        <div id="listening-row" class="listening-row" hidden></div>
-
         <!-- Post Creator -->
         <div id="creator-wrap"></div>
 
@@ -569,8 +566,6 @@ function renderFeedTab() {
     </div>`;
 
   mountTabIndicator(tab.querySelector('.feed-filter-bar'), { key: 'feed' });
-
-  renderListeningRow(document.getElementById('listening-row'));
 
   // Render creator
   const creatorWrap = document.getElementById('creator-wrap');

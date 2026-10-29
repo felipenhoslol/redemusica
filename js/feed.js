@@ -5,7 +5,7 @@ import { toggleCollapse } from './motion.js';
 import { globalAudio, playAttr, playIcon } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
-import { fetchLastFmTrendingTracks, fetchLastFmRecentTracks, lastFmUserOf } from './lastfm.js';
+import { fetchLastFmTrendingTracks, lastFmUserOf } from './lastfm.js';
 import { compressImage, presenceOf, loadInlinePicture, fetchPostById } from './sync.js';
 import { pollHtml } from './poll.js';
 import { rankingPostHtml, openRankingView } from './rankingCard.js';
@@ -1324,38 +1324,6 @@ export function renderFriendsWidget(container) {
         </div>
       </div>`;
   }).join('');
-}
-
-// ─── "Ouvindo agora" at the top of the feed: people you follow playing something right now (Last.fm) ───
-// The one place for it (it left the profile and the sidebar). Answers are kept 60s so redrawing the feed doesn't refetch.
-const nowPlayingCache = new Map(); // Last.fm user → { at, track }
-async function nowPlayingOf(lastfmUser) {
-  const hit = nowPlayingCache.get(lastfmUser);
-  if (hit && Date.now() - hit.at < 60000) return hit.track;
-  let track = null;
-  try { track = (await fetchLastFmRecentTracks(lastfmUser, 1)).nowPlaying || null; } catch { /* private profile or Last.fm down: not playing */ }
-  nowPlayingCache.set(lastfmUser, { at: Date.now(), track });
-  return track;
-}
-
-export function listeningRowHtml(items) {
-  return items.map(({ user, track }) => `
-    <button type="button" class="listening-item" onclick="window._playTrack(${jsArg({ title: track.title, artist: track.artist, artwork: track.artwork || '' })})"
-      aria-label="${esc(user.name)} está ouvindo ${esc(track.title)} de ${esc(track.artist)}">
-      <span class="listening-photo">${avatarInner(user.avatar, user.name)}</span>
-      <span class="listening-name">${esc(String(user.name || '').trim().split(/\s+/)[0])}</span>
-    </button>`).join('');
-}
-
-export async function renderListeningRow(container) {
-  if (!container) return;
-  const following = Storage.getFollowing(Storage.getActiveUserId());
-  const people = Storage.getAllUsers().filter(u => following.includes(u.id) && lastFmUserOf(u)).slice(0, 15);
-  const results = await Promise.all(people.map(async user => ({ user, track: await nowPlayingOf(lastFmUserOf(user)) })));
-  const items = results.filter(r => r.track);
-  if (!container.isConnected) return;
-  container.innerHTML = listeningRowHtml(items);
-  container.hidden = !items.length; // nobody playing: no empty strip
 }
 
 // ─── Pictures still stored inline (base64) in old posts/comments ───
