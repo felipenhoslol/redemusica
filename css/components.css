@@ -260,8 +260,7 @@
   border-radius: 4px;
   width: 100%;
   pointer-events: none;
-  transform-origin: left center;
-  transition: transform var(--spring-snappy-dur, 120ms) var(--spring-snappy, var(--ease-out));
+  clip-path: inset(0 calc(100% - var(--v, 80%)) 0 0 round 999px);
   box-shadow: none;
 }
 

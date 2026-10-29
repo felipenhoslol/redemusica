@@ -72,7 +72,16 @@ test('player bars change size with transform or clip-path only', () => {
   assert.ok(!bars.some(r => r.selectors.some(s => s.includes(':hover')) && /(^|[;\s])height\s*:\s*8px/.test(r.body)));
   const ui = readFileSync('js/ui.js', 'utf8');
   assert.ok(!/player-vol-fill[^>]*width:/.test(ui) && !/fill\.style\.width/.test(ui));
-  assert.match(ui, /scaleX\(/);
+  assert.doesNotMatch(ui, /scaleX\(/);
+  assert.match(ui, /id="player-vol-fill" style="--v:80%"/);
+  assert.match(ui, /fill\.style\.setProperty\('--v'/);
+  const vol = bars.filter(r => r.selectors.includes('.player-vol-fill'));
+  assert.ok(vol.every(r => !/transition/.test(r.body)), 'no transition on .player-vol-fill');
+  assert.ok(vol.some(r => /clip-path:\s*inset\(0 calc\(100% - var\(--v, 80%\)\) 0 0 round 999px\)/.test(r.body)));
+});
+
+test('tab swipe never uses ease-in', () => {
+  assert.doesNotMatch(readFileSync('js/swipeTabs.js', 'utf8'), /ease-in\b/);
 });
 
 test('no hover done in JavaScript', () => {

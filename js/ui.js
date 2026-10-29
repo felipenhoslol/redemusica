@@ -1262,7 +1262,7 @@ export function renderPlayerBar() {
       <div class="player-vol-bar-wrapper">
         <input type="range" class="player-vol-slider" id="player-vol-slider" min="0" max="1" step="0.01" value="0.8"
           oninput="window._setPlayerVolume(parseFloat(this.value))">
-        <div class="player-vol-fill" id="player-vol-fill" style="transform:scaleX(.8)"></div>
+        <div class="player-vol-fill" id="player-vol-fill" style="--v:80%"></div>
       </div>
       <span class="player-vol-pct" id="player-vol-pct">80%</span>
     </div>`;
@@ -1294,7 +1294,7 @@ export function renderPlayerBar() {
     const pctEl = document.getElementById('player-vol-pct');
     const iconEl = document.getElementById('player-vol-icon');
 
-    if (fill) fill.style.transform = `scaleX(${val})`;
+    if (fill) fill.style.setProperty('--v', val * 100 + '%');
     if (slider) slider.value = val;
     if (pctEl) pctEl.textContent = `${Math.round(val * 100)}%`;
 

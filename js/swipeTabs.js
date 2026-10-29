@@ -66,7 +66,7 @@ export function bindSwipeTabs(el, { tabs, current, onSwitch }) {
 
     if (target && (Math.abs(dx) > width * COMMIT || fast)) {
       if (reducedMotion.matches) { reset(); onSwitch(target, dir); return; }
-      el.style.transition = 'transform .16s ease-in, opacity .16s ease-in';
+      el.style.transition = 'transform .16s var(--ease-out), opacity .16s var(--ease-out)';
       el.style.transform = `translateX(${-dir * width * 0.6}px)`;
       el.style.opacity = '0';
       setTimeout(() => { reset(); onSwitch(target, dir); }, 160);
