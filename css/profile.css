@@ -474,12 +474,18 @@
   border: 1px solid var(--surface);
   animation: spinVinyl 6s linear infinite;
   animation-play-state: paused;
-  transition: left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  transition: translate var(--spring-smooth-dur, 350ms) var(--spring-smooth, var(--ease-out)), box-shadow 0.3s ease;
 }
 
-.featured-vinyl-stage:hover .featured-vinyl-disk,
+/* translate (não transform) para não apagar o giro do spinVinyl */
 .featured-vinyl-disk.playing {
-  left: 56px;
+  translate: 14px 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .featured-vinyl-stage:hover .featured-vinyl-disk {
+    translate: 14px 0;
+  }
 }
 
 .featured-vinyl-disk.playing {

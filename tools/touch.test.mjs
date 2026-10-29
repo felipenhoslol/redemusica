@@ -55,3 +55,13 @@ test('desktop keeps every hover lift (36 today: 35 to move + 1 already guarded)'
     '.star-pick-btn:hover', '.dm-send-btn:hover', '.dm-attach-btn:hover', '.doodle-btn:hover', '.auth-submit:hover:not(:disabled)'])
     assert.ok(kept.includes(s), s);
 });
+
+test('the profile vinyl slides with translate, never animates left, and the spin stays on transform', () => {
+  const disk = cssRules().filter(r => r.selectors.some(s => s.includes('.featured-vinyl-disk')));
+  assert.ok(disk.every(r => !/transition:[^;]*\bleft\b/.test(r.body)));
+  const slid = disk.filter(r => /(^|[;\s])left\s*:/.test(r.body) && r.selectors.some(s => /:hover|\.playing/.test(s)));
+  assert.deepEqual(slid.map(r => r.selectors.join()), []);
+  assert.ok(disk.some(r => r.selectors.includes('.featured-vinyl-disk.playing') && /translate:\s*14px/.test(r.body)));
+  assert.ok(disk.some(r => mouseOnly(r) && r.selectors.includes('.featured-vinyl-stage:hover .featured-vinyl-disk')));
+  assert.ok(cssRules('profile.css').some(r => r.media[0] === '@keyframes spinVinyl' && /transform:\s*rotate/.test(r.body)));
+});

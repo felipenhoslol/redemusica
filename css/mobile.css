@@ -224,10 +224,13 @@ html, body { max-width: 100%; overflow-x: clip; }
   .featured-vinyl-stage { width: 96px; height: 64px; flex-shrink: 0; }
   .featured-album-sleeve { width: 64px; height: 64px; }
   .featured-vinyl-disk { left: 30px; width: 64px; height: 64px; }
-  .featured-vinyl-stage:hover .featured-vinyl-disk, .featured-vinyl-disk.playing { left: 36px; }
+  .featured-vinyl-disk.playing { translate: 6px 0; }
   .featured-content-row { gap: 12px; }
   .featured-info { min-width: 0; flex: 1; }
   .featured-title { font-size: var(--fs-name); }
+}
+@media (max-width: 700px) and (hover: hover) and (pointer: fine) {
+  .featured-vinyl-stage:hover .featured-vinyl-disk { translate: 6px 0; }
 }
 
 /* Campo de postar no celular: os 6 ícones numa linha só, ao lado do "Postar" */
