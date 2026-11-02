@@ -22,7 +22,7 @@ html { -webkit-tap-highlight-color: transparent; }
 .feed-filter-btn, .nav-item, .nav-post-btn, .poll-vote, .poll-play, .search-icon-btn,
 .mobile-tab, .comment-like-btn, .comment-reply-btn, .featured-play-btn,
 .playlist-card, .profile-playlist-card, .q-card, .chat-contact-card, .dm-contact-item, .compare-user-card, .share-option-card,
-.search-row, .friend-item, .playlist-track-row, .post-options-item, .trending-item, .playlist-picker-item, .me-sheet-item, .notif-item {
+.search-row, .friend-item, .playlist-track-row, .post-options-item, .trending-item, .playlist-picker-item, .me-sheet-item, .notif-item, .post-attached-playlist {
   transition-property: transform, background-color, color, border-color, opacity;
   transition-duration: var(--spring-press-dur, 160ms), 150ms, 150ms, 150ms, 150ms;
   transition-timing-function: var(--spring-press, var(--ease-out)), ease, ease, ease, ease;
@@ -46,7 +46,8 @@ html { -webkit-tap-highlight-color: transparent; }
 .chat-contact-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
 .dm-contact-item:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
 .compare-user-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
-.share-option-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)) { transform: scale(0.98); }
+.share-option-card:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
+.post-attached-playlist:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)) { transform: scale(0.98); }
 .search-row:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
 .friend-item:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),
 .playlist-track-row:active:not(:has(button:active, a:active, [onclick]:active, [role="button"]:active)),

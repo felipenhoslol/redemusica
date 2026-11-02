@@ -718,3 +718,14 @@
 .lazy-picture { min-height: 180px; width: 100%; background: var(--tint-2, rgba(127,127,127,.15)); border-radius: 12px; animation: lazy-pulse 1.2s ease-in-out infinite; }
 @keyframes lazy-pulse { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .lazy-picture { animation: none; } }
+
+/* Playlist anexada ao post: card clicável (o afundar no toque e as transições estão em motion.css) */
+.post-attached-playlist {
+  margin: 10px 0; padding: 12px 14px; display: flex; gap: 14px; position: relative; overflow: hidden; cursor: pointer;
+  background-color: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+@media (hover: hover) and (pointer: fine) {
+  .post-attached-playlist:hover { background-color: var(--hover); border-color: var(--accent); }
+}

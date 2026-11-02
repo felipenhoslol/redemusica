@@ -1068,8 +1068,11 @@
   gap: 16px;
 }
 
+/* Mesma transição de .playlist-card (motion.css); !important só porque js/profile.js põe transition inline no card */
 .profile-playlist-card {
-  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
+  transition-property: transform, background-color, color, border-color, opacity, box-shadow !important;
+  transition-duration: var(--spring-press-dur, 160ms), 150ms, 150ms, 150ms, 150ms, 250ms !important;
+  transition-timing-function: var(--spring-press, var(--ease-out)), ease, ease, ease, ease, ease !important;
 }
 
 @media (hover: hover) and (pointer: fine) {

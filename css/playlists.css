@@ -739,3 +739,12 @@
 .playlist-recs-sub { margin: 2px 0 0; font-size: var(--fs-detail); color: var(--text-2, var(--muted)); }
 .playlist-recs-empty { padding: 14px 4px; font-size: var(--fs-detail); color: var(--text-2, var(--muted)); }
 .playlist-rec-row .btn-track-action { opacity: 1; }
+
+/* Linha do seletor de playlist (criar post): o afundar no toque e as transições estão em motion.css */
+.playlist-picker-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer;
+  background-color: var(--bg-surface); border: var(--border-accent); border-radius: 10px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .playlist-picker-item:hover { background-color: var(--hover); border-color: var(--purple-accent); }
+}

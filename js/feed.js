@@ -71,7 +71,7 @@ function renderPostPlaylistCard(post) {
   `).join('');
 
   return `
-    <div class="post-attached-playlist" onclick="window._goToSharedPlaylist(${jsArg(pl.id)})" title="Clique para abrir esta playlist" style="margin:10px 0;background:linear-gradient(135deg, color-mix(in srgb, var(--hover) 85%, transparent), color-mix(in srgb, var(--surface) 95%, transparent));border:1px solid var(--purple-accent);border-radius:var(--radius-md);padding:12px 14px;cursor:pointer;transition:background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;display:flex;gap:14px;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+    <div class="post-attached-playlist" onclick="window._goToSharedPlaylist(${jsArg(pl.id)})" title="Clique para abrir esta playlist">
       <div style="width:84px;height:84px;min-width:84px;border-radius:8px;overflow:hidden;background:#000;box-shadow:0 4px 10px rgba(0,0,0,0.6);flex-shrink:0;">
         ${coverHtml}
       </div>

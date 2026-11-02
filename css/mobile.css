@@ -355,5 +355,7 @@ html, body { max-width: 100%; overflow-x: clip; }
 /* Toque: sem blur atrás das barras fixas, que pesa na rolagem; fundo opaco para o texto de baixo não vazar. Com mouse o blur fica */
 @media (hover: none) {
   .mobile-tabbar, .player-bar, .timeline-header, .search-top, .chat-msg-actions-bar, .playlist-detail-hero { backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .mobile-tabbar, .player-bar, .timeline-header, .search-top { background: var(--bg); }
+  .timeline-header, .search-top { background: var(--bg); }
+  .mobile-tabbar, .player-bar, .chat-msg-actions-bar { background: var(--surface); }
+  .playlist-detail-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--hover) 60%, var(--surface)), var(--surface)); }
 }
