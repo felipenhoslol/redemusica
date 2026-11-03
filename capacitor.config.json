@@ -5,5 +5,12 @@
   "backgroundColor": "#0b0a10",
   "android": {
     "backgroundColor": "#0b0a10"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK"
+    }
   }
 }

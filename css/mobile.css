@@ -24,7 +24,7 @@
 
 /* ─── Celular ────────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
-  :root { --tabbar-h: 56px; --safe-b: env(safe-area-inset-bottom, 0px); }
+  :root { --tabbar-h: 56px; --safe-b: var(--sab); }
 
   .app-sidebar { display: none; }
   /* Coluna começando no topo: com justify-content: center o cabeçalho descia até o meio em telas curtas (chat) */
@@ -46,7 +46,10 @@
   .mobile-header .mobile-header-btn { flex: 0 0 44px; width: 44px; height: 44px; margin-left: auto; border-radius: 50%; }
   /* O título "Página inicial" repetiria o topo */
   .timeline-title { display: none; }
-  body { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); }
+  body { padding-top: var(--sat); padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); }
+  /* Faixa da barra de status (app de ponta a ponta / PWA no iPhone): o que rola some por baixo dela */
+  body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: 650; height: var(--sat); background: var(--bg); pointer-events: none; }
+  .timeline-header, .search-top { top: var(--sat); }
   body:has(.player-bar.has-track) { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 68px); }
   .tab-view-content:not(#tab-feed) { padding: 12px 12px 24px; }
 
@@ -116,7 +119,7 @@
   .me-sheet-item:active, .me-sheet-user:active { background: var(--hover); }
 
   /* Notificações ocupam a tela como uma página */
-  .notifications-overlay { bottom: calc(var(--tabbar-h) + var(--safe-b)); z-index: 550; background: var(--bg); }
+  .notifications-overlay { top: var(--sat); bottom: calc(var(--tabbar-h) + var(--safe-b)); z-index: 550; background: var(--bg); }
   .notifications-panel {
     position: absolute; inset: 0; width: auto; max-height: none;
     background: var(--bg); border: 0; box-shadow: none; transform: none; animation: none;
@@ -150,13 +153,13 @@
      Conversa aberta: tela cheia por cima da barra, como nos apps de mensagem. */
   body[data-tab="chat"] #tab-chat { padding: 0 !important; }
   .chat-tab-container {
-    position: fixed; top: 56px; left: 0; right: 0; bottom: calc(var(--tabbar-h) + var(--safe-b));
+    position: fixed; top: calc(56px + var(--sat)); left: 0; right: 0; bottom: calc(var(--tabbar-h) + var(--safe-b));
     height: auto; min-height: 0; margin: 0; border: 0; border-radius: 0; z-index: 10;
   }
   body:has(.player-bar.has-track) .chat-tab-container:not(.has-conversation) { bottom: calc(var(--tabbar-h) + var(--safe-b) + 60px); }
   .chat-tab-container.has-conversation {
     top: 0; bottom: 0; z-index: 700;
-    padding-top: env(safe-area-inset-top, 0px); padding-bottom: var(--safe-b);
+    padding-top: var(--sat); padding-bottom: var(--safe-b);
   }
   .chat-tab-body, .chat-tab-main { min-height: 0; }
   .chat-main-messages { min-height: 0; overscroll-behavior: contain; }
@@ -274,14 +277,15 @@ html, body { max-width: 100%; overflow-x: clip; }
   body:not(.composing) #creator-wrap { display: none; }
   body.composing #creator-wrap {
     position: fixed; inset: 0; z-index: 800; overflow-y: auto; background: var(--bg);
-    padding: env(safe-area-inset-top, 0px) 0 var(--safe-b);
+    padding: var(--sat) 0 var(--safe-b);
     animation: compose-in var(--spring-drawer-dur, 320ms) var(--spring-drawer, var(--ease-drawer, ease-out));
   }
   body.composing { overflow: hidden; }
   body.composing .create-post-card { border: 0; padding: 0 16px 16px; }
   body.composing .compose-head {
     display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 1; margin: 0 -16px 8px; padding: 8px 12px; background: var(--bg);
+    position: sticky; top: var(--sat); z-index: 1; margin: 0 -16px 8px; padding: 8px 12px; background: var(--bg);
+    box-shadow: 0 calc(-1 * var(--sat)) 0 var(--bg); /* cobre a faixa da barra de status ao rolar */
   }
   .compose-close {
     display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%;
@@ -297,9 +301,9 @@ html, body { max-width: 100%; overflow-x: clip; }
   .post-view { padding: 0; place-items: stretch; }
   .post-view .post-view-panel {
     width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0;
-    padding: env(safe-area-inset-top, 0px) 0 var(--safe-b); transform: translateX(24px);
+    padding: var(--sat) 0 var(--safe-b); transform: translateX(24px);
   }
-  .post-view .app-dialog-head { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); padding: 6px 12px; }
+  .post-view .app-dialog-head { position: sticky; top: var(--sat); z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); padding: 6px 12px; box-shadow: 0 calc(-1 * var(--sat)) 0 var(--bg); }
 
   /* Menu do seu perfil (playlists, exibição, conta, sair) */
   .profile-menu-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; padding: 0; }

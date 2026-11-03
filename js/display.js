@@ -39,6 +39,10 @@ function applyDisplay({ theme, accent }) {
   const resolved = theme === 'auto' ? (systemLight.matches ? 'light' : 'dark') : theme;
   document.documentElement.setAttribute('data-theme', resolved);
   document.documentElement.setAttribute('data-accent', accent);
+  // Android app: status/gesture bar icons follow the theme. Only when the WebView draws under the bars
+  // (Capacitor SystemBars does that from WebView 140 with viewport-fit=cover); below that the bars sit on the dark window background.
+  const edgeToEdge = Number(/Chrome\/(\d+)/.exec(navigator.userAgent)?.[1]) >= 140;
+  window.Capacitor?.Plugins?.SystemBars?.setStyle?.({ style: resolved === 'light' && edgeToEdge ? 'LIGHT' : 'DARK' })?.catch?.(() => {});
 }
 
 function saveDisplay(prefs) {

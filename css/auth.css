@@ -159,7 +159,7 @@ body.auth-open .app-sidebar { visibility: hidden; }
 .auth-notice .auth-link { display: block; margin-top: 6px; }
 
 @media (max-width: 760px) {
-  .auth-shell { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 24px 16px; align-items: start; }
+  .auth-shell { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: calc(24px + var(--sat)) 16px calc(24px + var(--sab)); align-items: start; }
   .auth-brand { flex-direction: row; align-items: center; gap: 14px; }
   .auth-cat { width: 64px; height: 64px; flex: none; }
   .auth-title { font-size: 1.6rem; }

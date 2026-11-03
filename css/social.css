@@ -913,7 +913,7 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 @keyframes popup-in { from { opacity: 0; transform: translateX(24px); } }
 @keyframes popup-out { to { opacity: 0; transform: translateX(24px); } }
 @media (max-width: 700px) {
-  .notif-popups { top: calc(64px + env(safe-area-inset-top, 0px)); right: 50%; transform: translateX(50%); }
+  .notif-popups { top: calc(64px + var(--sat)); right: 50%; transform: translateX(50%); }
   @keyframes popup-in { from { opacity: 0; transform: translateY(-12px); } }
   @keyframes popup-out { to { opacity: 0; transform: translateY(-12px); } }
 }

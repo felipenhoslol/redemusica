@@ -4,7 +4,7 @@
 .app-promo-scrim { position: absolute; inset: 0; background: rgb(0 0 0 / .5); }
 .app-promo-panel {
   position: absolute; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto;
-  padding: 6px 24px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 24px calc(20px + var(--sab));
   background: var(--bg); border-radius: 18px 18px 0 0; border-top: 1px solid var(--line);
   text-align: center; font-family: var(--f-ui); color: var(--text);
 }

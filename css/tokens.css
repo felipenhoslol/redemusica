@@ -46,6 +46,9 @@
   --warning:   #e0a100;
 }
 
+/* Áreas seguras: no app Android o Capacitor (SystemBars, insetsHandling "css") injeta --safe-area-inset-*, porque o env() do WebView pode vir 0; na web fica o env() */
+:root { --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
+
 /* ─── Cores de destaque (cada uma com versão para tema escuro e claro) ─── */
 :root                                           { --accent: #b56cff; --accent-hover: #c58bff; --on-accent: #14091f; }
 :root[data-theme="light"]                       { --accent: #7c3aed; --accent-hover: #6d28d9; --on-accent: #ffffff; }
