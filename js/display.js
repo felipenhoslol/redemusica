@@ -1,6 +1,9 @@
 // Display settings: theme (dark / light / auto) and accent color, saved per device.
 // The <head> script in index.html applies the saved choice before first paint.
-import { catLogoHtml } from './logo.js';
+import { catLogoHtml, refreshCatArt } from './logo.js';
+import { identityId } from './auth.js';
+import { getUserById } from './storage.js';
+import { readLooks, resolveLook, saveLook, applyLook } from './look.js';
 import { isNativeApp } from './appPromo.js';
 import { getPushPrefs, setPushPrefs, pushState } from './push.js';
 
@@ -20,6 +23,9 @@ const THEMES = [
   { id: 'light', label: 'Claro', cls: 'opt-light' },
   { id: 'auto', label: 'Automático', cls: 'opt-auto' }
 ];
+
+const SKINS = [{ id: 'padrao', label: 'Padrão' }, { id: 'yt2016', label: '2016' }];
+const CATS = [{ id: 'kawaii', label: 'Fofo' }, { id: 'retro', label: 'Retrô' }];
 
 const systemLight = window.matchMedia('(prefers-color-scheme: light)');
 
@@ -85,6 +91,16 @@ export function openDisplaySettings() {
   const body = document.getElementById('display-modal-body');
   if (!body) return;
   const prefs = getDisplayPrefs();
+  const id = identityId();
+  const look = resolveLook(readLooks(), id, getUserById(id)?.easterEgg2016 === true);
+  const radios = (name, opts, cur) => `
+        <div class="theme-options">
+          ${opts.map(o => `
+            <label>
+              <input type="radio" name="${name}" value="${o.id}" ${o.id === cur ? 'checked' : ''}>
+              <span>${o.label}</span>
+            </label>`).join('')}
+        </div>`;
 
   body.innerHTML = `
     <div class="display-settings">
@@ -96,6 +112,16 @@ export function openDisplaySettings() {
         </div>
       </div>
 
+      ${look.found ? `
+      <fieldset class="display-group">
+        <legend>Visual</legend>
+        <p>Visual retrô de 2016.</p>
+        ${radios('look-skin', SKINS, look.skin)}
+        <p>Gatinho</p>
+        ${radios('look-cat', CATS, look.cat)}
+      </fieldset>` : ''}
+
+      ${look.skin === 'yt2016' ? '' : `
       <fieldset class="display-group">
         <legend>Cor</legend>
         <p>Usada em botões, links e destaques.</p>
@@ -107,7 +133,7 @@ export function openDisplaySettings() {
               <span>${a.label}</span>
             </label>`).join('')}
         </div>
-      </fieldset>
+      </fieldset>`}
 
       <fieldset class="display-group">
         <legend>Tema</legend>
@@ -134,9 +160,20 @@ export function openDisplaySettings() {
       setPushPrefs({ [e.target.name === 'push-posts' ? 'posts' : 'messages']: e.target.checked });
       return;
     }
+    if (e.target.name === 'look-skin') {
+      saveLook(id, { skin: e.target.value });
+      location.reload(); // the skin's CSS and font are set up before first paint
+      return;
+    }
+    if (e.target.name === 'look-cat') {
+      saveLook(id, { cat: e.target.value });
+      applyLook(resolveLook(readLooks(), id));
+      refreshCatArt();
+      return;
+    }
     if (e.target.name !== 'display-accent' && e.target.name !== 'display-theme') return;
     saveDisplay({
-      accent: body.querySelector('input[name="display-accent"]:checked')?.value || 'roxo',
+      accent: body.querySelector('input[name="display-accent"]:checked')?.value || prefs.accent,
       theme: body.querySelector('input[name="display-theme"]:checked')?.value || 'dark'
     });
   };

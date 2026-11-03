@@ -556,6 +556,7 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .display-group { border: 0; margin: 0; padding: 0; }
 .display-group legend { font: 800 var(--fs-name) var(--f-ui); color: var(--text); margin-bottom: 4px; }
 .display-group > p { margin: 0 0 12px; font-size: var(--fs-detail); color: var(--text-2); }
+.display-group > .theme-options + p { margin-top: 14px; }
 .accent-swatches { display: flex; flex-wrap: wrap; gap: 14px; }
 .accent-swatches label { position: relative; display: grid; justify-items: center; gap: 6px; cursor: pointer; font-size: var(--fs-detail); color: var(--text-2); }
 .accent-swatches input { position: absolute; opacity: 0; pointer-events: none; }
