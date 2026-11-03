@@ -9,6 +9,7 @@
     "android:sync": "node tools/build-app.mjs && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
     "@capacitor/push-notifications": "^8.1.3",
     "gsap": "^3.15.0"
   },

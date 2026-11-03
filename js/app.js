@@ -106,6 +106,7 @@ function startApp() {
   else { switchTab('feed'); }
   restoringHistory = false;
   syncBackButton(); // the header was drawn before this reset, with the old page's depth
+  if (isNativeApp()) import('./backButton.js').then(b => b.initBackButton({ getTab: () => activeTab, switchTab })).catch(e => console.warn('back button:', e));
 
   if (auth.mode === 'signed-in') {
     startSync(auth.user.id, {
