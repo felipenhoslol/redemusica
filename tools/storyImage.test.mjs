@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 // Bare-minimum browser stand-ins so the module (and logo.js → audio.js) loads in Node
 globalThis.window = globalThis;
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {} });
-globalThis.document = { head: { appendChild() {} }, createElement: () => ({}), querySelectorAll: () => [], addEventListener() {} };
+globalThis.document = { documentElement: { dataset: {} }, head: { appendChild() {} }, createElement: () => ({}), querySelectorAll: () => [], addEventListener() {} };
 globalThis.Audio = class { addEventListener() {} pause() {} play() { return Promise.resolve(); } };
 globalThis.CSS = { supports: () => true };
 globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
@@ -93,4 +93,17 @@ test('download refuses a canvas that painted nothing (transparent PNG shows as a
     await downloadCanvas(canvas(255), 'x.png');
     assert.equal(urls, 1);
   } finally { globalThis.URL = realURL; document.createElement = prevCreate; }
+});
+
+test('retro cat: different art, same viewBox and mood hooks, picked from <html data-cat>', async () => {
+  const { catLogoHtml } = await import('../js/logo.js');
+  const retro = catLogoHtml({ retro: true }), kawaii = catLogoHtml({ retro: false });
+  assert.notEqual(retro, kawaii);
+  for (const html of [retro, kawaii]) {
+    assert.match(html, /viewBox="0 0 64 64"/);
+    for (const mood of ['idle', 'playing', 'paused', 'love', 'happy', 'alert']) assert.match(html, new RegExp(`class="m [^"]*m-${mood}`));
+  }
+  document.documentElement.dataset.cat = 'retro';
+  try { assert.equal(catLogoHtml({}), retro); } finally { delete document.documentElement.dataset.cat; }
+  assert.equal(catLogoHtml({}), kawaii);
 });

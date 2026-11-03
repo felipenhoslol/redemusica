@@ -34,6 +34,7 @@ a { color: var(--accent); }
 .cat .cat-tongue { fill: #ff8fb1; }
 .cat .cat-band { fill: none; stroke: var(--accent); stroke-width: 4.4; stroke-linecap: round; }
 .cat .cat-cup { fill: var(--accent); stroke: color-mix(in srgb, var(--accent) 65%, #000); stroke-width: 1.1; }
+.cat .cat-cord { fill: none; stroke: color-mix(in srgb, var(--accent) 65%, #000); stroke-width: 1.8; stroke-linecap: round; }
 .cat .cat-cup-shine { fill: none; stroke: rgb(255 255 255 / .7); stroke-width: 1.6; stroke-linecap: round; }
 .cat .cat-shadow { fill: #000; opacity: .32; }
 :root[data-theme="light"] .cat .cat-shadow { opacity: .12; }

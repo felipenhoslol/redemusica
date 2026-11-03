@@ -76,7 +76,7 @@ async function loadCat(p) {
     .cat-line{fill:none;stroke:#2a2233;stroke-width:2.5;stroke-linecap:round}.cat-blush{fill:#ff8fb1;opacity:.6}.cat-nose{fill:#ff6f9c}.cat-tongue{fill:#ff8fb1}
     .cat-band{fill:none;stroke:${p.accent};stroke-width:4.4;stroke-linecap:round}.cat-cup{fill:${p.accent}}.cat-cup-shine{fill:none;stroke:rgb(255 255 255/.7);stroke-width:1.6;stroke-linecap:round}
     .cat-shadow,.m{display:none}.m-happy{display:inline}.cat-sparkle{display:none}`;
-  const svg = catLogoHtml({ mood: 'happy' }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" ')
+  const svg = catLogoHtml({ mood: 'happy', retro: false }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" ')
     .replace(/(<svg[^>]*>)/, `$1<style>${css}</style>`);
   return new Promise(resolve => {
     const img = new Image();

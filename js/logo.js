@@ -42,7 +42,47 @@ const CAT_ART = `
     <g class="m m-happy"><path class="cat-eye" d="M28.6 43.4Q32 49.4 35.4 43.4Z"/><path class="cat-tongue" d="M30.3 45.7Q32 47.9 33.7 45.7 32 44.8 30.3 45.7Z"/></g>
     <ellipse class="m m-alert cat-eye" cx="32" cy="45.2" rx="1.7" ry="2"/>
   </g>
+`;
 
+// Retro cat: flatter and more angular, small eyes, no blush, wired over-ear headphones
+const CAT_ART_RETRO = `
+  <ellipse class="cat-shadow" cx="32" cy="59" rx="15" ry="2.4"/>
+  <g class="cat-body">
+    <path class="cat-head cat-ear cat-ear-l" d="M12.5 31 14.5 5 29 19Z"/>
+    <path class="cat-head cat-ear cat-ear-r" d="M51.5 31 49.5 5 35 19Z"/>
+    <path class="cat-inner" d="M17 24 18 11 25 18.5Z"/>
+    <path class="cat-inner" d="M47 24 46 11 39 18.5Z"/>
+    <path class="cat-head" d="M19 18.5H45L53 29V44L44.5 54H19.5L11 44V29Z"/>
+    <path class="cat-band" d="M9 34V28.5L18.5 20H45.5L55 28.5V34"/>
+    <path class="cat-cord" d="M8.5 47V52Q8.5 56.5 12.5 57.5 16.5 58.5 16.5 64"/>
+    <g class="cat-cup-l"><rect class="cat-cup" x="3.5" y="28.5" width="10.5" height="19" rx="2"/><path class="cat-cup-shine" d="M6.5 32.5v4"/></g>
+    <g class="cat-cup-r"><rect class="cat-cup" x="50" y="28.5" width="10.5" height="19" rx="2"/><path class="cat-cup-shine" d="M53 32.5v4"/></g>
+
+    <g class="m m-idle cat-eyes cat-blink">
+      <rect class="cat-eye" x="22" y="34" width="4" height="5" rx="1"/><rect class="cat-eye" x="38" y="34" width="4" height="5" rx="1"/>
+    </g>
+    <g class="m m-playing m-happy">
+      <path class="cat-line cat-line-eye" d="M21 38.5 24 35 27 38.5M37 38.5 40 35 43 38.5"/>
+    </g>
+    <g class="m m-paused">
+      <path class="cat-line cat-line-eye" d="M21 37H27M37 37H43"/>
+    </g>
+    <g class="m m-love cat-heart-eyes">
+      <path class="cat-heart-eye" d="M24 40.5 20.6 37Q19.6 35.4 21 34.3 22.6 33.3 24 35.2 25.4 33.3 27 34.3 28.4 35.4 27.4 37Z"/>
+      <path class="cat-heart-eye" d="M40 40.5 36.6 37Q35.6 35.4 37 34.3 38.6 33.3 40 35.2 41.4 33.3 43 34.3 44.4 35.4 43.4 37Z"/>
+    </g>
+    <g class="m m-alert">
+      <rect class="cat-eye" x="21.5" y="32.5" width="5" height="6.5" rx="1"/><rect class="cat-eye" x="37.5" y="32.5" width="5" height="6.5" rx="1"/>
+    </g>
+
+    <path class="cat-nose" d="M30.3 41.2H33.7L32 43.2Z"/>
+    <path class="m m-idle m-playing m-paused m-love cat-line cat-mouth" d="M28.6 44.6 30.3 46.3 32 44.6 33.7 46.3 35.4 44.6"/>
+    <g class="m m-happy"><path class="cat-eye" d="M28.6 44.4H35.4L32 49Z"/><path class="cat-tongue" d="M30.7 46.9H33.3L32 49Z"/></g>
+    <rect class="m m-alert cat-eye" x="30.4" y="44.4" width="3.2" height="3.8" rx="1"/>
+  </g>`;
+
+// Floating extras shared by both cats
+const CAT_EXTRAS = `
   <g class="m m-playing">
     <g class="cat-note"><circle cx="56" cy="21" r="2.6"/><path class="cat-note-stem" d="M58.4 21V12l3.6 1.8"/></g>
     <g class="cat-note cat-note-2"><circle cx="6.5" cy="17" r="2.2"/><path class="cat-note-stem" d="M8.5 17V9.5l3 1.4"/></g>
@@ -65,11 +105,21 @@ const CAT_ART = `
  * @param {string} [opts.mood] initial mood
  * @param {boolean} [opts.live] reacts to player and app actions
  * @param {string} [opts.className] extra classes
+ * @param {boolean} [opts.retro] retro art; defaults to `<html data-cat="retro">`
  * @returns {string}
  */
-export function catLogoHtml({ mood, live = false, className = '' } = {}) {
+export function catLogoHtml({ mood, live = false, className = '', retro = isRetro() } = {}) {
   mood = mood || (live ? baseMood : 'idle');
-  return `<svg class="cat${live ? ' cat-live' : ''}${className ? ' ' + className : ''}" data-mood="${mood}" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${CAT_ART}</svg>`;
+  return `<svg class="cat${live ? ' cat-live' : ''}${className ? ' ' + className : ''}" data-mood="${mood}" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${catArt(retro)}</svg>`;
+}
+
+const isRetro = () => document.documentElement.dataset.cat === 'retro';
+const catArt = (retro) => (retro ? CAT_ART_RETRO : CAT_ART) + CAT_EXTRAS;
+
+/** Redraw every cat on the page with the current art, keeping its mood and classes. */
+export function refreshCatArt() {
+  const art = catArt(isRetro());
+  document.querySelectorAll('svg.cat').forEach(svg => { svg.innerHTML = art; });
 }
 
 let baseMood = 'idle';
