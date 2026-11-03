@@ -1,6 +1,6 @@
 // Session state: links the Supabase account to the local app user and exposes who is signed in.
 import * as sb from './supabase.js';
-import { ensureAccountUser, getUserById } from './storage.js';
+import { ensureAccountUser, getUserById, getActiveUserId } from './storage.js';
 
 export const auth = {
   mode: 'signed-out',   // 'signed-in' | 'signed-out' | 'local' (Supabase not configured) | 'recovery' | 'banned'
@@ -16,6 +16,13 @@ const LOCAL_MODE_KEY = 'rmsn_local_mode_v1';
 export function isLocalModeOn() {
   try { return !sb.isSupabaseConfigured() && localStorage.getItem(LOCAL_MODE_KEY) === '1'; }
   catch { return false; }
+}
+
+/** Who owns per-account preferences: the Supabase user, the demo-mode user, or nobody. */
+export function identityId() {
+  if (auth.mode === 'signed-in') return auth.user?.id ?? null;
+  if (auth.mode === 'local') return getActiveUserId();
+  return null;
 }
 
 export function enterLocalMode() {

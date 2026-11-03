@@ -65,6 +65,32 @@
       if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', t);
       document.documentElement.setAttribute('data-accent', p.accent || 'roxo');
+      // Visual escolhido pela conta (mesma regra de resolveLook em js/look.js; aqui em ES5 porque roda antes dos módulos)
+      try {
+        var id = null, i, k, s;
+        for (i = 0; i < localStorage.length; i++) {
+          k = localStorage.key(i);
+          if (/^sb-.+-auth-token$/.test(k)) {
+            s = JSON.parse(localStorage.getItem(k));
+            id = (s.user || s.currentSession.user).id;
+            break;
+          }
+        }
+        if (!id && localStorage.getItem('rmsn_local_mode_v1') === '1') id = localStorage.getItem('rmsn_active_v5') || 'user_me';
+        var r = id && JSON.parse(localStorage.getItem('rmsn_look_v1') || '{}')[id];
+        if (r && r.found === true) {
+          var skin = r.skin === 'yt2016' ? 'yt2016' : null, cat = r.cat === 'retro' ? 'retro' : null;
+          if (skin) {
+            document.documentElement.setAttribute('data-skin', skin);
+            var l = document.createElement('link');
+            l.id = 'font-2016';
+            l.rel = 'stylesheet';
+            l.href = 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap';
+            document.head.appendChild(l);
+          }
+          if (cat) document.documentElement.setAttribute('data-cat', cat);
+        }
+      } catch (e) {}
     })();
   </script>
 
