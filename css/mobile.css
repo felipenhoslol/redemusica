@@ -159,7 +159,7 @@
   body:has(.player-bar.has-track) .chat-tab-container:not(.has-conversation) { bottom: calc(var(--tabbar-h) + var(--safe-b) + 60px); }
   .chat-tab-container.has-conversation {
     top: 0; bottom: 0; z-index: 700;
-    padding-top: var(--sat); padding-bottom: var(--safe-b);
+    padding-top: var(--sat); /* the bottom inset is padded by .chat-main-composer, so its background fills the gesture bar */
   }
   .chat-tab-body, .chat-tab-main { min-height: 0; }
   .chat-main-messages { min-height: 0; overscroll-behavior: contain; }
@@ -321,18 +321,12 @@ html, body { max-width: 100%; overflow-x: clip; }
 
 /* Chat no celular: mais espaço para as mensagens */
 @media (max-width: 700px) {
-  .chat-main-composer { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 8px 8px calc(8px + var(--safe-b)); }
-  #chat-tab-reply-banner { flex: 0 0 100%; }
-  .chat-composer-tools { display: flex; gap: 0; margin: 0; flex: none; }
-  .chat-tool-btn { width: 40px; height: 40px; padding: 0; justify-content: center; border: 0; background: none; }
-  .chat-tool-btn span { display: none; }
+  .chat-main-composer { padding: 6px 8px calc(6px + var(--safe-b)); }
+  .chat-composer-row { gap: 4px; }
+  .chat-tool-btn { width: 36px; }
   .chat-tool-btn svg { width: 22px; height: 22px; }
-  .chat-composer-row { flex: 1; min-width: 0; gap: 6px; }
-  #chat-tab-text-input { min-width: 0; }
-  #chat-tab-send-btn { width: 44px; height: 44px; padding: 0 !important; justify-content: center; flex-shrink: 0; }
-  #chat-tab-send-btn span { display: none; }
-  .chat-main-messages { gap: 3px; }
-  .chat-main-messages .dm-bubble:has(.dm-time) { margin-bottom: 9px; }
+  .chat-main-messages { padding: 8px 12px 12px; }
+  .dm-bubble { max-width: 82%; }
 }
 
 /* Tela do post no celular: caixa de comentário fixa embaixo, como no X; os anexos aparecem ao digitar */

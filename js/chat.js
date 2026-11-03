@@ -6,6 +6,7 @@ import { globalAudio, playAttr, playIcon } from './audio.js';
 import { fetchLinkMetadata, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { compressImage, openChatChannel, closeChatChannel, sendTyping, markConversationRead } from './sync.js';
 import { adminBadge } from './badges.js';
+import { animateSpring, reducedMotion } from './motion.js';
 
 let activeContactId = null;
 let attachedSong = null;
@@ -13,6 +14,98 @@ let attachedImage = null;
 let attachedGif = null;
 let contactsSearchTerm = '';
 let replyingToMessage = null;
+
+// ─── Dates: day separators, bubble times, contact list times (pt-BR) ───
+const MIN = 60000;
+const toDate = (iso) => { const d = new Date(iso); return isNaN(d) ? null : d; };
+const sameDay = (a, b) => a.toDateString() === b.toDateString();
+function shortDate(d) {
+  const opts = { day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return new Intl.DateTimeFormat('pt-BR', opts).format(d).replace(/\./g, ''); // "3 de nov"
+}
+function dayLabel(d) {
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  if (sameDay(d, new Date())) return 'Hoje';
+  if (sameDay(d, yesterday)) return 'Ontem';
+  return shortDate(d);
+}
+/** "agora", "2 min", "3 h", "ontem", "3 de nov" */
+function shortAgo(iso) {
+  const d = toDate(iso);
+  if (!d) return '';
+  const diff = Date.now() - d;
+  if (diff < MIN) return 'agora';
+  if (diff < 60 * MIN) return `${Math.floor(diff / MIN)} min`;
+  const label = dayLabel(d);
+  if (label === 'Hoje') return `${Math.floor(diff / (60 * MIN))} h`;
+  return label === 'Ontem' ? 'ontem' : label;
+}
+const hhmm = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+const emptyState = (icon, title, line) => `
+  <div class="chat-empty">
+    <span class="chat-empty-icon" aria-hidden="true">${icon}</span>
+    <p class="chat-empty-title">${title}</p>
+    <p class="chat-empty-line">${line}</p>
+  </div>`;
+
+// New bubbles (not the first paint of a conversation) land with a spring; yours rise from the composer.
+// Re-renders replace the DOM, so the last painted status per message tells a real status change apart.
+const paintedIds = new Map(); // messages area id -> { contact, ids, statuses }
+function animateNewBubbles(area, contactId) {
+  if (!area) return;
+  const bubbles = [...area.querySelectorAll('.dm-bubble')];
+  const statuses = new Map([...area.querySelectorAll('.chat-seen[data-status]')].map(el => [el.closest('.dm-bubble').id, el]));
+  const prev = paintedIds.get(area.id);
+  if (prev && prev.contact === contactId) {
+    statuses.forEach((el, id) => {
+      const was = prev.statuses.get(id);
+      if (!was || was === el.dataset.status) return;
+      el.classList.add('is-changed'); // CSS swaps the icon (and draws the 2nd check); none under reduced motion
+      if (was === 'sending' && !reducedMotion()) {
+        el.closest('.dm-bubble').querySelectorAll('.dm-bubble-content, .chat-attached-song, .chat-msg-media, .rich-link-card')
+          .forEach(c => animateSpring(c, [{ opacity: 0.7 }, { opacity: 1 }], 'smooth'));
+      }
+    });
+    if (!reducedMotion()) {
+      bubbles.filter(b => !prev.ids.has(b.id)).forEach(b => animateSpring(b, b.classList.contains('sent')
+        ? [{ opacity: 0, transform: 'translateY(12px) scale(.96)' }, { opacity: 1, transform: 'none' }]
+        : [{ opacity: 0, transform: 'translateY(8px) scale(.96)' }, { opacity: 1, transform: 'none' }], 'pop'));
+    }
+  }
+  paintedIds.set(area.id, {
+    contact: contactId,
+    ids: new Set(bubbles.map(b => b.id)),
+    statuses: new Map([...statuses].map(([id, el]) => [id, el.dataset.status]))
+  });
+}
+
+// Send button: a quick press, and the paper plane flies off up-right and lands back
+function flySendIcon() {
+  const btn = document.getElementById('chat-tab-send-btn');
+  const icon = btn?.querySelector('svg');
+  if (!icon || reducedMotion()) return;
+  animateSpring(btn, [{ transform: 'scale(.9)' }, { transform: 'none' }], 'press');
+  const out = icon.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(10px, -10px)', opacity: 0 }], { duration: 140, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'forwards' });
+  out.onfinish = () => {
+    animateSpring(icon, [{ transform: 'translate(-6px, 6px) scale(.8)', opacity: 0 }, { transform: 'none', opacity: 1 }], 'pop');
+    out.cancel();
+  };
+}
+
+// Composer: grows up to ~5 lines (capped by CSS max-height); send dims when there is nothing to send
+function syncComposer() {
+  const input = document.getElementById('chat-tab-text-input');
+  if (!input) return;
+  input.style.height = 'auto';
+  const full = input.scrollHeight + input.offsetHeight - input.clientHeight; // + borders (border-box)
+  input.style.height = input.scrollHeight ? `${full}px` : ''; // 0 while the pane is still hidden: leave it to CSS min-height
+  // Scrollbar only once it has reached its ~5-line max
+  input.style.overflowY = input.scrollHeight && full > parseFloat(getComputedStyle(input).maxHeight) ? 'auto' : 'hidden';
+  const btn = document.getElementById('chat-tab-send-btn');
+  if (btn) btn.disabled = !input.value.trim() && !attachedSong && !attachedImage && !attachedGif;
+}
 
 const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh';
 let chatGifSearchTimeout = null;
@@ -118,34 +211,35 @@ function renderAttachedBars() {
       tabPreview.innerHTML = '';
     }
   }
+  syncComposer();
 }
 
 function renderAttachmentItemsHtml(context) {
-  const isTab = context === 'tab';
+  const remove = (type, label) => `<button type="button" class="chat-chip-remove" onclick="window._clearChatAttachment('${type}')" title="Remover ${label}" aria-label="Remover ${label}"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>`;
   return `
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+    <div class="chat-chips${context === 'tab' ? ' is-tab' : ''}">
       ${attachedSong ? `
-        <div style="display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 22%, transparent);border:1.5px solid var(--purple-accent);border-radius:8px;padding:5px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-          ${attachedSong.artwork ? `<img alt="" src="${safeUrl(attachedSong.artwork)}" style="width:${isTab ? '36px' : '26px'};height:${isTab ? '36px' : '26px'};border-radius:4px;object-fit:cover;">` : ''}
-          <div style="max-width:160px;min-width:0;">
-            <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> ${esc(attachedSong.title)}</div>
-            <div style="font-size:var(--fs-detail);color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(attachedSong.artist)}</div>
+        <div class="chat-chip">
+          ${attachedSong.artwork ? `<img class="chat-chip-thumb" alt="" src="${safeUrl(attachedSong.artwork)}">` : ''}
+          <div class="chat-chip-meta">
+            <div class="chat-chip-title"><span class="ui-icon" aria-hidden="true">${ICONS.music}</span> ${esc(attachedSong.title)}</div>
+            <div class="chat-chip-sub">${esc(attachedSong.artist)}</div>
           </div>
-          <button type="button" onclick="window._clearChatAttachment('song')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover música" aria-label="Remover música"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
+          ${remove('song', 'música')}
         </div>` : ''}
 
       ${attachedImage ? `
-        <div style="position:relative;display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--accent) 15%, transparent);border:1.5px solid var(--accent);border-radius:8px;padding:4px 8px;">
-          <img src="${safeUrl(attachedImage)}" alt="Prévia" style="width:${isTab ? '50px' : '32px'};height:${isTab ? '50px' : '32px'};border-radius:4px;object-fit:cover;">
-          <span style="font-size:var(--fs-detail);font-weight:800;color:var(--accent);"><span class="ui-icon" aria-hidden="true">${ICONS.image}</span> Imagem</span>
-          <button type="button" onclick="window._clearChatAttachment('image')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover imagem" aria-label="Remover imagem"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
+        <div class="chat-chip">
+          <img class="chat-chip-thumb" src="${safeUrl(attachedImage)}" alt="Prévia">
+          <span class="chat-chip-title"><span class="ui-icon" aria-hidden="true">${ICONS.image}</span> Imagem</span>
+          ${remove('image', 'imagem')}
         </div>` : ''}
 
       ${attachedGif ? `
-        <div style="position:relative;display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--star) 18%, transparent);border:1.5px solid var(--star);border-radius:8px;padding:4px 8px;">
-          <img src="${safeUrl(attachedGif)}" alt="GIF" style="width:${isTab ? '50px' : '32px'};height:${isTab ? '50px' : '32px'};border-radius:4px;object-fit:cover;">
-          <span style="font-size:var(--fs-detail);font-weight:800;color:var(--star);">GIF</span>
-          <button type="button" onclick="window._clearChatAttachment('gif')" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-weight:900;padding:2px 4px;" title="Remover GIF" aria-label="Remover GIF"><span class="ui-icon" aria-hidden="true">${ICONS.close}</span></button>
+        <div class="chat-chip">
+          <img class="chat-chip-thumb" src="${safeUrl(attachedGif)}" alt="GIF">
+          <span class="chat-chip-title">GIF</span>
+          ${remove('gif', 'GIF')}
         </div>` : ''}
     </div>`;
 }
@@ -189,6 +283,7 @@ function getSortedContacts() {
 
 export function renderChatTab(container = document.getElementById('tab-chat')) {
   if (!container) return;
+  paintedIds.delete('chat-tab-messages'); // re-entering the tab is a first paint, not new messages
 
   container.innerHTML = `
     <div class="chat-tab-container">
@@ -248,8 +343,9 @@ function renderChatTabContacts() {
   }
 
   if (!contacts.length) {
-    const msg = contactsSearchTerm ? 'Nenhum usuário encontrado.' : 'Siga alguém para poder mandar mensagem.';
-    container.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--muted);font-size:var(--fs-detail);">${msg}</div>`;
+    container.innerHTML = contactsSearchTerm
+      ? emptyState(ICONS.search, 'Nenhum resultado', 'Nenhum usuário encontrado.')
+      : emptyState(ICONS.chat, 'Nenhuma conversa', 'Siga alguém para poder mandar mensagem.');
     return;
   }
 
@@ -269,16 +365,20 @@ function renderChatTabContacts() {
       ? `<img src="${safeUrl(u.avatar)}" alt="${esc(u.name)}" style="width:100%;height:100%;object-fit:cover;">`
       : esc(u.avatar || u.name[0]);
 
+    const showUnread = unread && activeContactId !== u.id;
+    const when = last ? (shortAgo(last.createdAtIso) || last.createdAt || '') : '';
     return `
-      <div class="chat-contact-card${activeContactId === u.id ? ' active' : ''}" onclick="window._selectChatContact('${u.id}')">
+      <div class="chat-contact-card${activeContactId === u.id ? ' active' : ''}${showUnread ? ' is-unread' : ''}" onclick="window._selectChatContact('${u.id}')">
         <div class="chat-contact-card-avatar">${uAvatarHtml}</div>
         <div class="chat-contact-card-info">
-          <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="chat-contact-card-top">
             <div class="chat-contact-card-name">${esc(u.name)}${adminBadge(u.id)}</div>
-            ${last ? `<span style="font-size:var(--fs-detail);color:var(--muted);">${esc(last.createdAt || '')}</span>` : ''}
-            ${unread && activeContactId !== u.id ? `<span class="chat-unread-badge" aria-label="${unread} não lidas">${unread > 9 ? '9+' : unread}</span>` : ''}
+            ${when ? `<span class="chat-contact-card-time">${esc(when)}</span>` : ''}
           </div>
-          <div class="chat-contact-card-preview">${esc(previewText)}</div>
+          <div class="chat-contact-card-bottom">
+            <div class="chat-contact-card-preview">${esc(previewText)}</div>
+            ${showUnread ? `<span class="chat-unread-badge" aria-label="${unread} não lidas">${unread > 9 ? '9+' : unread}</span>` : ''}
+          </div>
         </div>
       </div>`;
   }).join('');
@@ -289,16 +389,8 @@ function renderChatTabMain(contactId) {
   if (!container) return;
 
   if (!contactId) {
-    container.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px;text-align:center;gap:14px;">
-        <div style="width:72px;height:72px;border-radius:50%;background:color-mix(in srgb, var(--accent) 15%, transparent);border:2px solid var(--purple-accent);display:flex;align-items:center;justify-content:center;color:var(--purple-light);">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-        </div>
-        <h3 style="font-size:var(--fs-title);font-weight:800;color:var(--white);">Selecione uma conversa</h3>
-        <p style="color:var(--muted);font-size:var(--fs-detail);max-width:400px;line-height:1.5;">
-          Escolha alguém na lista para conversar e trocar músicas, fotos e GIFs.
-        </p>
-      </div>`;
+    paintedIds.delete('chat-tab-messages');
+    container.innerHTML = emptyState(ICONS.chat, 'Selecione uma conversa', 'Escolha alguém na lista para conversar e trocar músicas, fotos e GIFs.');
     return;
   }
 
@@ -320,13 +412,11 @@ function renderChatTabMain(contactId) {
     <!-- Conversation Header -->
     <div class="chat-main-header">
       <button type="button" class="chat-back-btn" onclick="window._closeChatConversation()" aria-label="Voltar para as conversas">${ICONS.chevronLeft}</button>
-      <div style="display:flex;align-items:center;gap:12px;cursor:pointer;flex:1;min-width:0;" onclick="window._goToProfile('${contact.id}')" title="Ver perfil de ${esc(contact.name)}">
-        <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:var(--purple-dark);display:flex;align-items:center;justify-content:center;font-weight:800;border:1.5px solid var(--purple-accent);">
-          ${cAvatarHtml}
-        </div>
-        <div>
-          <div style="font-size:var(--fs-name);font-weight:800;color:var(--white);">${esc(contact.name)}${adminBadge(contact.id)}</div>
-          <div style="font-size:var(--fs-detail);color:var(--text-2);">${esc(contact.handle || '')}</div>
+      <div class="chat-main-peer" onclick="window._goToProfile('${contact.id}')" title="Ver perfil de ${esc(contact.name)}">
+        <div class="chat-main-avatar">${cAvatarHtml}</div>
+        <div class="chat-main-peer-text">
+          <div class="chat-main-name">${esc(contact.name)}${adminBadge(contact.id)}</div>
+          ${contact.handle ? `<div class="chat-main-handle">${esc(contact.handle)}</div>` : ''}
         </div>
       </div>
       <div class="chat-profile-btn">
@@ -351,25 +441,16 @@ function renderChatTabMain(contactId) {
       <!-- Reply Banner -->
       <div id="chat-tab-reply-banner" style="display:none;"></div>
 
-      <div class="chat-composer-tools">
-        <button type="button" class="chat-tool-btn" onclick="window._openChatMusicSearch()" title="Anexar música do acervo">
-          ${ICONS.music} <span>Música</span>
-        </button>
-        <button type="button" class="chat-tool-btn" onclick="window._openChatImagePicker()" title="Anexar imagem ou foto">
-          ${ICONS.image || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>'}
-          <span>Imagem</span>
-        </button>
-        <button type="button" class="chat-tool-btn" onclick="window._openChatGifPicker()" title="Pesquisar e anexar GIF">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M7 15V9h2.5v2H8.5"></path><path d="M12 9v6"></path><path d="M15 9h3M15 12h2M15 9v6"></path></svg>
-          <span>GIF</span>
-        </button>
-      </div>
       <div class="chat-composer-row">
-        <input class="doodle-input" id="chat-tab-text-input" placeholder="Digite uma mensagem para ${esc(contact.name)}..." style="flex:1;font-size:var(--fs-detail);padding:9px 14px;border-radius:24px;" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();window._sendChatTabMessage();}" oninput="window._chatTyping()">
-        <button class="doodle-btn doodle-btn-primary" id="chat-tab-send-btn" style="padding:9px 20px;border-radius:24px;display:flex;align-items:center;gap:6px;" onclick="window._sendChatTabMessage()" aria-label="Enviar">
-          <span>Enviar</span>
-          ${ICONS.send || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>'}
-        </button>
+        <div class="chat-composer-tools">
+          <button type="button" class="chat-tool-btn" onclick="window._openChatMusicSearch()" title="Anexar música do acervo" aria-label="Anexar música">${ICONS.music}</button>
+          <button type="button" class="chat-tool-btn" onclick="window._openChatImagePicker()" title="Anexar imagem ou foto" aria-label="Anexar imagem">${ICONS.image}</button>
+          <button type="button" class="chat-tool-btn" onclick="window._openChatGifPicker()" title="Pesquisar e anexar GIF" aria-label="Anexar GIF">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M7 15V9h2.5v2H8.5"></path><path d="M12 9v6"></path><path d="M15 9h3M15 12h2M15 9v6"></path></svg>
+          </button>
+        </div>
+        <textarea class="doodle-input chat-composer-input" id="chat-tab-text-input" rows="1" placeholder="Mensagem" aria-label="Mensagem para ${esc(contact.name)}" onkeydown="if(event.key==='Enter' && !event.shiftKey && !event.isComposing){event.preventDefault();window._sendChatTabMessage();}" oninput="window._chatTyping()"></textarea>
+        <button type="button" class="chat-send-btn" id="chat-tab-send-btn" onclick="window._sendChatTabMessage()" aria-label="Enviar" title="Enviar" disabled>${ICONS.send}</button>
       </div>
     </div>
   `;
@@ -379,7 +460,27 @@ function renderChatTabMain(contactId) {
 
   const msgArea = document.getElementById('chat-tab-messages');
   if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
+  animateNewBubbles(msgArea, contactId);
 }
+
+// Same author, under 5 minutes apart and on the same day: one visual group
+function sameGroup(a, b) {
+  if (!a || !b || a.fromUserId !== b.fromUserId) return false;
+  const da = toDate(a.createdAtIso), db = toDate(b.createdAtIso);
+  return Boolean(da && db) && sameDay(da, db) && Math.abs(db - da) < 5 * MIN;
+}
+
+const REPLY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>';
+
+const COPY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+
+// Delivery status beside the time: clock (sending), one check (sent), two checks (seen)
+const STATUS = {
+  sending: { label: 'Enviando', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline></svg>' },
+  sent: { label: 'Enviada', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' },
+  seen: { label: 'Visto', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 6 6 16.5 1.5 12"></polyline><polyline class="chat-seen-check2" points="22.5 6 12 16.5 10.5 15"></polyline></svg>' }
+};
+const statusHtml = (s) => `<span class="chat-seen is-${s}${s === 'seen' ? ' seen' : ''}" data-status="${s}"><span class="chat-seen-icon" aria-hidden="true">${STATUS[s].icon}</span>${s === 'seen' ? '<span aria-hidden="true">Visto</span>' : ''}<span class="sr-only">${STATUS[s].label}</span></span>`;
 
 function renderMessagesListHtml(msgs, activeUserId) {
   // "Enviada" / "Visto" goes under your latest message only (like most chat apps)
@@ -387,18 +488,28 @@ function renderMessagesListHtml(msgs, activeUserId) {
   for (let i = msgs.length - 1; i >= 0; i--) { if (msgs[i].fromUserId === activeUserId) { lastSentId = msgs[i].id; break; } }
   const lastIsTheirs = msgs.length && msgs[msgs.length - 1].fromUserId !== activeUserId;
   if (!msgs.length) {
-    return `
-      <div style="text-align:center;padding:40px 10px;color:var(--muted);font-size:var(--fs-detail);">
-        Nenhuma mensagem ainda. Envie uma mensagem, música, foto ou GIF para quebrar o gelo.
-      </div>`;
+    return emptyState(ICONS.chat, 'Nenhuma mensagem ainda', 'Envie uma mensagem, música, foto ou GIF para quebrar o gelo.');
   }
+
+  const other = Storage.getUserById(msgs.find(m => m.fromUserId !== activeUserId)?.fromUserId);
+  const otherAvatar = other ? `<span class="dm-avatar" aria-hidden="true">${avatarInner(other.avatar, other.name, '')}</span>` : '';
 
   return msgs.map((m, i) => {
     const isSent = m.fromUserId === activeUserId;
-    // Time only under the last message of a run (same person, less than 5 minutes apart), like WhatsApp
+    const prev = msgs[i - 1];
     const next = msgs[i + 1];
-    const showTime = !next || next.fromUserId !== m.fromUserId || m.edited
-      || !(new Date(next.createdAtIso) - new Date(m.createdAtIso) < 5 * 60000);
+    const joinsPrev = sameGroup(prev, m);
+    const joinsNext = sameGroup(m, next);
+    const group = joinsPrev ? (joinsNext ? 'middle' : 'last') : (joinsNext ? 'first' : 'single');
+    const isGroupEnd = !joinsNext;
+    // Time only under the last message of a group, like WhatsApp (edited ones keep the "(editada)" tag)
+    const showTime = isGroupEnd || m.edited;
+    // Status only on your latest message, while it is the last one (same rule as before)
+    const status = m.id === lastSentId && !lastIsTheirs ? (m.readAt ? 'seen' : (m.synced ? 'sent' : 'sending')) : '';
+    const date = toDate(m.createdAtIso);
+    const prevDate = prev && toDate(prev.createdAtIso);
+    const daySep = date && (!prevDate || !sameDay(prevDate, date))
+      ? `<div class="chat-day-sep" role="separator"><span>${dayLabel(date)}</span></div>` : '';
 
     const replyBoxHtml = m.replyTo ? `
       <div class="chat-replied-box">
@@ -407,59 +518,54 @@ function renderMessagesListHtml(msgs, activeUserId) {
       </div>` : '';
 
     const songHtml = m.song ? `
-      <div class="chat-attached-song" style="display:flex;align-items:center;gap:10px;background:var(--tint-2);border:1.5px solid color-mix(in srgb, var(--accent) 40%, transparent);border-radius:10px;padding:8px 12px;margin-top:6px;">
-        ${m.song.artwork ? `<img alt="" src="${safeUrl(m.song.artwork)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : ''}
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.title)}</div>
-          <div style="font-size:var(--fs-detail);color:var(--purple-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.song.artist)}</div>
+      <div class="chat-attached-song">
+        ${m.song.artwork ? `<img class="chat-song-cover" alt="" src="${safeUrl(m.song.artwork)}">` : ''}
+        <div class="chat-song-meta">
+          <div class="chat-song-title">${esc(m.song.title)}</div>
+          <div class="chat-song-artist">${esc(m.song.artist)}</div>
         </div>
-        <button type="button" class="doodle-btn doodle-btn-primary doodle-btn-sm" style="width:32px;height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="window._playTrack(${jsArg(m.song)})" title="Tocar música" ${playAttr(m.song)}>${playIcon(m.song)}</button>
+        <button type="button" class="chat-song-play" onclick="window._playTrack(${jsArg(m.song)})" title="Tocar música" ${playAttr(m.song)}>${playIcon(m.song)}</button>
       </div>` : '';
 
     const imageHtml = m.imageUrl ? `
-      <div class="chat-msg-media" style="margin-top:6px;border-radius:10px;overflow:hidden;max-width:320px;border:1.5px solid color-mix(in srgb, var(--accent) 40%, transparent);background:#000;">
-        <img src="${safeUrl(m.imageUrl)}" alt="Imagem anexada" data-zoom style="width:100%;max-height:260px;object-fit:cover;display:block;">
+      <div class="chat-msg-media">
+        <img src="${safeUrl(m.imageUrl)}" alt="Imagem anexada" data-zoom>
       </div>` : '';
 
     const gifHtml = m.gifUrl ? `
-      <div class="chat-msg-media" style="margin-top:6px;border-radius:10px;overflow:hidden;max-width:320px;border:1.5px solid color-mix(in srgb, var(--star) 50%, transparent);background:#000;">
-        <img src="${safeUrl(m.gifUrl)}" alt="GIF animado" data-zoom style="width:100%;max-height:260px;object-fit:cover;display:block;">
+      <div class="chat-msg-media is-gif">
+        <img src="${safeUrl(m.gifUrl)}" alt="GIF animado" data-zoom>
       </div>` : '';
 
     const detectedUrl = extractFirstUrl(m.text);
     const linkHtml = m.link ? renderRichLinkCard(m.link) : (detectedUrl ? renderRichLinkCard(detectedUrl) : '');
 
-    // Action buttons bar on hover
+    // Floating actions: hover on desktop, long-press on touch (initChatBindings)
     const actionsBar = `
       <div class="chat-msg-actions-bar">
-        <button type="button" class="chat-action-icon-btn" onclick="window._replyToChatMessage('${m.id}')" title="Responder mensagem">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>
-        </button>
-        ${isSent && m.text ? `
-          <button type="button" class="chat-action-icon-btn" onclick="window._openEditChatMessage('${m.id}')" title="Editar mensagem">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-          </button>` : ''}
-        ${isSent ? `
-          <button type="button" class="chat-action-icon-btn delete-btn" onclick="window._confirmDeleteChatMessage('${m.id}')" title="Excluir mensagem">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          </button>` : ''}
+        <button type="button" class="chat-action-icon-btn" onclick="window._replyToChatMessage('${m.id}')" title="Responder mensagem" aria-label="Responder">${REPLY_ICON}</button>
+        ${m.text ? `<button type="button" class="chat-action-icon-btn" onclick="window._copyChatMessage('${m.id}')" title="Copiar mensagem" aria-label="Copiar">${COPY_ICON}</button>` : ''}
+        ${isSent && m.text ? `<button type="button" class="chat-action-icon-btn" onclick="window._openEditChatMessage('${m.id}')" title="Editar mensagem" aria-label="Editar">${ICONS.edit}</button>` : ''}
+        ${isSent ? `<button type="button" class="chat-action-icon-btn delete-btn" onclick="window._confirmDeleteChatMessage('${m.id}')" title="Excluir mensagem" aria-label="Excluir">${ICONS.trash}</button>` : ''}
       </div>`;
 
-    return `
-      <div class="dm-bubble ${isSent ? 'sent' : 'recv'}" id="chat-msg-${m.id}">
+    return `${daySep}
+      <div class="dm-bubble ${isSent ? 'sent' : 'recv'}${status === 'sending' ? ' is-pending' : ''}" id="chat-msg-${m.id}" data-group="${group}">
+        ${!isSent && isGroupEnd ? otherAvatar : ''}
         ${actionsBar}
+        ${date ? `<time class="dm-hover-time" datetime="${esc(m.createdAtIso)}" aria-hidden="true">${hhmm(date)}</time>` : ''}
         ${replyBoxHtml}
         ${m.text ? `<div class="dm-bubble-content">${esc(m.text)}</div>` : ''}
         ${songHtml}
         ${imageHtml}
         ${gifHtml}
         ${linkHtml}
-        ${showTime ? `<div class="dm-time">
+        ${showTime || status ? `<div class="dm-time">
           <span>${esc(m.createdAt || '')}</span>
           ${m.edited ? '<span class="chat-edited-tag">(editada)</span>' : ''}
+          ${status ? `<span aria-hidden="true">·</span>${statusHtml(status)}` : ''}
         </div>` : ''}
-      </div>
-      ${m.id === lastSentId && !lastIsTheirs ? `<div class="chat-seen${m.readAt ? ' seen' : ''}">${m.readAt ? `${ICONS.check} Visto` : (m.synced ? 'Enviada' : 'Enviando…')}</div>` : ''}`;
+      </div>`;
   }).join('');
 }
 
@@ -472,6 +578,7 @@ export function openDMWindow(contactId = null) {
   if (!win) return;
 
   if (contactId) activeContactId = contactId;
+  paintedIds.delete('dm-messages-area');
   win.classList.add('open');
   renderContacts();
   if (activeContactId) renderMessages(activeContactId);
@@ -560,6 +667,7 @@ export function renderMessages(contactId) {
   if (msgArea) {
     msgArea.innerHTML = renderMessagesListHtml(msgs, activeUser.id);
     msgArea.scrollTop = msgArea.scrollHeight;
+    animateNewBubbles(msgArea, contactId);
   }
   if (document.getElementById('dm-window')?.classList.contains('open')) {
     Storage.markChatRead(contactId);
@@ -606,6 +714,7 @@ export function refreshChatFromServer() {
     const nearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
     area.innerHTML = renderMessagesListHtml(msgs, me);
     if (nearBottom) area.scrollTop = area.scrollHeight;
+    animateNewBubbles(area, activeContactId);
     Storage.markChatRead(activeContactId);
     markConversationRead(activeContactId);
   });
@@ -652,6 +761,7 @@ export function sendDMMessage(isLargeView = false) {
   // Ready for the next message: the field stays selected (the phone keyboard stays up)
   const next = isLargeView ? document.getElementById('chat-tab-text-input') : (document.getElementById('dm-text-input') || document.getElementById('chat-tab-text-input'));
   next?.focus({ preventScroll: true });
+  if (isLargeView) flySendIcon();
 }
 
 function renderReplyBanners() {
@@ -915,6 +1025,23 @@ export function initChatBindings() {
     if (input) input.focus();
   };
 
+  window._copyChatMessage = async (msgId) => {
+    if (!activeContactId) return;
+    const msg = Storage.getChatMessages(Storage.getActiveUserId(), activeContactId).find(m => String(m.id) === String(msgId));
+    if (!msg?.text) return;
+    document.querySelectorAll('.dm-bubble.show-actions').forEach(b => b.classList.remove('show-actions'));
+    let ok = false;
+    try { await navigator.clipboard.writeText(msg.text); ok = true; } catch {
+      // Fallback for webviews/insecure contexts without the async clipboard
+      const ta = document.createElement('textarea');
+      ta.value = msg.text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;opacity:0;';
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
+      ta.remove();
+    }
+    import('./ui.js').then(u => u.showToast(ok ? 'Mensagem copiada!' : 'Não foi possível copiar.'));
+  };
+
   window._cancelChatReply = () => {
     replyingToMessage = null;
     renderReplyBanners();
@@ -979,7 +1106,9 @@ export function initChatBindings() {
     import('./ui.js').then(u => u.showToast('Mensagem excluída!'));
   };
 
-  window._chatTyping = () => sendTyping();
+  window._chatTyping = () => { sendTyping(); syncComposer(); };
+
+  bindMessageLongPress();
 
   const input = document.getElementById('dm-text-input');
   if (input) {
@@ -991,4 +1120,88 @@ export function initChatBindings() {
       }
     });
   }
+}
+
+// Touch: long-press a bubble (~450ms, cancelled by moving/scrolling) shows its actions bar; a tap elsewhere hides it
+function bindMessageLongPress() {
+  let timer = null, startX = 0, startY = 0, pressed = null, swallowClick = false;
+  const closeAll = (except) => document.querySelectorAll('.dm-bubble.show-actions').forEach(b => { if (b !== except) b.classList.remove('show-actions'); });
+  const cancel = () => { clearTimeout(timer); timer = null; pressed?.classList.remove('is-pressing'); pressed = null; };
+
+  // Swipe-to-reply: received bubbles drag right, yours drag left; past 56px it locks and replies on release
+  let swipe = null;
+  const SWIPE_LOCK = 56, SWIPE_MAX = 72;
+  const endSwipe = (reply) => {
+    if (!swipe) return;
+    const { bubble, icon, active, locked } = swipe;
+    swipe = null;
+    if (!active) return;
+    swallowClick = true;
+    const from = bubble.style.transform;
+    bubble.style.transform = '';
+    const done = () => { bubble.classList.remove('is-swiping'); icon.remove(); };
+    const back = from && !reducedMotion() ? animateSpring(bubble, [{ transform: from }, { transform: 'none' }], 'snappy') : null;
+    back ? (back.onfinish = done) : done();
+    if (reply && locked) window._replyToChatMessage(bubble.id.slice('chat-msg-'.length));
+  };
+
+  document.addEventListener('pointerdown', (e) => {
+    swallowClick = false; // some browsers send no click after a long press
+    if (!e.target.closest('.dm-bubble.show-actions .chat-msg-actions-bar')) closeAll();
+    const bubble = e.target.closest('.dm-bubble');
+    if (!bubble || e.target.closest('button, a, .chat-msg-actions-bar') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    swipe = { bubble, x: e.clientX, y: e.clientY, pointerId: e.pointerId, mouse: e.pointerType === 'mouse', active: false, locked: false, icon: null };
+    if (e.pointerType === 'mouse') return;
+    cancel();
+    pressed = bubble;
+    startX = e.clientX; startY = e.clientY;
+    bubble.classList.add('is-pressing');
+    timer = setTimeout(() => {
+      bubble.classList.add('show-actions');
+      swallowClick = true; // the release must not also open the image zoom
+      cancel();
+    }, 450);
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (timer && Math.hypot(e.clientX - startX, e.clientY - startY) > 10) cancel();
+    if (!swipe || e.pointerId !== swipe.pointerId) return;
+    const dir = swipe.bubble.classList.contains('sent') ? -1 : 1;
+    const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+    if (!swipe.active) {
+      if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)) { swipe = null; return; } // a scroll, not a swipe
+      if (Math.abs(dx) <= 8 || Math.abs(dx) <= Math.abs(dy) * 1.5 || dx * dir <= 0) return;
+      if (swipe.mouse && String(getSelection?.() || '')) { swipe = null; return; } // the mouse is selecting text
+      cancel(); // no long-press once it is a swipe
+      swipe.active = true;
+      swipe.bubble.classList.add('is-swiping');
+      swipe.bubble.setPointerCapture?.(e.pointerId);
+      swipe.icon = Object.assign(document.createElement('span'), { className: 'dm-swipe-reply', innerHTML: REPLY_ICON });
+      swipe.icon.setAttribute('aria-hidden', 'true');
+      swipe.bubble.appendChild(swipe.icon);
+    }
+    const d = Math.max(0, dx * dir);
+    // Rubber band: 1:1 up to the lock point, then resistance, never past 72px
+    const offset = d <= SWIPE_LOCK ? d : Math.min(SWIPE_MAX, SWIPE_LOCK + (d - SWIPE_LOCK) * 0.35);
+    if (!reducedMotion()) swipe.bubble.style.transform = `translateX(${offset * dir}px)`;
+    const p = Math.min(d / SWIPE_LOCK, 1);
+    swipe.icon.style.opacity = p;
+    swipe.icon.style.transform = `scale(${0.6 + 0.4 * p})`;
+    const locked = d >= SWIPE_LOCK;
+    if (locked !== swipe.locked) {
+      swipe.locked = locked;
+      swipe.icon.classList.toggle('is-locked', locked);
+      if (locked) {
+        navigator.vibrate?.(10);
+        if (!reducedMotion()) animateSpring(swipe.icon, [{ transform: 'scale(1.3)' }, { transform: 'scale(1)' }], 'pop');
+      }
+    }
+  });
+  document.addEventListener('pointerup', (e) => { cancel(); if (swipe && e.pointerId === swipe.pointerId) endSwipe(true); });
+  document.addEventListener('pointercancel', (e) => { cancel(); if (swipe && e.pointerId === swipe.pointerId) endSwipe(false); });
+  document.addEventListener('scroll', cancel, true);
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest('.dm-bubble') && (timer || swallowClick)) e.preventDefault(); });
+  document.addEventListener('click', (e) => {
+    if (swallowClick) { swallowClick = false; if (e.target.closest('.dm-bubble')) { e.preventDefault(); e.stopPropagation(); return; } }
+    if (e.target.closest('.chat-msg-actions-bar')) closeAll(); // an action was picked
+  }, true);
 }
