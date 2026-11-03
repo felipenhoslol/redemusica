@@ -13,6 +13,50 @@ class AudioController {
     this.audio.volume = this.volume;
 
     this._setupAudioEvents();
+    this._setupMediaSession();
+  }
+
+  // Lock screen / notification controls. No queue in the app, so no previoustrack/nexttrack.
+  _setupMediaSession() {
+    const ms = typeof navigator !== 'undefined' && navigator.mediaSession;
+    if (!ms) return;
+    const a = this.audio;
+    const set = (action, fn) => { try { ms.setActionHandler(action, fn); } catch { /* action unsupported */ } };
+    const seek = (t) => { if (Number.isFinite(a.duration)) a.currentTime = Math.max(0, Math.min(t, a.duration)); };
+    set('play', () => { if (!this.isPlaying) this.togglePlayPause(); });
+    set('pause', () => this.pause());
+    set('stop', () => { this.pause(); seek(0); ms.playbackState = 'none'; });
+    set('seekto', (d) => seek(d.seekTime));
+    set('seekbackward', (d) => seek(a.currentTime - (d.seekOffset || 10)));
+    set('seekforward', (d) => seek(a.currentTime + (d.seekOffset || 10)));
+
+    let lastPos = 0;
+    const position = (force) => {
+      if (!ms.setPositionState || !Number.isFinite(a.duration) || a.duration <= 0) return;
+      const now = Date.now();
+      if (!force && now - lastPos < 1000) return;
+      lastPos = now;
+      try { ms.setPositionState({ duration: a.duration, playbackRate: a.playbackRate || 1, position: Math.min(a.currentTime, a.duration) }); } catch { /* bad state */ }
+    };
+    a.addEventListener('play', () => {
+      // Set on every play: app.js may swap in HD artwork after the track starts
+      const t = this.currentTrack;
+      if (t && typeof MediaMetadata !== 'undefined') {
+        const art = String(t.artwork || '');
+        try {
+          ms.metadata = new MediaMetadata({
+            title: t.title || '', artist: t.artist || '', album: t.album || '',
+            artwork: art ? [{ src: art.replace(/\/\d+x\d+bb\./, '/512x512bb.'), sizes: '512x512' }] : []
+          });
+        } catch { /* bad metadata */ }
+      }
+      ms.playbackState = 'playing';
+    });
+    a.addEventListener('pause', () => { ms.playbackState = 'paused'; });
+    a.addEventListener('ended', () => { ms.playbackState = 'none'; });
+    a.addEventListener('loadedmetadata', () => position(true));
+    a.addEventListener('seeked', () => position(true));
+    a.addEventListener('timeupdate', () => position(false));
   }
 
   _setupAudioEvents() {

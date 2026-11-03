@@ -577,6 +577,17 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .theme-options .opt-light { background: #ffffff; color: #16131d; }
 .theme-options .opt-auto { background: linear-gradient(135deg, #ffffff 50%, #0b0a10 50%); color: #16131d; }
 .theme-options .opt-auto span { background: #ffffff; padding: 0 4px; border-radius: 4px; }
+/* Avisos no celular (só no app Android) */
+.push-options { display: grid; gap: 10px; }
+.push-options label {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 52px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 10px;
+  cursor: pointer; font-weight: 800; font-size: var(--fs-text); color: var(--text);
+  transition: border-color .18s ease-out;
+}
+.push-options input { accent-color: var(--accent); width: 20px; height: 20px; margin: 0; flex: none; }
+.push-options label:has(input:checked) { border-color: var(--accent); }
 
 /* ─── Responsivo ─── */
 @media (max-width: 1100px) {

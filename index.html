@@ -5,7 +5,7 @@
   <!-- Segurança: de onde a página pode carregar scripts, estilos, fontes e imagens, e para onde pode mandar dados.
        Script de fora só do jsDelivr (Supabase) e das buscas de música do iTunes e Deezer; nada de <object>/<embed>.
        Ao usar um serviço novo, acrescente o endereço dele aqui (connect-src para fetch). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://itunes.apple.com https://api.deezer.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; connect-src 'self' data: blob: https://gdojwfpujfhpjhtgjkmi.supabase.co wss://gdojwfpujfhpjhtgjkmi.supabase.co https://itunes.apple.com https://ws.audioscrobbler.com https://api.deezer.com https://lrclib.net https://api.giphy.com https://api.microlink.io https://api.allorigins.win https://corsproxy.io; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://itunes.apple.com https://api.deezer.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; connect-src 'self' data: blob: https://gdojwfpujfhpjhtgjkmi.supabase.co wss://gdojwfpujfhpjhtgjkmi.supabase.co https://itunes.apple.com https://ws.audioscrobbler.com https://api.deezer.com https://lrclib.net https://api.giphy.com https://api.microlink.io https://api.allorigins.win https://corsproxy.io https://api.github.com; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- O endereço oficial é redemusicasemnome.vercel.app: quem chega pelo link antigo (github.io) vai para lá
        antes de carregar qualquer coisa, mantendo o caminho e o #… (tokens dos links de e-mail) -->
@@ -24,6 +24,14 @@
   <link rel="icon" href="assets/icon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <meta name="theme-color" content="#0b0a10">
+  <!-- App instalável (PWA): manifesto + service worker (registrado em js/pwa.js) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="application-name" content="rede de música">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="rede de música">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script type="module" src="js/pwa.js"></script>
   <!-- Tipografia: M PLUS Rounded 1c, arredondada como o gatinho (uma família só; a hierarquia vem do peso) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,6 +87,7 @@
   <link rel="stylesheet" href="css/motion.css">
   <link rel="stylesheet" href="css/brand.css">
   <link rel="stylesheet" href="css/polish.css">
+  <link rel="stylesheet" href="css/app-promo.css">
 </head>
 <body>
 

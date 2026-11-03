@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone pequeno dos avisos: o gato de assets/favicon.svg só em branco (o Android pinta conforme o tema). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <group android:translateX="3.2" android:translateY="4.6" android:scaleX="0.9" android:scaleY="0.9">
+        <!-- orelhas -->
+        <path android:fillColor="#FFFFFFFF" android:pathData="M12.5,28C10,18 11.5,9.5 16,8.2 19.6,7.2 24.5,12.5 27.5,18Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M51.5,28C54,18 52.5,9.5 48,8.2 44.4,7.2 39.5,12.5 36.5,18Z" />
+        <!-- cabeça com os olhos vazados -->
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+            android:pathData="M10.5,37a21.5,18.5 0,1 0,43 0a21.5,18.5 0,1 0,-43 0Z M20.3,36.5a3.7,4.5 0,1 0,7.4 0a3.7,4.5 0,1 0,-7.4 0Z M36.3,36.5a3.7,4.5 0,1 0,7.4 0a3.7,4.5 0,1 0,-7.4 0Z" />
+        <!-- fone -->
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="4.4" android:strokeLineCap="round"
+            android:pathData="M10.5,37C9.5,12 54.5,12 53.5,37" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M9.25,29.5a5.25,5.25 0,0 1,5.25 5.25v4.5a5.25,5.25 0,0 1,-10.5 0v-4.5a5.25,5.25 0,0 1,5.25 -5.25Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M54.75,29.5a5.25,5.25 0,0 1,5.25 5.25v4.5a5.25,5.25 0,0 1,-10.5 0v-4.5a5.25,5.25 0,0 1,5.25 -5.25Z" />
+    </group>
+</vector>

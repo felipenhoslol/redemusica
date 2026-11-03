@@ -1,6 +1,8 @@
 // Display settings: theme (dark / light / auto) and accent color, saved per device.
 // The <head> script in index.html applies the saved choice before first paint.
 import { catLogoHtml } from './logo.js';
+import { isNativeApp } from './appPromo.js';
+import { getPushPrefs, setPushPrefs, pushState } from './push.js';
 
 const KEY = 'rmsn_display_v1';
 
@@ -57,6 +59,24 @@ export function initDisplay() {
 
 const check = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 
+// Only in the Android app: which notices arrive with the app closed (saved on the server, per phone)
+function pushGroupHtml() {
+  const p = getPushPrefs();
+  const row = (name, label, on) => `
+    <label><span>${label}</span><input type="checkbox" name="${name}" ${on ? 'checked' : ''}></label>`;
+  return `
+      <fieldset class="display-group">
+        <legend>Avisos no celular</legend>
+        <p>${pushState === 'denied'
+          ? 'O Android está bloqueando os avisos do app. Libere em Configurações, Apps, rede de música. O sininho continua funcionando.'
+          : 'Chegam com o app fechado. O sininho continua mostrando tudo.'}</p>
+        <div class="push-options">
+          ${row('push-posts', 'Posts de quem você segue', p.posts)}
+          ${row('push-messages', 'Mensagens', p.messages)}
+        </div>
+      </fieldset>`;
+}
+
 export function openDisplaySettings() {
   const body = document.getElementById('display-modal-body');
   if (!body) return;
@@ -97,6 +117,8 @@ export function openDisplaySettings() {
         </div>
       </fieldset>
 
+      ${isNativeApp() ? pushGroupHtml() : ''}
+
       <div style="display:flex;justify-content:flex-end;">
         <button type="button" class="doodle-btn doodle-btn-primary" onclick="closeDoodleModal('display-modal')">Pronto</button>
       </div>
@@ -104,6 +126,10 @@ export function openDisplaySettings() {
 
   // onchange (not addEventListener) so reopening the modal doesn't stack handlers
   body.onchange = (e) => {
+    if (e.target.name === 'push-posts' || e.target.name === 'push-messages') {
+      setPushPrefs({ [e.target.name === 'push-posts' ? 'posts' : 'messages']: e.target.checked });
+      return;
+    }
     if (e.target.name !== 'display-accent' && e.target.name !== 'display-theme') return;
     saveDisplay({
       accent: body.querySelector('input[name="display-accent"]:checked')?.value || 'roxo',

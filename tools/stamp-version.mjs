@@ -69,4 +69,14 @@ for (const name of readdirSync(jsDir).filter(n => n.endsWith('.js')).sort()) {
   rewrite(join(jsDir, name), jsPatterns);
 }
 
+// sw.js: const VERSION = '<versão>' (o nome do cache muda e o service worker apaga os antigos)
+const swPath = join(root, 'sw.js');
+if (existsSync(swPath)) {
+  const sw = readFileSync(swPath, 'utf8');
+  const stamped = sw.replace(/(\bconst VERSION = ')[\w.-]*(')/, `$1${version}$2`);
+  if (stamped === sw && !sw.includes(`const VERSION = '${version}'`)) throw new Error('sw.js: const VERSION não encontrado');
+  writeFileSync(swPath, stamped);
+  console.log(`  1  sw.js`);
+}
+
 console.log(`versão ${version}: ${total} referências carimbadas em ${root}`);

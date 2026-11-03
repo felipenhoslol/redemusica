@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self' https://api.github.com; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Baixar o app pra Android · rede de música sem nome</title>
+  <meta name="description" content="Baixe o app da rede de música sem nome para Android e instale em três passos.">
+  <link rel="canonical" href="https://redemusicasemnome.vercel.app/baixar.html">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/icon-32.png" sizes="32x32" type="image/png">
+  <meta name="theme-color" content="#0b0a10">
+  <meta name="color-scheme" content="dark light">
+  <!-- Mesmo tema e cor de destaque escolhidos no app -->
+  <script>
+    (function () {
+      var p = {};
+      try { p = JSON.parse(localStorage.getItem('rmsn_display_v1') || '{}'); } catch (e) {}
+      var t = p.theme || 'dark';
+      if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-accent', p.accent || 'roxo');
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/pages.css">
+  <style>
+    .apk-steps { margin: 32px 0 0; padding: 0; list-style: none; counter-reset: step; border-top: 1px solid var(--line); }
+    .apk-steps li { counter-increment: step; display: flex; gap: 14px; padding: 16px 2px; border-bottom: 1px solid var(--line); margin: 0 !important; }
+    .apk-steps li::before {
+      content: counter(step); flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+      box-shadow: inset 0 0 0 2px var(--accent); color: var(--accent); font-weight: 900; font-size: .9rem;
+    }
+    .apk-steps strong { display: block; font-weight: 800; }
+    .apk-steps span { color: var(--text-2); }
+    .page-btn svg { margin-right: 8px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="page-head">
+    <a class="page-brand" href="/"><img src="/assets/favicon.svg" alt="" width="40" height="40"><span>rede de música sem nome</span></a>
+  </header>
+  <main class="page-main">
+    <h1>rede de música sem nome pra Android</h1>
+    <p class="page-lead" id="apk-lead">Procurando a versão mais nova…</p>
+    <div class="page-actions" id="apk-actions" hidden>
+      <a class="page-btn" id="apk-btn" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/></svg><span>Baixar APK</span></a>
+    </div>
+    <ol class="apk-steps">
+      <li><div><strong>Baixe o APK</strong><span>Toque no botão acima. O arquivo vai para a pasta Downloads.</span></div></li>
+      <li><div><strong>Permita "fontes desconhecidas"</strong><span>Na primeira vez, o Android pergunta se o navegador pode instalar apps. Toque em Configurações e ative "Permitir desta fonte".</span></div></li>
+      <li><div><strong>Abra e instale</strong><span>Abra o arquivo baixado e toque em Instalar. Pronto: a rede fica na sua tela inicial.</span></div></li>
+    </ol>
+  </main>
+  <footer class="page-foot">
+    <nav aria-label="Páginas da rede"><a href="/">Entrar na rede</a><a href="/faq.html">Perguntas frequentes</a><a href="/privacidade.html">Privacidade</a><a href="/termos.html">Termos de uso</a></nav>
+    © 2026 rede de música · feito por <strong>felipenhos</strong>
+  </footer>
+  <script type="module">
+    import { fetchLatest, isNativeApp } from '/js/appPromo.js';
+    const lead = document.getElementById('apk-lead');
+    const info = await fetchLatest();
+    if (!info) {
+      lead.textContent = 'O app ainda não está disponível. Volte daqui a pouco.';
+    } else {
+      const btn = document.getElementById('apk-btn');
+      btn.href = info.url;
+      btn.querySelector('span').textContent = `Baixar APK · v${info.version} · ${info.sizeMB} MB`;
+      document.getElementById('apk-actions').hidden = false;
+      lead.textContent = isNativeApp() || /Android/i.test(navigator.userAgent)
+        ? 'Instale o app e abra a rede direto da tela inicial.'
+        : 'O app é só para Android. Abra esta página no celular para instalar.';
+    }
+  </script>
+</body>
+</html>

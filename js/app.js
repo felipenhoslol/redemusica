@@ -26,6 +26,7 @@ import { flip, popIcon, rollNumber, swapContent } from './motion.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
 import { creditHtml } from './credit.js';
+import { initAppPromo, appMenuItemHtml, openDownloadPage, isNativeApp } from './appPromo.js';
 import { adminBadge } from './badges.js';
 import { renderAdminTab } from './admin.js';
 import { renderDailyLyric } from './dailyLyric.js';
@@ -104,6 +105,7 @@ function startApp() {
   else { switchTab('feed'); }
   restoringHistory = false;
   syncBackButton(); // the header was drawn before this reset, with the old page's depth
+  initAppPromo();
 
   if (auth.mode === 'signed-in') {
     startSync(auth.user.id, {
@@ -114,6 +116,7 @@ function startApp() {
     }).then(() => {
       publishChallengeAnswers(); // answers saved before this version become visible to others
       openProfileFromLink();
+      if (isNativeApp()) import('./push.js').then(p => p.initPush()).catch(e => console.warn('push:', e));
     });
   }
 }
@@ -366,6 +369,7 @@ function openMeSheet() {
         ${item('desafios', ICONS.star, 'Desafios', activeTab === 'desafios' || activeTab === 'comparar')}
         ${auth.isAdmin ? item('admin', ICONS.shield, 'Admin', activeTab === 'admin') : ''}
         ${item('display', ICONS.palette, 'Exibição')}
+        ${appMenuItemHtml(ICONS.download)}
         ${item('account', ICONS.lock, 'Conta e senha')}
         ${item('feedback', ICONS.feedback, 'Enviar feedback')}
         ${item('logout', ICONS.logout, 'Sair da conta')}
@@ -384,6 +388,7 @@ function openMeSheet() {
     else if (go === 'feedback') window._openFeedback();
     else if (go === 'account') window._openAccount();
     else if (go === 'logout') window._logout();
+    else if (go === 'app') openDownloadPage();
     else switchTab(go);
   };
   document.addEventListener('keydown', onKey);
@@ -780,7 +785,11 @@ function bindGlobalHandlers() {
     document.body.classList.remove('composing');
     window._leaveLayer('compose');
   };
-  window._logout = () => { stopSync(); logout(); };
+  window._logout = async () => {
+    stopSync();
+    if (isNativeApp()) await import('./push.js').then(p => p.forgetDevice()).catch(() => {}); // this phone stops getting the account's notices
+    logout();
+  };
 
   // Navigate to any profile
   window._goToProfile = (userId) => {

@@ -359,3 +359,6 @@ html, body { max-width: 100%; overflow-x: clip; }
   .mobile-tabbar, .player-bar, .chat-msg-actions-bar { background: var(--surface); }
   .playlist-detail-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--hover) 60%, var(--surface)), var(--surface)); }
 }
+
+/* Sem puxar-para-recarregar no app instalado: arrastar no topo não recarrega a página (listas internas já usam overscroll contain) */
+html, body { overscroll-behavior-y: none; }

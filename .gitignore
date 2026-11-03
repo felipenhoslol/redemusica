@@ -1,3 +1,15 @@
 .claude/
 _site/
 .superpowers/
+
+# App Android (Capacitor): dependências, a www/ gerada por tools/build-app.mjs e saídas do Gradle
+node_modules/
+www/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+# Firebase do app: o CI escreve a partir do secret GOOGLE_SERVICES_JSON_BASE64 (docs/push-setup.md)
+android/app/google-services.json
+*.keystore
+*.jks

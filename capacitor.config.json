@@ -1,0 +1,9 @@
+{
+  "appId": "app.redemusica.semnome",
+  "appName": "rede de música sem nome",
+  "webDir": "www",
+  "backgroundColor": "#0b0a10",
+  "android": {
+    "backgroundColor": "#0b0a10"
+  }
+}

@@ -32,13 +32,14 @@ jobs:
           node-version: 22
 
       - name: Testar filtros contra XSS e o toque (se falhar, não publica)
-        run: node --test tools/security.test.mjs tools/search.test.mjs tools/touch.test.mjs tools/swipeTabs.test.mjs
+        run: node --test tools/security.test.mjs tools/search.test.mjs tools/touch.test.mjs tools/swipeTabs.test.mjs tools/appPromo.test.mjs
 
       - name: Montar _site otimizado (CSS/JS empacotados) com versão carimbada
         run: |
           mkdir _site
-          cp -r index.html 404.html assets css js _site/
+          cp -r index.html 404.html manifest.webmanifest sw.js privacidade.html termos.html faq.html robots.txt sitemap.xml assets css js _site/
           node tools/optimize-build.mjs _site
+          cp js/pwa.js _site/js/  # o optimize-build troca a pasta js/ pelo pacote do app.js; o pwa.js é um script à parte
           node tools/stamp-version.mjs _site "$(git rev-parse --short HEAD)"
 
       - uses: actions/upload-pages-artifact@v3
