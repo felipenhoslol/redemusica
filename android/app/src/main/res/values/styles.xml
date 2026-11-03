@@ -13,8 +13,8 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <!-- Shows behind the system bars when the WebView is padded (WebView < 140); matches --bg -->
-        <item name="android:windowBackground">#0b0a10</item>
+        <!-- Shows behind the system bars when the WebView is padded (WebView < 140); matches the CSS bg var -->
+        <item name="android:windowBackground">@color/app_background</item>
     </style>
 
 
