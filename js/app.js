@@ -11,7 +11,9 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
 import { catLogoHtml, setCatMood, initCatLogo } from './logo.js';
-import { auth, initAuth, logout, emailReminderUnread } from './auth.js';
+import { auth, initAuth, logout, emailReminderUnread, identityId } from './auth.js';
+import { DEFAULT_LOOK, applyLook } from './look.js';
+import { initEasterEgg, syncLook } from './easterEgg.js';
 import { showAuthScreen } from './authScreen.js';
 import { openFeedbackModal } from './feedback.js';
 import { openDisplaySettings, initDisplay } from './display.js';
@@ -63,12 +65,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   initStorage();
   initDisplay();
   initCatLogo();
+  initEasterEgg();
 
   // Sign-in gate: the app boots only for a signed-in account (or local demo mode)
   const state = await initAuth((s, event) => {
     if (event === 'PASSWORD_RECOVERY') showAuthScreen('recovery', () => {});
     if (event === 'SIGNED_OUT') window.location.reload();
   });
+  if (!identityId()) applyLook(DEFAULT_LOOK); // login screen (also an expired token) is always the default look
   document.getElementById('boot-splash')?.remove();
   initAppPromo(); // here, not in startApp: logged-out visitors on the login screen see it too
   if (state.mode === 'signed-in' || state.mode === 'local') startApp();
@@ -80,6 +84,7 @@ let appStarted = false;
 function startApp() {
   if (appStarted) return;
   appStarted = true;
+  syncLook(); // covers signing in without a reload and switching accounts
   // You are an admin (checked with is_admin at sign-in): show your wrench right away,
   // even before the server's admin list (supabase/010_admin_badge.sql) arrives
   if (auth.isAdmin && auth.user) addAdminId(auth.user.id);

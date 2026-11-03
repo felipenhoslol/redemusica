@@ -130,3 +130,48 @@ test('perfil: descoberta vinda do servidor fica salva e nunca é desfeita', asyn
   mergeRemoteProfiles([{ id: 'b', name: 'b', handle: '@b', extras: { easterEgg2016: 'true' } }]);
   assert.notEqual(getUserById('b').easterEgg2016, true);
 });
+
+test('syncLook: carrega de verdade e concilia espelho, registro local e servidor', async () => {
+  const attrs = {};
+  globalThis.matchMedia ??= () => ({ matches: false, addEventListener() {} });
+  globalThis.CSS ??= { supports: () => true };
+  globalThis.Audio ??= class { addEventListener() {} pause() {} play() { return Promise.resolve(); } };
+  Object.assign(globalThis.document, {
+    documentElement: { dataset: {}, setAttribute: (k, v) => { attrs[k] = v; }, removeAttribute: k => { delete attrs[k]; } },
+    head: { appendChild() {} }, createElement: () => ({}), getElementById: () => ({}), querySelectorAll: () => []
+  });
+  const { syncLook, initEasterEgg } = await import('../js/easterEgg.js');
+  const { auth } = await import('../js/auth.js');
+  const { setActiveUser, getUserById, mergeRemoteProfiles } = await import('../js/storage.js');
+  assert.equal(typeof initEasterEgg, 'function');
+  auth.mode = 'local';
+  localStorage.removeItem(LOOK_KEY);
+
+  // registro local tem o flag (de antes), servidor não: grava o espelho, aparência ainda padrão
+  setActiveUser('a');
+  syncLook(false);
+  assert.equal(readLooks().a.found, true);
+  assert.deepEqual(attrs, {});
+
+  // a escolha salva desse id é aplicada
+  saveLook('a', { skin: 'yt2016', cat: 'retro' });
+  syncLook(false);
+  assert.deepEqual(attrs, { 'data-skin': 'yt2016', 'data-cat': 'retro' });
+
+  // outra conta no mesmo aparelho: padrão
+  mergeRemoteProfiles([{ id: 'c', name: 'c', handle: '@c', extras: {} }]);
+  setActiveUser('c');
+  syncLook(false);
+  assert.deepEqual(attrs, {});
+  assert.equal(readLooks().c, undefined);
+
+  // só o servidor sabe (aparelho novo): espelho e registro local passam a saber
+  syncLook(true);
+  assert.equal(readLooks().c.found, true);
+  assert.equal(getUserById('c').easterEgg2016, true);
+
+  // sem identidade: padrão
+  auth.mode = 'signed-out';
+  syncLook(true);
+  assert.deepEqual(attrs, {});
+});
