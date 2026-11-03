@@ -146,10 +146,10 @@ export async function signOut() {
 
 export async function getMyProfile(userId) {
   try {
-    return await run(getSupabase().from('profiles').select('id, name, handle, avatar_url, banned, email_verified_at').eq('id', userId).maybeSingle());
+    return await run(getSupabase().from('profiles').select('id, name, handle, avatar_url, banned, email_verified_at, extras').eq('id', userId).maybeSingle());
   } catch {
     // Before supabase/008_email_verified.sql the column doesn't exist
-    return run(getSupabase().from('profiles').select('id, name, handle, avatar_url, banned').eq('id', userId).maybeSingle());
+    return run(getSupabase().from('profiles').select('id, name, handle, avatar_url, banned, extras').eq('id', userId).maybeSingle());
   }
 }
 

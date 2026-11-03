@@ -262,7 +262,7 @@ export function upsertPostsCache(posts) {
 export const PROFILE_EXTRA_KEYS = [
   'instagram', 'twitter', 'lastfm', 'socials', 'featuredSong', 'songShowcase', 'pinnedPostId', 'bioFont',
   'topArtist', 'topArtistsMonth', 'topTracksMonth', 'musicService', 'spotifyUsername', 'spotifyConnected',
-  'musicPeriod', 'musicPeriodLabel', 'musicProfileUrl', 'musicSyncedAt', 'challengeAnswers'
+  'musicPeriod', 'musicPeriodLabel', 'musicProfileUrl', 'musicSyncedAt', 'challengeAnswers', 'easterEgg2016'
 ];
 
 /**
@@ -281,6 +281,7 @@ function cleanExtra(key, value) {
   if (EXTRA_OBJECT_KEYS.has(key)) return isObject ? value : null;
   if (key === 'topArtist') return isObject || typeof value === 'string' ? value : null;
   if (key === 'spotifyConnected') return Boolean(value);
+  if (key === 'easterEgg2016') return value === true ? true : null; // a string "false" must not count
   if (typeof value === 'number') return value;
   return typeof value === 'string' ? value.slice(0, 500) : null;
 }
@@ -299,6 +300,8 @@ export function mergeRemoteProfiles(profiles, opts = {}) {
       Object.assign(fields, { bannerUrl: p.banner_url || '', bio: p.bio || '', status: p.status || '' });
       const extras = p.extras || {};
       PROFILE_EXTRA_KEYS.forEach(k => { fields[k] = cleanExtra(k, extras[k]) ?? (Array.isArray(existing?.[k]) ? [] : null); });
+      // Once found, stays found: an older row from another device can't undo it
+      fields.easterEgg2016 = fields.easterEgg2016 || existing?.easterEgg2016 === true || null;
       ['songShowcase', 'topArtistsMonth', 'topTracksMonth'].forEach(k => { if (!Array.isArray(fields[k])) fields[k] = []; });
     }
     if (existing) Object.assign(existing, fields);

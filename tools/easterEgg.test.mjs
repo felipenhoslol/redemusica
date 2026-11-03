@@ -113,3 +113,20 @@ test('head script: JSON quebrado não aplica nada e não lança', () => {
   assert.equal(links.length, 0);
   assert.equal(attrs['data-theme'], 'dark');
 });
+
+test('perfil: descoberta vinda do servidor fica salva e nunca é desfeita', async () => {
+  globalThis.window ??= globalThis;
+  globalThis.addEventListener ??= () => {};
+  globalThis.sessionStorage ??= globalThis.localStorage;
+  globalThis.document ??= { visibilityState: 'hidden', addEventListener() {}, removeEventListener() {}, getElementById: () => null, querySelector: () => null, querySelectorAll: () => [] };
+  const { mergeRemoteProfiles, getUserById } = await import('../js/storage.js');
+  const row = extras => ({ id: 'a', name: 'a', handle: '@a', extras });
+  mergeRemoteProfiles([row({ easterEgg2016: true })]);
+  assert.equal(getUserById('a').easterEgg2016, true);
+  mergeRemoteProfiles([row({})]);
+  assert.equal(getUserById('a').easterEgg2016, true);
+  mergeRemoteProfiles([row({ easterEgg2016: false })]);
+  assert.equal(getUserById('a').easterEgg2016, true);
+  mergeRemoteProfiles([{ id: 'b', name: 'b', handle: '@b', extras: { easterEgg2016: 'true' } }]);
+  assert.notEqual(getUserById('b').easterEgg2016, true);
+});
