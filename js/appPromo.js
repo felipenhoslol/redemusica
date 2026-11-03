@@ -40,21 +40,33 @@ export function parseRelease(rel) {
   };
 }
 
+const KEY_LATEST = 'rmsn_app_latest';
+const TTL_FOUND = 30 * 60e3;  // a new release's version/size shows up within half an hour
+const TTL_NONE = 10 * 60e3;   // "no release yet" is rechecked sooner (the API allows 60 calls/hour per IP)
+
+/** The cached {at, info} if it is still fresh, else undefined (info may be null: "no release yet"). */
+export function freshCache(raw, now = Date.now()) {
+  let c;
+  try { c = JSON.parse(raw); } catch { return undefined; }
+  if (!c || typeof c.at !== 'number' || !('info' in c)) return undefined; // old format ("null" or a bare info)
+  return now - c.at < (c.info ? TTL_FOUND : TTL_NONE) ? c : undefined;
+}
+
 let latest = null;
-/** Latest app version (cached for the session: the API allows 60 calls/hour per IP). */
+/** Latest app version (cached in sessionStorage, see the TTLs above). */
 export function fetchLatest() {
   if (latest) return latest;
   latest = (async () => {
     try {
-      const cached = sessionStorage.getItem('rmsn_app_latest');
-      if (cached) return JSON.parse(cached);
+      const c = freshCache(sessionStorage.getItem(KEY_LATEST));
+      if (c) return c.info;
     } catch { /* sem sessionStorage: busca de novo */ }
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } });
       const info = res.ok ? parseRelease(await res.json()) : null;
-      try { sessionStorage.setItem('rmsn_app_latest', JSON.stringify(info)); } catch { /* ok */ }
+      try { sessionStorage.setItem(KEY_LATEST, JSON.stringify({ at: Date.now(), info })); } catch { /* ok */ }
       return info;
-    } catch { return null; }
+    } catch { return null; } // network error: not cached, the next load tries again
   })();
   return latest;
 }

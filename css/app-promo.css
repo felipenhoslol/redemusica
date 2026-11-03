@@ -1,6 +1,6 @@
 /* ─── App Android: janela de anúncio / aviso de versão nova (js/appPromo.js) ───
    Mesmo formato da folha "você"; a subida é uma mola via WAAPI (motion.js). */
-.app-promo { position: fixed; inset: 0; z-index: 950; }
+.app-promo { position: fixed; inset: 0; z-index: 5500; } /* above the auth screen (5000), below the boot splash (6000) and toasts */
 .app-promo-scrim { position: absolute; inset: 0; background: rgb(0 0 0 / .5); }
 .app-promo-panel {
   position: absolute; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto;

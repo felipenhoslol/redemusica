@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (event === 'SIGNED_OUT') window.location.reload();
   });
   document.getElementById('boot-splash')?.remove();
+  initAppPromo(); // here, not in startApp: logged-out visitors on the login screen see it too
   if (state.mode === 'signed-in' || state.mode === 'local') startApp();
   else showAuthScreen(state.mode === 'recovery' ? 'recovery' : state.mode === 'banned' ? 'banned' : 'login', startApp);
 });
@@ -105,7 +106,6 @@ function startApp() {
   else { switchTab('feed'); }
   restoringHistory = false;
   syncBackButton(); // the header was drawn before this reset, with the old page's depth
-  initAppPromo();
 
   if (auth.mode === 'signed-in') {
     startSync(auth.user.id, {
