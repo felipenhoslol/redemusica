@@ -22,23 +22,54 @@ concurrency:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    # Fixo: a imagem 24.04 já traz o Android SDK (ANDROID_HOME/ANDROID_SDK_ROOT)
+    runs-on: ubuntu-24.04
     env:
       VERSION_CODE: ${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      # Usa o SDK da imagem; só baixa um (setup-android) se não houver nenhum
+      - name: Android SDK da imagem
+        id: sdk
+        run: |
+          for d in "$ANDROID_HOME" "$ANDROID_SDK_ROOT"; do
+            if [ -n "$d" ] && { [ -d "$d/platforms" ] || [ -d "$d/cmdline-tools" ]; }; then
+              echo "ANDROID_HOME=$d" >> "$GITHUB_ENV"
+              echo "ANDROID_SDK_ROOT=$d" >> "$GITHUB_ENV"
+              echo "found=true" >> "$GITHUB_OUTPUT"
+              echo "SDK em $d"
+              exit 0
+            fi
+          done
+          echo "found=false" >> "$GITHUB_OUTPUT"
+
+      - if: steps.sdk.outputs.found != 'true'
+        uses: android-actions/setup-android@v3
+
+      # Licenças + platform/build-tools do compileSdkVersion (android/variables.gradle)
+      - name: Pacotes do SDK
+        run: |
+          SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -n1)"
+          [ -z "$SDKMANAGER" ] && SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::warning::sdkmanager não encontrado; o Gradle tenta baixar o que faltar."
+            exit 0
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          API="$(sed -n 's/.*compileSdkVersion *= *\([0-9]*\).*/\1/p' android/variables.gradle)"
+          [ -d "$ANDROID_HOME/platforms/android-$API" ] || "$SDKMANAGER" "platforms;android-$API"
+          ls -d "$ANDROID_HOME/build-tools/$API".* >/dev/null 2>&1 || "$SDKMANAGER" "build-tools;$API.0.0"
 
       - name: Versão
         id: ver
