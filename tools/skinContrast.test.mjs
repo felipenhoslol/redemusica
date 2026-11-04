@@ -17,7 +17,10 @@ function block(theme) {
 
 function hex(vars, name) {
   let v = vars[name];
-  for (let i = 0; v?.startsWith('var('); i++) v = vars[/var\((--[\w-]+)/.exec(v)[1]];
+  for (let i = 0; v?.startsWith('var('); i++) {
+    assert.ok(i < 10, `${name}: var() cycle`);
+    v = vars[/var\((--[\w-]+)/.exec(v)[1]];
+  }
   assert.match(v ?? '', /^#([0-9a-f]{3}|[0-9a-f]{6})$/i, `${name} must be a hex colour, got ${v}`);
   return v;
 }
@@ -46,6 +49,8 @@ const TEXT = [ // [foreground, background], 4.5:1 (11–13px is normal text)
   ['--yt-link', '--bg'], ['--yt-link', '--surface'],
   ['--yt-title', '--surface'],
   ['--accent', '--bg'], ['--accent', '--surface'], // the app paints text with --accent in ~60 places
+  ['--accent', '--accent-soft'], ['--accent', '--hover'], // fallback initials, cover placeholders
+  ['--danger', '--surface'], ['--danger', '--accent-soft'], ['--danger', '--hover'],
   ['--on-accent', '--accent'],
   ['--yt-active-text', '--yt-active-bg'], // active guide item, primary buttons
   ['--yt-sub-text', '--yt-sub-bg'],
