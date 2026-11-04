@@ -120,6 +120,7 @@ function startApp() {
       onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); renderNotifBadge(); showNotificationPopups(); },
       onError: (msg) => showDoodleToast(msg)
     }).then(() => {
+      syncLook(); // again now that sync is live: the first pass could not push a discovery made on this device
       publishChallengeAnswers(); // answers saved before this version become visible to others
       openProfileFromLink();
       if (isNativeApp()) import('./push.js').then(p => p.initPush()).catch(e => console.warn('push:', e));

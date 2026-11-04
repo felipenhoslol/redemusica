@@ -133,6 +133,10 @@ test('perfil: descoberta vinda do servidor fica salva e nunca é desfeita', asyn
 
 test('syncLook: carrega de verdade e concilia espelho, registro local e servidor', async () => {
   const attrs = {};
+  globalThis.window ??= globalThis;
+  globalThis.addEventListener ??= () => {};
+  globalThis.sessionStorage ??= globalThis.localStorage;
+  globalThis.document ??= { visibilityState: 'hidden', addEventListener() {}, removeEventListener() {} };
   globalThis.matchMedia ??= () => ({ matches: false, addEventListener() {} });
   globalThis.CSS ??= { supports: () => true };
   globalThis.Audio ??= class { addEventListener() {} pause() {} play() { return Promise.resolve(); } };
@@ -142,20 +146,25 @@ test('syncLook: carrega de verdade e concilia espelho, registro local e servidor
   });
   const { syncLook, initEasterEgg } = await import('../js/easterEgg.js');
   const { auth } = await import('../js/auth.js');
-  const { setActiveUser, getUserById, mergeRemoteProfiles } = await import('../js/storage.js');
+  const { setActiveUser, getUserById, mergeRemoteProfiles, setRemoteHooks } = await import('../js/storage.js');
   assert.equal(typeof initEasterEgg, 'function');
   auth.mode = 'local';
   localStorage.removeItem(LOOK_KEY);
+  let pushes = 0;
+  setRemoteHooks({ profileChanged: () => { pushes++; } }); // what startSync installs
 
-  // registro local tem o flag (de antes), servidor não: grava o espelho, aparência ainda padrão
-  setActiveUser('a');
+  // registro local tem o flag (de antes), servidor não: grava o espelho, pede o envio, aparência ainda padrão
+  mergeRemoteProfiles([{ id: 's1', name: 's1', handle: '@s1', extras: { easterEgg2016: true } }]);
+  setActiveUser('s1');
   syncLook(false);
-  assert.equal(readLooks().a.found, true);
+  assert.equal(pushes, 1);
+  assert.equal(readLooks().s1.found, true);
   assert.deepEqual(attrs, {});
 
-  // a escolha salva desse id é aplicada
-  saveLook('a', { skin: 'yt2016', cat: 'retro' });
-  syncLook(false);
+  // a escolha salva desse id é aplicada; o servidor já sabe: nada a enviar
+  saveLook('s1', { skin: 'yt2016', cat: 'retro' });
+  syncLook(true);
+  assert.equal(pushes, 1);
   assert.deepEqual(attrs, { 'data-skin': 'yt2016', 'data-cat': 'retro' });
 
   // outra conta no mesmo aparelho: padrão
@@ -169,9 +178,17 @@ test('syncLook: carrega de verdade e concilia espelho, registro local e servidor
   syncLook(true);
   assert.equal(readLooks().c.found, true);
   assert.equal(getUserById('c').easterEgg2016, true);
+  assert.equal(pushes, 1); // copiar do servidor não reenvia
 
   // sem identidade: padrão
   auth.mode = 'signed-out';
   syncLook(true);
   assert.deepEqual(attrs, {});
+  setRemoteHooks(null);
+});
+
+// The remote hooks only exist after startSync, so the push branch must run again once sync is live
+test('app: syncLook roda de novo depois que o startSync termina', () => {
+  const app = readFileSync(new URL('../js/app.js', import.meta.url), 'utf8');
+  assert.ok(/startSync\([\s\S]*?\}\)\.then\(\(\) => \{[^}]*syncLook\(\)/.test(app), 'syncLook() missing from startSync(...).then');
 });

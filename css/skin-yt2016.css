@@ -151,7 +151,10 @@ html[data-skin="yt2016"] :focus-visible { outline: 2px solid var(--yt-link); out
 html[data-skin="yt2016"] .app-sidebar { background: var(--surface); border-right: 1px solid var(--line); }
 html[data-skin="yt2016"] .sidebar-logo-text h1 { font: 500 15px/1.2 var(--f-ui); color: var(--yt-title); }
 html[data-skin="yt2016"] .sidebar-logo-text span { font-size: var(--fs-detail); }
-html[data-skin="yt2016"] .nav-item { transition: transform var(--spring-press-dur, 160ms) var(--spring-press, var(--ease-out)); color: var(--text); }
+html[data-skin="yt2016"] .nav-item { color: var(--text); }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-skin="yt2016"] .nav-item { transition: transform var(--spring-press-dur, 160ms) var(--spring-press, var(--ease-out)); }
+}
 html[data-skin="yt2016"] .nav-item svg { color: var(--text-2); }
 html[data-skin="yt2016"] .nav-item:hover { background: var(--hover); }
 html[data-skin="yt2016"] .nav-item.active,

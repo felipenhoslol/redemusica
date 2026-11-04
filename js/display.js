@@ -93,8 +93,8 @@ export function openDisplaySettings() {
   const prefs = getDisplayPrefs();
   const id = identityId();
   const look = resolveLook(readLooks(), id, getUserById(id)?.easterEgg2016 === true);
-  const radios = (name, opts, cur) => `
-        <div class="theme-options">
+  const radios = (name, opts, cur, labelId) => `
+        <div class="theme-options" role="radiogroup" aria-labelledby="${labelId}">
           ${opts.map(o => `
             <label>
               <input type="radio" name="${name}" value="${o.id}" ${o.id === cur ? 'checked' : ''}>
@@ -114,11 +114,11 @@ export function openDisplaySettings() {
 
       ${look.found ? `
       <fieldset class="display-group">
-        <legend>Visual</legend>
+        <legend id="look-skin-label">Visual</legend>
         <p>Visual retrô de 2016.</p>
-        ${radios('look-skin', SKINS, look.skin)}
-        <p>Gatinho</p>
-        ${radios('look-cat', CATS, look.cat)}
+        ${radios('look-skin', SKINS, look.skin, 'look-skin-label')}
+        <p id="look-cat-label">Gatinho</p>
+        ${radios('look-cat', CATS, look.cat, 'look-cat-label')}
       </fieldset>` : ''}
 
       ${look.skin === 'yt2016' ? '' : `

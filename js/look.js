@@ -1,4 +1,4 @@
-// Visual 2016 (easter egg): who sees which skin/cat, the 16-tap counter, and applying it to <html>
+// Visual 2016: who sees which skin/cat, the 16-tap counter, and applying it to <html>
 export const LOOK_KEY = 'rmsn_look_v1';
 export const DEFAULT_LOOK = { skin: 'padrao', cat: 'kawaii' };
 const SKINS = ['padrao', 'yt2016'];
