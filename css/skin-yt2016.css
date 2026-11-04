@@ -1,0 +1,317 @@
+/* ==========================================================================
+   Visual 2016 (easter egg). Só vale com <html data-skin="yt2016">; sem o atributo nada daqui casa.
+   Plano e reto: fundo #f1f1f1, cartões brancos, raio 0 (botões 2px), sombra de 1px, Roboto 13px.
+   Os componentes leem as variáveis --yt-*; o tema escuro só troca as variáveis.
+   ========================================================================== */
+
+/* ─── Forma e tipo (valem para claro e escuro) ─── */
+:root[data-skin="yt2016"] {
+  --f-ui: Roboto, arial, sans-serif;
+  --f-display: var(--f-ui);
+  --fs-detail: 11px;
+  --fs-text: 13px;
+  --fs-name: 13px;
+  --fs-title: 15px;
+  --radius: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-pill: 2px;
+  --wobble: 0;
+  --pill: 2px;
+  --purple-light: var(--text-2); /* apelido antigo usado em estilos inline como texto secundário; aqui vermelho só no que está ativo */
+  font-synthesis: none; /* Roboto só tem 400/500: os 700/800 do app viram 500, sem negrito falso */
+}
+
+/* ─── Cores: claro ─── */
+:root[data-skin="yt2016"][data-theme="light"] {
+  --bg: #f1f1f1;
+  --surface: #fff;
+  --hover: #e8e8e8;
+  --line: #e8e8e8;
+  --text: #333;
+  --text-2: #6b6b6b; /* o #767676 medido dá 4.0:1 sobre o #f1f1f1; este passa AA nos dois fundos */
+  --scrim: #fff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .1);
+  --accent: #cc181e;
+  --accent-hover: #b31217;
+  --on-accent: #fff;
+  --accent-soft: #f1f1f1;
+  --accent-softer: #f8f8f8;
+  --danger: #cc181e;
+  --success: #0b7a4b; /* o verde padrão do claro dá 4.4:1 */
+
+  --yt-title: #000;               /* títulos de página e de cartão */
+  --yt-link: #167ac6;             /* títulos de faixa, nomes clicáveis */
+  --yt-section-title: #cc181e;    /* títulos de seção em caixa-alta */
+  --yt-sub-bg: #e62117;           /* botão Seguir */
+  --yt-sub-text: #fefefe;
+  --yt-btn-bg: #f8f8f8;           /* botão padrão */
+  --yt-btn-hover: #f0f0f0;
+  --yt-btn-border: #d3d3d3;
+  --yt-btn-text: #333;
+  --yt-input-bg: #fff;
+  --yt-input-border: #ccc;
+  --yt-input-inset: #eee;
+  --yt-badge-bg: rgba(0, 0, 0, .75); /* selos sobre capa */
+  --yt-overlay: rgba(0, 0, 0, .5);   /* fundo atrás de modais */
+  --yt-progress-track: #ccc;
+
+  /* apelidos legados que não seguem os neutros acima */
+  --bg-card: var(--surface);
+  --bg-input: var(--yt-input-bg);
+}
+
+/* ─── Global: tudo reto, sem vidro nem brilho ─── */
+html[data-skin="yt2016"] *,
+html[data-skin="yt2016"] *::before,
+html[data-skin="yt2016"] *::after {
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  text-shadow: none !important;
+}
+html[data-skin="yt2016"] :is(button, .doodle-btn, [role="button"]):not(.nav-item, .feed-filter-btn, .profile-subtab-btn, .search-tabs button, .post-card, .search-row) {
+  border-radius: 2px !important;
+}
+/* Disco de vinil e o anel de carregamento são redondos de verdade */
+html[data-skin="yt2016"] :is(.featured-vinyl-disk, .featured-vinyl-disk *, .np-disc, .np-disc *),
+html[data-skin="yt2016"] .np-disc::after,
+html[data-skin="yt2016"] .player-bar.buffering .player-play-btn::after {
+  border-radius: 50% !important;
+}
+html[data-skin="yt2016"] body { background: var(--bg); font-size: var(--fs-text); }
+:where(html[data-skin="yt2016"]) a { color: var(--yt-link); } /* sem peso: links com classe própria mantêm a cor deles */
+html[data-skin="yt2016"] :focus-visible { outline: 2px solid var(--yt-link); outline-offset: 1px; }
+
+/* ─── Guia (barra lateral) ─── */
+html[data-skin="yt2016"] .app-sidebar { background: var(--surface); border-right: 1px solid var(--line); }
+html[data-skin="yt2016"] .sidebar-logo-text h1 { font: 500 15px/1.2 var(--f-ui); color: var(--yt-title); }
+html[data-skin="yt2016"] .sidebar-logo-text span { font-size: var(--fs-detail); }
+html[data-skin="yt2016"] .nav-item { transition: none; color: var(--text); }
+html[data-skin="yt2016"] .nav-item svg { color: var(--text-2); }
+html[data-skin="yt2016"] .nav-item:hover { background: var(--hover); }
+html[data-skin="yt2016"] .nav-item.active,
+html[data-skin="yt2016"] .nav-item.active:hover { background: var(--accent); color: var(--on-accent); font-weight: 400; }
+html[data-skin="yt2016"] .nav-item.active svg { color: var(--on-accent); stroke-width: 2; }
+html[data-skin="yt2016"] .nav-badge { background: var(--accent); color: var(--on-accent); font-weight: 500; }
+html[data-skin="yt2016"] .nav-item.active .nav-badge { background: var(--on-accent); color: var(--accent); }
+html[data-skin="yt2016"] .sidebar-extra { border-top: 1px solid var(--line); padding-top: 6px; }
+html[data-skin="yt2016"] .sidebar-footer { border-top: 1px solid var(--line); }
+html[data-skin="yt2016"] .sidebar-active-user:hover,
+html[data-skin="yt2016"] .sidebar-active-user.active { background: var(--hover); }
+@media (min-width: 1281px) {
+  html[data-skin="yt2016"] { --sidebar-w: 230px; }
+  html[data-skin="yt2016"] .sidebar-logo { padding: 12px 16px 8px; }
+  html[data-skin="yt2016"] .sidebar-logo-icon { width: 32px; height: 32px; min-width: 32px; }
+  html[data-skin="yt2016"] .sidebar-nav { padding: 6px 0; gap: 0; }
+  html[data-skin="yt2016"] .sidebar-extra { padding: 6px 0; gap: 0; }
+  html[data-skin="yt2016"] .nav-item {
+    align-self: stretch;
+    min-height: 28px;
+    padding: 0 16px 0 24px;
+    gap: 16px;
+    font: 400 var(--fs-text) var(--f-ui);
+  }
+  html[data-skin="yt2016"] .nav-item.active { font-weight: 400; }
+  html[data-skin="yt2016"] .nav-item svg,
+  html[data-skin="yt2016"] .nav-item-quiet svg { width: 18px; height: 18px; }
+  html[data-skin="yt2016"] .nav-badge { top: 5px; left: 32px; min-width: 16px; padding: 0 4px; line-height: 16px; }
+  html[data-skin="yt2016"] .nav-post-btn { margin: 10px 16px; min-height: 28px; font: 500 var(--fs-detail) var(--f-ui); }
+  html[data-skin="yt2016"] .sidebar-active-user { padding: 6px 8px; }
+}
+
+/* ─── Cabeçalhos fixos (masthead) ─── */
+html[data-skin="yt2016"] :is(.timeline-header, .search-top) { background: var(--surface); border-bottom: 1px solid var(--line); }
+html[data-skin="yt2016"] :is(.timeline-title, .page-title) { font: 500 var(--fs-title)/1.3 var(--f-ui); color: var(--yt-title); letter-spacing: 0; }
+html[data-skin="yt2016"] .feed-filter-btn { min-height: 40px; font: 500 var(--fs-text) var(--f-ui); color: var(--text-2); }
+html[data-skin="yt2016"] .feed-filter-btn.active { color: var(--yt-title); font-weight: 500; }
+html[data-skin="yt2016"] .feed-filter-btn.active::after { width: 100%; height: 3px; }
+html[data-skin="yt2016"] .tab-indicator-line > .tab-indicator { height: 3px; }
+
+/* Busca: campo reto com o botão cinza encostado à direita */
+html[data-skin="yt2016"] .search-bar {
+  min-height: 29px;
+  gap: 0;
+  padding: 0 0 0 8px;
+  background: var(--yt-input-bg);
+  border: 1px solid var(--yt-input-border);
+  box-shadow: inset 0 1px 2px var(--yt-input-inset);
+  color: var(--yt-btn-text);
+}
+html[data-skin="yt2016"] .search-bar:focus-within { background: var(--yt-input-bg); border-color: var(--yt-link); color: var(--yt-btn-text); }
+html[data-skin="yt2016"] .search-bar > svg {
+  order: 2;
+  box-sizing: content-box;
+  width: 16px;
+  height: 17px;
+  padding: 5px 10px; /* 36×27 + as bordas do campo = 36×29 */
+  background: var(--yt-btn-bg);
+  border-left: 1px solid var(--yt-btn-border);
+}
+html[data-skin="yt2016"] .search-bar input { padding: 0 4px; }
+html[data-skin="yt2016"] .search-clear { width: 20px; height: 20px; margin-right: 4px; background: none; color: var(--text-2); }
+html[data-skin="yt2016"] .search-tabs button { min-height: 40px; font-weight: 500; }
+html[data-skin="yt2016"] .search-tabs button.active { color: var(--yt-title); box-shadow: inset 0 -3px 0 var(--accent); font-weight: 500; }
+html[data-skin="yt2016"] .search-section-head h2 { font: 500 var(--fs-title) var(--f-ui); color: var(--text); }
+html[data-skin="yt2016"] .search-row-title { font-weight: 500; color: var(--yt-link); }
+
+/* ─── Feed: cada post é um cartão branco ─── */
+html[data-skin="yt2016"] .feed-main { border: 0; }
+html[data-skin="yt2016"] .feed-posts-list { padding-top: 10px; }
+html[data-skin="yt2016"] :is(.create-post-card, .post-card) {
+  background: var(--surface);
+  border: 0;
+  box-shadow: var(--shadow);
+  transition: none;
+}
+html[data-skin="yt2016"] .create-post-card { margin: 10px 0 0; }
+html[data-skin="yt2016"] .post-card { margin-bottom: 10px; }
+html[data-skin="yt2016"] .post-card:hover { background: var(--surface); }
+html[data-skin="yt2016"] .post-author-name { font-weight: 500; color: var(--yt-link); }
+html[data-skin="yt2016"] :is(.post-author-handle, .post-meta) { font-size: var(--fs-detail); }
+html[data-skin="yt2016"] .post-text { line-height: 1.4; }
+html[data-skin="yt2016"] .post-tag { color: var(--yt-link); }
+html[data-skin="yt2016"] .create-post-textarea { font-size: var(--fs-text); }
+html[data-skin="yt2016"] :is(.post-song-title, .trending-title, .top-track-title, .poll-title, .player-title, .daily-lyric-meta b, .comment-name) {
+  font-weight: 500;
+  color: var(--yt-link);
+  line-height: 1.3;
+}
+html[data-skin="yt2016"] .player-bar .player-title { color: var(--yt-title); }
+html[data-skin="yt2016"] :is(.post-attached-song, .lyric-quote, .creator-attached-song) { background: var(--surface); border: 1px solid var(--line); }
+html[data-skin="yt2016"] .lyric-quote blockquote { font-weight: 500; }
+html[data-skin="yt2016"] .post-attached-song .doodle-btn { background: var(--yt-btn-bg); color: var(--yt-btn-text); border: 1px solid var(--yt-btn-border); }
+html[data-skin="yt2016"] .post-attached-song .doodle-btn:hover { background: var(--yt-btn-hover); }
+html[data-skin="yt2016"] .btn-post-action { color: var(--text-2); }
+html[data-skin="yt2016"] .btn-post-action:hover { background: none; color: var(--yt-btn-text); }
+html[data-skin="yt2016"] :is(.btn-post-action.liked, .btn-post-action.bookmarked) { color: var(--accent); }
+html[data-skin="yt2016"] .btn-attach:hover,
+html[data-skin="yt2016"] .btn-attach.active { background: var(--hover); color: var(--yt-btn-text); }
+html[data-skin="yt2016"] .comment-content { background: none; padding-left: 0; }
+html[data-skin="yt2016"] .post-options-dropdown { background: var(--surface); }
+
+/* ─── Coluna direita: prateleiras ─── */
+html[data-skin="yt2016"] .sidebar-widget { background: var(--surface); border: 0; box-shadow: var(--shadow); }
+html[data-skin="yt2016"] .widget-header h3 {
+  font: 500 var(--fs-detail)/1.4 var(--f-ui);
+  text-transform: uppercase;
+  color: var(--yt-section-title);
+}
+html[data-skin="yt2016"] .daily-lyric-text { font-weight: 500; font-size: var(--fs-text); }
+html[data-skin="yt2016"] :is(.daily-lyric-play, .top-track-play) { background: var(--yt-btn-bg); color: var(--yt-btn-text); border: 1px solid var(--yt-btn-border); }
+
+/* ─── Botões ─── */
+html[data-skin="yt2016"] .doodle-btn {
+  min-height: 28px;
+  padding: 0 10px;
+  font: 500 var(--fs-detail) var(--f-ui);
+  background: var(--yt-btn-bg);
+  border: 1px solid var(--yt-btn-border);
+  color: var(--yt-btn-text);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .05);
+  transition: none;
+}
+html[data-skin="yt2016"] .doodle-btn:hover { background: var(--yt-btn-hover); }
+html[data-skin="yt2016"] .doodle-btn-ghost { background: none; border-color: transparent; box-shadow: none; }
+html[data-skin="yt2016"] .doodle-btn-ghost:hover { background: var(--hover); }
+html[data-skin="yt2016"] .doodle-btn-primary,
+html[data-skin="yt2016"] .nav-post-btn,
+html[data-skin="yt2016"] .auth-submit { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+html[data-skin="yt2016"] .doodle-btn-primary:hover,
+html[data-skin="yt2016"] .nav-post-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+/* Seguir: o botão vermelho de inscrição; "seguindo" volta ao padrão */
+html[data-skin="yt2016"] .doodle-btn-follow {
+  min-height: 24px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--yt-sub-bg);
+  border-color: var(--yt-sub-bg);
+  color: var(--yt-sub-text);
+  font: 500 var(--fs-detail) var(--f-ui);
+}
+html[data-skin="yt2016"] .doodle-btn-follow:hover { background: var(--accent); border-color: var(--accent); }
+html[data-skin="yt2016"] .doodle-btn-follow.following { background: var(--yt-btn-bg); border-color: var(--yt-btn-border); color: var(--yt-btn-text); }
+html[data-skin="yt2016"] .doodle-btn-follow.following:hover { background: var(--yt-btn-hover); }
+
+/* ─── Campos ─── */
+html[data-skin="yt2016"] :is(.doodle-input, .chat-composer-input, .creator-lyrics-textarea, .auth-input-wrap input, textarea.doodle-input) {
+  background: var(--yt-input-bg);
+  border: 1px solid var(--yt-input-border);
+  box-shadow: inset 0 1px 2px var(--yt-input-inset);
+  color: var(--text);
+}
+html[data-skin="yt2016"] :is(.doodle-input, .chat-composer-input):focus { border-color: var(--yt-link); box-shadow: inset 0 1px 2px var(--yt-input-inset); }
+
+/* ─── Abas (perfil, playlists, admin) ─── */
+html[data-skin="yt2016"] .profile-subtabs { background: var(--surface); }
+html[data-skin="yt2016"] .profile-subtab-btn { font: 500 var(--fs-text) var(--f-ui); color: var(--text-2); }
+html[data-skin="yt2016"] .profile-subtab-btn.active { color: var(--yt-title); font-weight: 500; }
+html[data-skin="yt2016"] .admin-tabs button[aria-selected="true"] { box-shadow: inset 0 -3px 0 var(--accent); font-weight: 500; }
+html[data-skin="yt2016"] .playlist-pill { background: var(--yt-btn-bg); border: 1px solid var(--yt-btn-border); color: var(--yt-btn-text); }
+html[data-skin="yt2016"] .playlist-pill.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+/* ─── Perfil ─── */
+html[data-skin="yt2016"] .profile-banner { background: var(--hover); }
+html[data-skin="yt2016"] .profile-banner::after { display: none; }
+html[data-skin="yt2016"] .profile-main-avatar { border-color: var(--surface) !important; box-shadow: var(--shadow); }
+html[data-skin="yt2016"] .profile-name { font: 500 18px/1.3 var(--f-ui); color: var(--yt-title); letter-spacing: 0; }
+html[data-skin="yt2016"] .btn-edit-banner { background: var(--yt-badge-bg); color: #fff; border: 0; }
+html[data-skin="yt2016"] :is(.featured-play-btn, .profile-listening.is-playing, .sleeve-edge-sheen, .featured-bg-overlay, .top-artist-spotlight, .profile-social-pill.instagram:hover) { background-image: none; }
+html[data-skin="yt2016"] .featured-play-btn { background: var(--accent); color: var(--on-accent); }
+html[data-skin="yt2016"] :is(.featured-label-pill, .playlist-hero-badge, .spotlight-rank-crown) {
+  background: var(--yt-badge-bg);
+  color: #fff;
+  border: 0;
+  padding: 0 4px;
+  font: 500 var(--fs-detail) var(--f-ui);
+}
+
+/* ─── Playlists ─── */
+html[data-skin="yt2016"] :is(.playlist-cover-placeholder.card, .playlist-cover-placeholder.hero) { background: var(--hover); }
+html[data-skin="yt2016"] .playlist-detail-hero { background: var(--surface); box-shadow: var(--shadow); }
+
+/* ─── Chat: blocos retos, os meus cinza, os do outro brancos ─── */
+html[data-skin="yt2016"] .dm-bubble.sent .dm-bubble-content { background: var(--line); color: var(--text); }
+html[data-skin="yt2016"] .dm-bubble.recv .dm-bubble-content { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
+html[data-skin="yt2016"] .dm-contact-item.active { background: var(--hover); }
+html[data-skin="yt2016"] .chat-msg-actions-bar { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+
+/* ─── Player: progresso vermelho sobre cinza, sem vidro ─── */
+html[data-skin="yt2016"] .player-bar { background: var(--surface); border-top: 1px solid var(--line); box-shadow: none; }
+html[data-skin="yt2016"] .player-play-btn,
+html[data-skin="yt2016"] .player-play-btn:hover { background: none; color: var(--yt-btn-text); }
+html[data-skin="yt2016"] .player-bar.buffering .player-play-btn::after { border-top-color: var(--accent); }
+html[data-skin="yt2016"] :is(.progress-track, .progress-track:hover, .player-vol-bar-wrapper) { height: 3px; background: var(--yt-progress-track); }
+html[data-skin="yt2016"] :is(.progress-fill, .player-vol-fill) { background: var(--accent); }
+html[data-skin="yt2016"] .progress-fill { clip-path: inset(0 calc(100% - var(--p, 0%)) 0 0); }
+
+/* ─── Modais, menus e avisos ─── */
+html[data-skin="yt2016"] .modal-overlay { background: var(--yt-overlay); }
+html[data-skin="yt2016"] .modal-box { background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }
+html[data-skin="yt2016"] .modal-header h3 { font: 500 var(--fs-title) var(--f-ui); color: var(--yt-title); }
+html[data-skin="yt2016"] .modal-close:hover { background: var(--hover); }
+html[data-skin="yt2016"] .display-group legend { font-weight: 500; color: var(--yt-title); }
+html[data-skin="yt2016"] .theme-options label:has(input:checked) { box-shadow: none; }
+html[data-skin="yt2016"] .toast { background: #333; color: #fff; font-weight: 500; box-shadow: var(--shadow); }
+html[data-skin="yt2016"] :is(.mention-suggest, .post-options-dropdown) { box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }
+
+/* ─── Ícones: cinza, o ativo em vermelho ─── */
+html[data-skin="yt2016"] :is(.post-options-btn, .modal-close, .sidebar-logout, .player-vol-btn) { color: var(--text-2); }
+html[data-skin="yt2016"] .post-options-btn:hover { background: var(--hover); color: var(--text); }
+html[data-skin="yt2016"] :is(.btn-attach, .doodle-btn-ghost, .player-time, .player-vol-pct, .dm-fab, .sidebar-logo-text span) { color: var(--text-2); }
+html[data-skin="yt2016"] .dm-fab { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+
+/* Avatares sem foto: bloco cinza com a inicial, como os canais sem imagem */
+html[data-skin="yt2016"] :is(.sidebar-avatar, .creator-avatar, .post-author-avatar, .friend-avatar, .dm-contact-avatar) {
+  background: var(--text-2) !important;
+  color: #fff !important;
+}
+html[data-skin="yt2016"] :is(.chat-tab-container, .chat-tab-header, .chat-tab-sidebar, .chat-tab-main, .chat-tab-search-box, .chat-tab-contacts-list) { background: var(--surface); }
+html[data-skin="yt2016"] .chat-tab-container { box-shadow: var(--shadow); }
+html[data-skin="yt2016"] .profile-banner { background-image: none; }
+html[data-skin="yt2016"] .btn-edit-banner { box-shadow: none; }
+html[data-skin="yt2016"] :is(.search-row, .search-artist, .search-album) mark { color: inherit; font-weight: 500; }
+html[data-skin="yt2016"] .search-see-all { color: var(--yt-link); }
+html[data-skin="yt2016"] .search-page { background: var(--surface); }
+html[data-skin="yt2016"] .sidebar-active-user:is(:hover, .active) { background: var(--bg); }
+html[data-skin="yt2016"] .modal-box .doodle-btn-primary[style*="#ff3333"] { background: var(--accent) !important; border-color: var(--accent) !important; } /* excluir: o vermelho da paleta, não o #f33 do estilo inline */
