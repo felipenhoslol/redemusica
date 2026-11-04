@@ -59,8 +59,10 @@ const TEXT = [ // [foreground, background], 4.5:1 (11–13px is normal text)
   ['--text', '--yt-input-bg'],
   ['--yt-avatar-text', '--yt-avatar-bg'],
   ['--yt-toast-text', '--yt-toast-bg'],
+  ['--yt-masthead-text', '--yt-masthead-bg'], // mobile header: brand name
+  ['--yt-active-bg', '--yt-masthead-text'], // mobile badge: red number on white
 ];
-const ICONS = [['--text-2', '--surface'], ['--accent', '--surface'], ['--yt-active-text', '--yt-active-bg']]; // 3:1
+const ICONS = [['--text-2', '--surface'], ['--accent', '--surface'], ['--yt-active-text', '--yt-active-bg'], ['--yt-masthead-icon', '--yt-masthead-bg']]; // 3:1
 
 for (const theme of ['light', 'dark']) {
   test(`${theme}: text pairs reach 4.5:1`, () => {

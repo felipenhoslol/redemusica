@@ -65,6 +65,9 @@
   --yt-toast-text: #fff;
   --yt-btn-shadow: 0 1px 0 rgba(0, 0, 0, .05);
   --yt-shadow-pop: 0 1px 2px rgba(0, 0, 0, .2); /* modais e menus */
+  --yt-masthead-bg: #e62117;         /* topo e barra de abas do celular */
+  --yt-masthead-text: #fff;          /* 4.6:1 sobre o vermelho */
+  --yt-masthead-icon: #f9c8c5;       /* aba inativa: rosa claro, 3:1 sobre o vermelho */
 
   /* apelidos legados que não seguem os neutros acima */
   --bg-card: var(--surface);
@@ -114,6 +117,9 @@
   --yt-toast-text: #fff;
   --yt-btn-shadow: 0 1px 0 rgba(0, 0, 0, .3);
   --yt-shadow-pop: 0 1px 2px rgba(0, 0, 0, .6);
+  --yt-masthead-bg: #e62117;
+  --yt-masthead-text: #fff;
+  --yt-masthead-icon: #f9c8c5;
 
   --bg-card: var(--surface);
   --bg-input: var(--yt-input-bg);
@@ -380,3 +386,15 @@ html[data-skin="yt2016"] .search-see-all { color: var(--yt-link); }
 html[data-skin="yt2016"] .search-page { background: var(--surface); }
 html[data-skin="yt2016"] .sidebar-active-user:is(:hover, .active) { background: var(--bg); }
 html[data-skin="yt2016"] .modal-box .doodle-btn-primary[style*="#ff3333"] { background: var(--yt-active-bg) !important; border-color: var(--yt-active-bg) !important; } /* excluir: o vermelho da paleta, não o #f33 do estilo inline */
+
+/* ─── Celular: topo e barra de abas vermelhos, ícones brancos (a área segura fica com o mobile.css) ─── */
+html[data-skin="yt2016"] :is(.mobile-header, .mobile-tabbar) { background: var(--yt-masthead-bg); border-color: var(--yt-masthead-bg); }
+html[data-skin="yt2016"] :is(.mobile-brand, .mobile-brand-name, .mobile-back) { color: var(--yt-masthead-text); }
+html[data-skin="yt2016"] .mobile-tab { color: var(--yt-masthead-icon); }
+html[data-skin="yt2016"] :is(.mobile-tab.active, .mobile-header .mobile-header-btn) { color: var(--yt-masthead-text); }
+html[data-skin="yt2016"] .mobile-tabbar .mobile-tab.active { box-shadow: inset 0 3px 0 var(--yt-masthead-text); } /* o tom das abas sozinho não basta para marcar a ativa */
+html[data-skin="yt2016"] :is(.mobile-tab, .mobile-back):active { background: var(--yt-active-hover); }
+html[data-skin="yt2016"] :is(.mobile-header, .mobile-tabbar) :focus-visible { outline-color: var(--yt-masthead-text); }
+html[data-skin="yt2016"] .mobile-badge { background: var(--yt-masthead-text); color: var(--yt-active-bg); box-shadow: 0 0 0 2px var(--yt-masthead-bg); font-weight: 500; }
+html[data-skin="yt2016"] .mobile-tab-me.active .post-author-avatar { box-shadow: 0 0 0 2px var(--yt-masthead-bg), 0 0 0 4px var(--yt-masthead-text); }
+html[data-skin="yt2016"] .mobile-fab { background: var(--yt-active-bg); color: var(--yt-active-text); box-shadow: var(--yt-shadow-pop); }
