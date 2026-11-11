@@ -1326,7 +1326,7 @@ export function renderPlayerBar() {
         [coverEl, titleEl?.parentElement].forEach(el => el && animateSpring(el, [
           { opacity: 0, transform: 'translateY(4px)', filter: 'blur(2px)' },
           { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }
-        ], 'snappy'));
+        ], 'snappy', { fade: true }));
       }
       if (btnEl) swapContent(btnEl, ICONS.pause);
     }

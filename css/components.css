@@ -31,6 +31,7 @@
   from { transform: translateX(-20px); opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
 }
+@media (prefers-reduced-motion: reduce) { .notifications-panel { animation: none; } }
 
 .notif-panel-header {
   display: flex;

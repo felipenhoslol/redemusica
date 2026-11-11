@@ -55,9 +55,13 @@ export const SPRINGS = {
   document.head.appendChild(style);
 })();
 
-/** Run a WAAPI animation with one of the springs (no-op under reduced motion unless `fade` only). */
-export function animateSpring(el, keyframes, name = 'snappy', extra = {}) {
+/** Run a WAAPI animation with one of the springs. Reduced motion: returns null, or with `fade: true` runs only the opacity. */
+export function animateSpring(el, keyframes, name = 'snappy', { fade, ...extra } = {}) {
   if (!el?.animate) return null;
+  if (reducedMotion()) {
+    if (fade !== true) return null;
+    keyframes = keyframes.map(({ transform, filter, ...rest }) => rest);
+  }
   const s = SPRINGS[name] || SPRINGS.snappy;
   return el.animate(keyframes, { duration: s.duration, easing: s.easing, ...extra });
 }
