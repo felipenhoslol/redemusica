@@ -1116,7 +1116,7 @@ export function getChatMessages(userId1, userId2) {
   } catch { return []; }
 }
 
-export function sendMessage(fromUserId, toUserId, text, song = null, imageUrl = '', gifUrl = '', replyTo = null, link = null) {
+export function sendMessage(fromUserId, toUserId, text, song = null, imageUrl = '', gifUrl = '', replyTo = null, link = null, size = null) {
   try {
     const all = JSON.parse(lsGet(STORAGE_KEYS.MESSAGES)) || [];
     const now = new Date();
@@ -1131,6 +1131,7 @@ export function sendMessage(fromUserId, toUserId, text, song = null, imageUrl = 
       gifUrl: gifUrl || '',
       link: link || null,
       replyTo: replyTo || null,
+      ...(size ? { width: size.width, height: size.height } : {}),
       edited: false,
       createdAt: timeStr,
       createdAtIso: now.toISOString()

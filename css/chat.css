@@ -618,13 +618,17 @@
   margin-top: 2px;
   border-radius: 12px;
   overflow: hidden;
-  max-width: 320px;
+  width: 320px; /* a fixed box before the image loads, so the bubble doesn't grow under the reader */
+  max-width: 100%;
   background: #000;
   border: 1px solid var(--line);
 }
 
+/* 4/3 until a message carries its own width/height (mediaBoxStyle in js/chat.js) */
 .chat-msg-media img {
   width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
   max-height: 260px;
   object-fit: cover;
   display: block;

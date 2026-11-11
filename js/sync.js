@@ -201,6 +201,7 @@ function fromMessageRow(r) {
   return {
     id: r.id, fromUserId: r.from_id, toUserId: r.to_id,
     text: str(b.text), song: obj(b.song), imageUrl: str(b.imageUrl), gifUrl: str(b.gifUrl),
+    width: Number(b.width) || 0, height: Number(b.height) || 0,
     link: obj(b.link) || (typeof b.link === 'string' ? b.link : null), replyTo: obj(b.replyTo),
     edited: Boolean(r.edited), createdAt: messageTime(r.created_at), createdAtIso: r.created_at, synced: true,
     readAt: r.read_at || null
@@ -214,7 +215,8 @@ function messageBody(m) {
     imageUrl: /^https?:/.test(m.replyTo.imageUrl || '') ? m.replyTo.imageUrl : (m.replyTo.imageUrl ? 'imagem' : ''),
     gifUrl: m.replyTo.gifUrl || ''
   } : null;
-  return { text: m.text || '', song: m.song || null, imageUrl: m.imageUrl || '', gifUrl: m.gifUrl || '', link: m.link || null, replyTo: reply };
+  const size = m.width > 0 && m.height > 0 ? { width: m.width, height: m.height } : {}; // reserves the media box on the other side
+  return { text: m.text || '', song: m.song || null, imageUrl: m.imageUrl || '', gifUrl: m.gifUrl || '', ...size, link: m.link || null, replyTo: reply };
 }
 
 // Messages outbox: anything you sent that the server never got (sent before the chat had a table,

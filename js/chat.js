@@ -12,6 +12,7 @@ let activeContactId = null;
 let attachedSong = null;
 let attachedImage = null;
 let attachedGif = null;
+const mediaSizes = new Map(); // picked photo/GIF url -> { width, height }, read while the person writes
 let contactsSearchTerm = '';
 let replyingToMessage = null;
 
@@ -172,11 +173,13 @@ export function attachSongToDM(track) {
 
 export function attachImageToChat(imgUrl) {
   attachedImage = imgUrl;
+  readMediaSize(imgUrl).then(size => size && mediaSizes.set(imgUrl, size));
   renderAttachedBars();
 }
 
 export function attachGifToChat(gifUrl) {
   attachedGif = gifUrl;
+  readMediaSize(gifUrl).then(size => size && mediaSizes.set(gifUrl, size));
   renderAttachedBars();
 }
 
@@ -459,8 +462,40 @@ function renderChatTabMain(contactId) {
   renderReplyBanners();
 
   const msgArea = document.getElementById('chat-tab-messages');
-  if (msgArea) msgArea.scrollTop = msgArea.scrollHeight;
+  if (msgArea) { msgArea.scrollTop = msgArea.scrollHeight; stickToBottom(msgArea); }
   animateNewBubbles(msgArea, contactId);
+}
+
+/** Inline style that reserves a photo/GIF box before it loads; '' leaves the CSS 4/3 default (older messages). */
+export function mediaBoxStyle(m) {
+  return m.width > 0 && m.height > 0 ? `aspect-ratio: ${m.width} / ${m.height}` : '';
+}
+
+/**
+ * Keeps a message list at its end while its images load, but only if the person was there:
+ * "pinned" is measured on scroll (before the image grows), not at load time (after it did).
+ * Call after every render/scroll-to-end; the listeners are added once per element.
+ */
+export function stickToBottom(area) {
+  const measure = () => { area._pinned = area.scrollHeight - area.scrollTop - area.clientHeight <= 80; };
+  measure();
+  if (area._stickToBottom) return;
+  area._stickToBottom = true;
+  area.addEventListener('scroll', measure, { passive: true });
+  // load doesn't bubble: listen in capture for every img inside the list
+  area.addEventListener('load', () => { if (area._pinned) area.scrollTop = area.scrollHeight; }, true);
+}
+
+const mediaAttrs = (m) => mediaBoxStyle(m) ? ` width="${m.width}" height="${m.height}" style="${mediaBoxStyle(m)}"` : '';
+
+/** Width/height of a picked photo/GIF, read once it decodes; null if it fails (the box falls back to 4/3). */
+function readMediaSize(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth && img.naturalHeight ? { width: img.naturalWidth, height: img.naturalHeight } : null);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
 // Same author, under 5 minutes apart and on the same day: one visual group
@@ -529,12 +564,12 @@ function renderMessagesListHtml(msgs, activeUserId) {
 
     const imageHtml = m.imageUrl ? `
       <div class="chat-msg-media">
-        <img src="${safeUrl(m.imageUrl)}" alt="Imagem anexada" data-zoom>
+        <img src="${safeUrl(m.imageUrl)}" alt="Imagem anexada" data-zoom${mediaAttrs(m)}>
       </div>` : '';
 
     const gifHtml = m.gifUrl ? `
       <div class="chat-msg-media is-gif">
-        <img src="${safeUrl(m.gifUrl)}" alt="GIF animado" data-zoom>
+        <img src="${safeUrl(m.gifUrl)}" alt="GIF animado" data-zoom${m.imageUrl ? '' : mediaAttrs(m)}>
       </div>` : '';
 
     const detectedUrl = extractFirstUrl(m.text);
@@ -667,6 +702,7 @@ export function renderMessages(contactId) {
   if (msgArea) {
     msgArea.innerHTML = renderMessagesListHtml(msgs, activeUser.id);
     msgArea.scrollTop = msgArea.scrollHeight;
+    stickToBottom(msgArea);
     animateNewBubbles(msgArea, contactId);
   }
   if (document.getElementById('dm-window')?.classList.contains('open')) {
@@ -696,7 +732,7 @@ export function showTyping(contactId) {
   const area = document.getElementById('chat-tab-messages');
   const nearBottom = area && area.scrollHeight - area.scrollTop - area.clientHeight < 80;
   el.hidden = false;
-  if (nearBottom) area.scrollTop = area.scrollHeight;
+  if (nearBottom) { area.scrollTop = area.scrollHeight; stickToBottom(area); }
   clearTimeout(typingTimer);
   typingTimer = setTimeout(hideTyping, 4000);
 }
@@ -714,6 +750,7 @@ export function refreshChatFromServer() {
     const nearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
     area.innerHTML = renderMessagesListHtml(msgs, me);
     if (nearBottom) area.scrollTop = area.scrollHeight;
+    stickToBottom(area);
     animateNewBubbles(area, activeContactId);
     Storage.markChatRead(activeContactId);
     markConversationRead(activeContactId);
@@ -744,7 +781,9 @@ export function sendDMMessage(isLargeView = false) {
   if (!text && !song && !image && !gif && !link) return;
 
   const activeUser = Storage.getActiveUser();
-  Storage.sendMessage(activeUser.id, activeContactId, text || '', song, image || '', gif || '', reply, link);
+  // One size per message: the photo's, or the GIF's when there is no photo (mediaBoxStyle callers match)
+  Storage.sendMessage(activeUser.id, activeContactId, text || '', song, image || '', gif || '', reply, link, mediaSizes.get(image || gif));
+  mediaSizes.clear();
 
   if (inputEl) inputEl.value = '';
   attachedSong = null;
@@ -978,10 +1017,11 @@ export function initChatBindings() {
     // Phones: the open conversation is its own screen, so the back button returns to the list
     if (id && !document.querySelector('.chat-tab-container.has-conversation') && matchMedia('(max-width: 700px)').matches) window._pushLayer?.('conv');
     activeContactId = id;
+    // Phones show one pane at a time: the open conversation replaces the contact list.
+    // Shown before rendering, or its scroll-to-end runs on a hidden pane and it opens at the top.
+    document.querySelector('.chat-tab-container')?.classList.toggle('has-conversation', Boolean(id));
     renderChatTabContacts();
     renderChatTabMain(id);
-    // Phones show one pane at a time: the open conversation replaces the contact list
-    document.querySelector('.chat-tab-container')?.classList.toggle('has-conversation', Boolean(id));
   };
 
   window._closeChatConversation = () => {

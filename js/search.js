@@ -56,7 +56,9 @@ function hl(text, q = state.q) {
   return esc(raw.slice(0, i)) + '<mark>' + esc(raw.slice(i, i + n.length)) + '</mark>' + esc(raw.slice(i + n.length));
 }
 
-const loading = (text = 'Buscando…') => `<div class="search-loading">${esc(text)}</div>`;
+// Three placeholder rows the height of a real result row (same classes), so results replace them without a jump
+const SKELETON_ROW = `<div class="search-row search-row-skeleton" aria-hidden="true"><span class="search-cover search-cover-empty"></span><div class="search-row-text"><div class="search-row-title">&nbsp;</div><div class="search-row-sub">&nbsp;</div></div></div>`;
+const loading = (text = 'Buscando…') => `<div class="search-skeleton" role="status" aria-label="${esc(text)}">${SKELETON_ROW.repeat(3)}</div>`;
 const sectionHead = (title, tab) => `
   <div class="search-section-head">
     <h2>${esc(title)}</h2>
@@ -349,7 +351,7 @@ async function renderArtistView(view, mySeq) {
   ]);
   if (mySeq !== seq) return;
   const el = body();
-  el.querySelector('.search-loading')?.remove();
+  el.querySelector('.search-skeleton')?.remove();
   const showAll = view.allSongs;
   el.insertAdjacentHTML('beforeend', `
     ${songs.length ? `

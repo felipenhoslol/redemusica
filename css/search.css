@@ -48,6 +48,9 @@
 .search-see-all:hover { text-decoration: underline; }
 .search-count { padding: 12px 16px 4px; font-size: var(--fs-detail); color: var(--text-2); }
 .search-loading { padding: 16px; font-size: var(--fs-detail); color: var(--text-2); }
+.search-row-skeleton { pointer-events: none; }
+.search-row-skeleton :is(.search-row-title, .search-row-sub) { width: 55%; color: transparent; background: var(--tint-2); border-radius: 4px; }
+.search-row-skeleton .search-row-sub { width: 35%; }
 
 .search-row {
   display: flex; align-items: center; gap: 12px; padding: 10px 16px; cursor: pointer;
