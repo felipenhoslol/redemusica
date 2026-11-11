@@ -120,3 +120,80 @@ test('a post carries its ranking snapshot in body.ranking', async () => {
   const ins = ops('posts', 'insert').at(-1);
   assert.equal(ins.ops.find(([k]) => k === 'insert')[1][0].body.ranking.key, 'album:1');
 });
+
+// ─── failed writes revert (T5) ──────────────────────────────────────────────
+const reverts = [];
+const restart = () => Sync.startSync('user_me', {
+  onError: m => errors.push(m),
+  onRevert: e => { reverts.push(e); Storage.withoutRemote(() => {
+    if (e.kind === 'like') Storage.toggleLikePost(e.key);
+    if (e.kind === 'vote') Storage.votePoll(e.postId, e.prev);
+  }); }
+});
+const seedPost = (extra = {}) => {
+  const p = Storage.createPost({ text: 'oi', ...extra });
+  Storage.replacePostsCache([{ ...Storage.getPostById(p.id), createdAtIso: '2026-11-11T00:00:00Z' }]);
+  return p.id;
+};
+const offline = () => ({ data: null, error: { message: 'offline' } });
+
+test('a failed like reverts once', async () => {
+  answer.star_rankings = () => ({ data: [], error: null });
+  await restart();
+  const id = seedPost();
+  await tick();
+  answer.post_likes = offline;
+  reverts.length = 0;
+  const ups = ops('post_likes', 'upsert').length, errs = errors.length;
+  Storage.toggleLikePost(id);
+  await tick();
+  assert.ok(!Storage.getPostById(id).likes.includes('user_me'));
+  assert.deepEqual(reverts, [{ kind: 'like', key: id, on: true }]);
+  assert.equal(ops('post_likes', 'upsert').length, ups + 1); // the revert did not go to the server
+  assert.equal(errors.length, errs + 1);
+  delete answer.post_likes;
+});
+
+test('like→unlike→like with the middle failing reverts nothing stale', async () => {
+  const id = seedPost();
+  await tick();
+  reverts.length = 0;
+  answer.post_likes = st => (st.ops.some(([k]) => k === 'delete') ? offline() : { data: null, error: null });
+  Storage.toggleLikePost(id); Storage.toggleLikePost(id); Storage.toggleLikePost(id);
+  await tick(); await tick();
+  assert.deepEqual(reverts, []);
+  assert.ok(Storage.getPostById(id).likes.includes('user_me'));
+  delete answer.post_likes;
+});
+
+test('likeComment and vote go through tracked', async () => {
+  const id = seedPost({ poll: { options: [{ title: 'a' }, { title: 'b' }] } });
+  Storage.addCommentToPost(id, 'c');
+  const cid = Storage.getPostById(id).comments.at(-1).id;
+  await tick();
+  for (const [table, act] of [['comment_likes', () => Storage.toggleLikeComment(id, cid)], ['post_votes', o => Storage.votePoll(id, o)]]) {
+    const log = [];
+    let release;
+    answer[table] = st => { log.push('start'); return new Promise(r => { release = () => { log.push('end'); r({ data: null, error: null }); }; }); };
+    act(0); act(1);
+    await tick();
+    assert.deepEqual(log, ['start']); // the second waits for the first
+    release(); await tick();
+    assert.deepEqual(log, ['start', 'end', 'start']);
+    release(); await tick();
+    delete answer[table];
+  }
+});
+
+test('a failed vote restores the previous option', async () => {
+  const id = seedPost({ poll: { options: [{ title: 'a' }, { title: 'b' }] } });
+  Storage.votePoll(id, 0);
+  await tick();
+  reverts.length = 0;
+  answer.post_votes = offline;
+  Storage.votePoll(id, 1);
+  await tick();
+  assert.deepEqual(reverts, [{ kind: 'vote', key: id, postId: id, on: 1, prev: 0 }]);
+  assert.equal(Storage.getPostById(id).votes.user_me, 0);
+  delete answer.post_votes;
+});

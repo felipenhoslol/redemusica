@@ -210,6 +210,12 @@ export function initStorage() {
 let remote = null;
 export function setRemoteHooks(hooks) { remote = hooks; }
 const toRemote = (name, ...args) => { try { remote?.[name]?.(...args); } catch { /* sync is best-effort */ } };
+/** Run fn without sending anything to the server (undoing a write the server refused). */
+export function withoutRemote(fn) {
+  const saved = remote;
+  remote = null;
+  try { return fn(); } finally { remote = saved; }
+}
 
 /** Replace the cached feed with the server's copy (keeps posts still on their way up). */
 export function replacePostsCache(posts, keepIds = [], keepCommentIds = []) {
@@ -836,7 +842,7 @@ export function toggleLikeComment(postId, commentId) {
   const idx = comment.likes.indexOf(me);
   if (idx === -1) comment.likes.push(me); else comment.likes.splice(idx, 1);
   lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
-  toRemote('likeComment', commentId, idx === -1);
+  toRemote('likeComment', commentId, idx === -1, postId);
   return comment;
 }
 
@@ -871,9 +877,10 @@ export function votePoll(postId, option) {
   if (!post || (option !== null && !(option >= 0 && option < count))) return null;
   const me = getActiveUserId();
   post.votes = { ...(post.votes || {}) };
+  const prev = post.votes[me] ?? null;
   if (option === null) delete post.votes[me]; else post.votes[me] = option;
   lsSet(STORAGE_KEYS.POSTS, JSON.stringify(posts));
-  toRemote('vote', postId, option);
+  toRemote('vote', postId, option, prev);
   return post;
 }
 

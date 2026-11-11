@@ -14,6 +14,8 @@ const pending = new Set();  // post ids created here that the server hasn't conf
 const pendingFollows = new Map(); // targetId → following?
 const pendingLikes = new Map();   // postId → liked?
 const pendingReposts = new Map(); // postId → reposted?
+const pendingCommentLikes = new Map(); // commentId → liked? (only orders the writes)
+const pendingVotes = new Map(); // postId → option (only orders the writes)
 const pendingRankings = new Map(); // ranking key → ranking being saved (null: being deleted)
 let pullSoonTimer = null;
 let pullFailures = 0;
@@ -960,9 +962,11 @@ export async function searchPosts(q, limit = 40) {
 
 // ─── push ───────────────────────────────────────────────────────────────────
 
-function write(task, failMessage) {
+// revert puts the screen back first, so the error toast lands on the undone state
+function write(task, failMessage, revert) {
   if (!me || disabled) return;
   task(getSupabase()).catch(err => {
+    revert?.();
     handlers.onError?.(err?.code === '42501' ? 'Sua conta não pode publicar no momento.' : failMessage);
     pullNow(); // put the cache back in line with the server
   });
@@ -974,8 +978,9 @@ function write(task, failMessage) {
 const writeQueues = new Map(); // pending map → Map(key → last queued promise)
 
 // A write whose optimistic state stays on screen until the server has it, then a quick re-pull
-function tracked(map, key, on, task, failMessage) {
+function tracked(map, key, on, task, failMessage, revert) {
   map.set(key, on);
+  let last = false; // only the newest tap for this key may undo: an older failure was already overridden
   if (!writeQueues.has(map)) writeQueues.set(map, new Map());
   const queue = writeQueues.get(map);
   write(async db => {
@@ -983,13 +988,14 @@ function tracked(map, key, on, task, failMessage) {
     queue.set(key, run);
     try { await run; }
     finally {
-      if (queue.get(key) === run) queue.delete(key);
+      last = queue.get(key) === run;
+      if (last) queue.delete(key);
       if (map.get(key) === on) map.delete(key);
       clearTimeout(pullSoonTimer);
       // A pull already running may have read the server before this write: chain a fresh one
       pullSoonTimer = setTimeout(() => (pulling ? pulling.then(pullNow) : pullNow()), 1200);
     }
-  }, failMessage);
+  }, failMessage, revert && (() => { if (last) revert(); }));
 }
 
 // Ranking writes for one key run in order; a missing table turns them off quietly (no toast per star tap)
@@ -1009,12 +1015,13 @@ const hooks = {
   deleteRanking(key) {
     rankingWrite(key, null, db => db.from('star_rankings').delete().eq('user_id', me).eq('key', key));
   },
-  vote(postId, option) {
+  vote(postId, option, prev) {
     if (!votesTable) return;
-    write(db => must(option === null
+    tracked(pendingVotes, postId, option, db => must(option === null
       ? db.from('post_votes').delete().eq('post_id', postId).eq('user_id', me)
       : db.from('post_votes').upsert({ post_id: postId, user_id: me, option }, { onConflict: 'post_id,user_id' })),
-      'Não foi possível registrar seu voto.');
+      'Não foi possível registrar seu voto.',
+      () => handlers.onRevert?.({ kind: 'vote', key: postId, postId, on: option, prev }));
   },
   profileChanged() {
     scheduleProfilePush();
@@ -1050,12 +1057,14 @@ const hooks = {
   like(postId, on) {
     tracked(pendingLikes, postId, on, db => must(on
       ? db.from('post_likes').upsert({ post_id: postId, user_id: me }, { onConflict: 'post_id,user_id', ignoreDuplicates: true })
-      : db.from('post_likes').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar a curtida.');
+      : db.from('post_likes').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar a curtida.',
+      () => handlers.onRevert?.({ kind: 'like', key: postId, on }));
   },
   repost(postId, on) {
     tracked(pendingReposts, postId, on, db => must(on
       ? db.from('post_reposts').upsert({ post_id: postId, user_id: me }, { onConflict: 'post_id,user_id', ignoreDuplicates: true })
-      : db.from('post_reposts').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar o repost.');
+      : db.from('post_reposts').delete().eq('post_id', postId).eq('user_id', me)), 'Não foi possível salvar o repost.',
+      () => handlers.onRevert?.({ kind: 'repost', key: postId, on }));
   },
   addComment(postId, c) {
     pendingComments.add(c.id);
@@ -1067,11 +1076,12 @@ const hooks = {
       // stays pending until a pull sees it (the outbox resends it if it never arrives)
     }, 'Não foi possível enviar o comentário.');
   },
-  likeComment(commentId, on) {
+  likeComment(commentId, on, postId) {
     if (!commentLikesTable) return;
-    write(db => must(on
+    tracked(pendingCommentLikes, commentId, on, db => must(on
       ? db.from('comment_likes').upsert({ comment_id: commentId, user_id: me }, { onConflict: 'comment_id,user_id', ignoreDuplicates: true })
-      : db.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', me)), 'Não foi possível salvar a curtida.');
+      : db.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', me)), 'Não foi possível salvar a curtida.',
+      () => handlers.onRevert?.({ kind: 'likeComment', key: commentId, on, postId }));
   },
   sendMessage(m) {
     if (!messagesOn || !isAccountId(m.toUserId)) return;
@@ -1102,7 +1112,8 @@ const hooks = {
     if (!isAccountId(targetId)) return;
     tracked(pendingFollows, targetId, on, db => must(on
       ? db.from('follows').upsert({ follower_id: me, following_id: targetId }, { onConflict: 'follower_id,following_id', ignoreDuplicates: true })
-      : db.from('follows').delete().eq('follower_id', me).eq('following_id', targetId)), 'Não foi possível atualizar quem você segue.');
+      : db.from('follows').delete().eq('follower_id', me).eq('following_id', targetId)), 'Não foi possível atualizar quem você segue.',
+      () => handlers.onRevert?.({ kind: 'follow', key: targetId, on }));
   }
 };
 
@@ -1111,7 +1122,8 @@ const onVisible = () => { if (document.visibilityState === 'visible') { heartbea
 /**
  * Start mirroring the feed for a signed-in account.
  * @param {string} userId Supabase user id
- * @param {{ onUpdate?: () => void, onError?: (message: string) => void }} opts
+ * @param {{ onUpdate?: () => void, onError?: (message: string) => void,
+ *   onRevert?: (e: { kind: 'like'|'repost'|'follow'|'likeComment'|'vote', key: string, on?: any, postId?: string, prev?: number|null }) => void }} opts
  */
 export function startSync(userId, opts = {}) {
   stopSync();

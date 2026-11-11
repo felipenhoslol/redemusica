@@ -805,14 +805,21 @@ export function openModal(id) {
 export function closeModal(id) {
   document.getElementById(id)?.classList.remove('active');
 }
+// One toast at a time: a new message replaces the visible one's text instead of stacking
+let liveToast = null;
+let liveToastTimer = 0;
 export function showToast(msg) {
   const c = document.getElementById('toast-container');
   if (!c) return;
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  c.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
+  if (liveToast?.isConnected) { clearTimeout(liveToastTimer); liveToast.textContent = msg; }
+  else {
+    liveToast = document.createElement('div');
+    liveToast.className = 'toast';
+    liveToast.textContent = msg;
+    c.appendChild(liveToast);
+  }
+  const t = liveToast;
+  liveToastTimer = setTimeout(() => t.remove(), 2500);
 }
 
 window.openModal = openModal;

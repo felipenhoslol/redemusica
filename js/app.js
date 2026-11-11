@@ -2,7 +2,7 @@ import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import { initStorage, getActiveUser, getAllUsers, getUserById,
          toggleFollow, isFollowing, toggleLikePost, toggleRepostPost,
          toggleBookmark, addCommentToPost, pinPost, deletePost,
-         updatePost, getPostById,
+         updatePost, getPostById, withoutRemote,
          createPost, setFeaturedSong, addToShowcase, removeFromShowcase,
          getUnreadNotificationCount, getUnreadMessageCount, getFeedPosts, getChallengeAnswers,
          getActiveChallengeId, getChallengeAnswers as getAnswers,
@@ -118,7 +118,15 @@ function startApp() {
       onUpdate: refreshFromServer,
       onTyping: (from) => { import('./chat.js').then(c => c.showTyping(from)); },
       onMessages: () => { import('./chat.js').then(c => c.refreshChatFromServer()); renderChatBadge(); renderNotifBadge(); showNotificationPopups(); },
-      onError: (msg) => showDoodleToast(msg)
+      onError: (msg) => showDoodleToast(msg),
+      // The server refused: redo the tap through the same UI path (same animation), locally only
+      onRevert: (e) => withoutRemote(() => {
+        if (e.kind === 'like') window._likePost(e.key);
+        else if (e.kind === 'repost') window._repostPost(e.key);
+        else if (e.kind === 'follow') window._toggleFollow(e.key, { silent: true });
+        else if (e.kind === 'likeComment') window._likeComment(e.postId, e.key, document.querySelector(`.comment-like-btn[onclick*="'${CSS.escape(e.key)}'"]`));
+        else if (e.kind === 'vote') window._votePoll(e.postId, e.prev);
+      })
     }).then(() => {
       syncLook(); // again now that sync is live: the first pass could not push a discovery made on this device
       publishChallengeAnswers(); // answers saved before this version become visible to others
@@ -823,9 +831,9 @@ function bindGlobalHandlers() {
   };
 
   // Follow toggle
-  window._toggleFollow = (userId) => {
+  window._toggleFollow = (userId, opts = {}) => {
     const nowFollowing = toggleFollow(userId);
-    showToast(nowFollowing ? 'Seguindo!' : 'Deixou de seguir.');
+    if (!opts.silent) showToast(nowFollowing ? 'Seguindo!' : 'Deixou de seguir.');
 
     // Update every follow button for this user (profile header, search list, follow-list modal)
     document.querySelectorAll(`[data-follow-id="${userId}"]`).forEach(btn => {
