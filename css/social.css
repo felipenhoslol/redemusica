@@ -678,15 +678,8 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
 .profile-subtab-btn:hover { background: var(--tint-1); color: var(--text-2); }
 .profile-subtab-btn.active { color: var(--text); font-weight: 800; }
 
-@keyframes panel-in-right { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
-@keyframes panel-in-left  { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
-@keyframes panel-in-fade  { from { opacity: 0; } to { opacity: 1; } }
-.panel-in-right { animation: panel-in-right .22s cubic-bezier(.2, .8, .2, 1); }
-.panel-in-left  { animation: panel-in-left .22s cubic-bezier(.2, .8, .2, 1); }
-.panel-in-fade  { animation: panel-in-fade .18s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   .tab-indicator { transition: none; }
-  .panel-in-right, .panel-in-left, .panel-in-fade { animation: none; }
 }
 
 /* Restos do visual rabiscado: botões e avisos com borda contínua (vagas vazias continuam tracejadas) */

@@ -93,12 +93,6 @@ html { -webkit-tap-highlight-color: transparent; }
     width var(--spring-smooth-dur, 260ms) var(--spring-smooth, var(--ease-out)),
     opacity 150ms ease;
 }
-/* Conteúdo trocando de aba: deslocamento curto e rápido (é visto dezenas de vezes por dia) */
-@keyframes panel-in-right { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
-@keyframes panel-in-left  { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
-.panel-in-right { animation: panel-in-right 200ms var(--ease-out); }
-.panel-in-left  { animation: panel-in-left 200ms var(--ease-out); }
-.panel-in-fade  { animation: panel-in-fade 160ms var(--ease-out); }
 
 /* ─── Player: a capa e o play em destaque, ritmo tipográfico claro ─── */
 .player-bar { gap: 20px; }
@@ -140,7 +134,6 @@ html { -webkit-tap-highlight-color: transparent; }
   .btn-post-action:active, .doodle-btn:active, .btn-attach:active, .player-play-btn:active,
   .featured-play-btn:active, .mobile-tab:active, .poll-vote:active { transform: none; }
   .tab-indicator { transition: opacity 150ms ease; }
-  .panel-in-right, .panel-in-left { animation: panel-in-fade 160ms ease; }
   .player-bar { transition: opacity 200ms ease !important; transform: none !important; }
   .player-bar.buffering .player-play-btn::after { animation-duration: 1.2s; }
 }

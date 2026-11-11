@@ -1,7 +1,7 @@
 // Feed module — post creation, rendering, interactions, lyric cards
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
-import { toggleCollapse } from './motion.js';
+import { toggleCollapse, isCollapseOpen } from './motion.js';
 import { globalAudio, playAttr, playIcon } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
@@ -1137,7 +1137,7 @@ window._toggleComments = (postId, btn, event) => {
   const commentsSection = postCard.querySelector('.post-comments-section');
   if (!commentsSection) return;
 
-  const isHidden = window.getComputedStyle(commentsSection).display === 'none' || commentsSection.style.display === 'none' || !commentsSection.style.display;
+  const isHidden = !isCollapseOpen(commentsSection);
   // Opens and closes like an accordion: the posts below move with it instead of jumping
   toggleCollapse(commentsSection, isHidden, 'flex');
   if (isHidden) attachMentionAutocomplete(commentsSection.querySelector('input[id^="comment-input-"]'));
@@ -1181,7 +1181,7 @@ window._replyToComment = (postId, commentId, btn) => {
   commentReplyTarget[postId] = { parentId: parent.id, name: comment.userName || 'Alguém' };
   const postCard = visiblePostCard(postId, btn);
   const section = postCard?.querySelector('.post-comments-section');
-  if (section && window.getComputedStyle(section).display === 'none') window._toggleComments(postId, btn);
+  if (section && !isCollapseOpen(section)) window._toggleComments(postId, btn);
   paintReplyBanner(postId, postCard);
   const input = postCard?.querySelector('input[id^="comment-input-"]');
   if (!input) return;
@@ -1465,7 +1465,7 @@ window._openPostView = async (postId, opts = {}) => {
   body.innerHTML = `<div class="feed-posts-list">${renderPostCard(post)}</div>`;
   // Comments open, and the comment the notification is about highlighted
   const section = body.querySelector('.post-comments-section');
-  if (section) section.style.display = 'flex';
+  if (section) { section.style.display = 'flex'; section.dataset.open = 'true'; }
   attachMentionAutocomplete(body.querySelector('input[id^="comment-input-"]'));
   if (opts.commentId) {
     const row = body.querySelector(`#comment-${CSS.escape(opts.commentId)}`);

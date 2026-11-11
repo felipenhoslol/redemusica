@@ -1,6 +1,8 @@
 // Tab bar motion: an indicator that slides to the selected tab, and content that enters
 // from the side the user moved to. Reused by every tab bar (feed, profile, admin, login, playlists).
 
+import { enterFrom } from './motion.js';
+
 const lastPosition = new Map(); // bar key → { x, w } so re-rendered bars slide from where they were
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -82,9 +84,6 @@ export function tabDirection(fromIndex, toIndex) {
  * @param {number} direction 1 (from right), -1 (from left) or 0 (fade only)
  */
 export function animatePanel(el, direction = 0) {
-  if (!el || reducedMotion.matches) return;
-  el.classList.remove('panel-in-right', 'panel-in-left', 'panel-in-fade');
-  void el.offsetWidth;
-  el.classList.add(direction > 0 ? 'panel-in-right' : direction < 0 ? 'panel-in-left' : 'panel-in-fade');
-  el.addEventListener('animationend', () => el.classList.remove('panel-in-right', 'panel-in-left', 'panel-in-fade'), { once: true });
+  if (!el) return;
+  enterFrom(el, direction ? { opacity: 0, transform: `translateX(${direction > 0 ? 16 : -16}px)` } : { opacity: 0 });
 }

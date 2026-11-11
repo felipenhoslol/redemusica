@@ -101,32 +101,52 @@ export function flip(container, selector, mutate) {
   });
 }
 
+// Everything that gives a block its vertical size: all of it reaches 0, so `display: none` at the end is not a jump
+const COLLAPSE_BOX = ['height', 'paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth', 'marginTop', 'marginBottom'];
+const collapseBox = (el, closed) => {
+  const cs = getComputedStyle(el);
+  const box = Object.fromEntries(COLLAPSE_BOX.map(p => [p, closed ? '0px' : cs[p]]));
+  box.opacity = closed ? 0 : cs.opacity;
+  return box;
+};
+
+/** Whether the accordion was last asked to open (true while it is still animating open). */
+export const isCollapseOpen = (el) => el?.dataset.open === 'true';
+
 /**
  * Accordion open/close for a block toggled between `display: none` and visible.
- * Height is the one non-transform property allowed here (no transform equivalent); kept short.
+ * Height is the one non-transform property allowed here (no transform equivalent).
+ * Interruptible: a second tap mid-way continues from the current height.
+ * @returns {Animation|null} null under reduced motion (the switch is instant)
  */
 export function toggleCollapse(el, open, display = 'flex') {
-  if (!el) return;
+  if (!el) return null;
+  el.dataset.open = String(open);
+  const hidden = el.style.display === 'none' || getComputedStyle(el).display === 'none';
+  const from = collapseBox(el, hidden);
   el.getAnimations?.().forEach(a => a.cancel());
-  if (reducedMotion()) { el.style.display = open ? display : 'none'; return; }
-  if (open) {
-    el.style.display = display;
-    const h = el.scrollHeight;
-    el.style.overflow = 'hidden';
-    const a = el.animate(
-      [{ height: '0px', opacity: 0 }, { height: `${h}px`, opacity: 1 }],
-      { duration: 200, easing: FALLBACK_EASE_OUT }
-    );
-    a.onfinish = () => { el.style.overflow = ''; };
-  } else {
-    const h = el.offsetHeight;
-    el.style.overflow = 'hidden';
-    const a = el.animate(
-      [{ height: `${h}px`, opacity: 1 }, { height: '0px', opacity: 0 }],
-      { duration: 160, easing: FALLBACK_EASE_OUT } // exit faster than enter
-    );
-    a.onfinish = () => { el.style.display = 'none'; el.style.overflow = ''; };
+  el.style.display = display;
+  const a = animateSpring(el, [from, collapseBox(el, !open)], 'smooth');
+  if (!a) { if (!open) el.style.display = 'none'; return null; }
+  el.style.overflow = 'hidden';
+  a.onfinish = () => { el.style.overflow = ''; if (!open) el.style.display = 'none'; };
+  return a;
+}
+
+/**
+ * Enter animation that never jumps: from `from` when the element is at rest, or from
+ * wherever a running animation has it right now. Ends at rest (no transform, opaque).
+ * @returns {Animation|null} null under reduced motion (running animations are still cancelled)
+ */
+export function enterFrom(el, from, name = 'smooth') {
+  if (!el?.animate) return null;
+  const running = el.getAnimations();
+  if (running.length) {
+    const cs = getComputedStyle(el);
+    from = { opacity: cs.opacity, transform: cs.transform };
   }
+  running.forEach(a => a.cancel());
+  return animateSpring(el, [from, { opacity: 1, transform: 'none' }], name);
 }
 
 /** Feedback for a toggle that just turned on (like, repost, bookmark): the icon lands with a soft pop. */
