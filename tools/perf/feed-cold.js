@@ -1,5 +1,5 @@
 // Cold feed: link previews arrive after the first paint and must not push the feed (CLS < 0.05).
-// node tools/perf.mjs --url http://localhost:5174/ --setup tools/perf/feed-cold.setup.js --scenario tools/perf/feed-cold.js
+// node tools/perf.mjs --url http://localhost:5174/ --setup tools/perf/feed-cold.setup.js --scenario tools/perf/feed-cold.js --width 375 --height 812
 async () => {
   const motion = (await import('/tools/ui-audit.mjs')).watchMotion();
   await new Promise(r => setTimeout(r, 4000)); // previews arrive

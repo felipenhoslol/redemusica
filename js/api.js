@@ -256,6 +256,8 @@ function rememberLink(url, result) {
     localStorage.setItem(LINK_IMG_KEY, JSON.stringify(all));
   } catch {}
 }
+// Links first shown as a slot with a cover that then got no image: later renders keep the empty cover (same height)
+const linkEmptyCover = new Set();
 const normalizeLink = (rawUrl) => /^https?:\/\//.test(rawUrl) ? rawUrl : 'https://' + rawUrl;
 const linkDomain = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
 
@@ -402,7 +404,9 @@ function fillLinkSlot(slot, linkData, { animateSpring, toggleCollapse }) {
     else slot.remove();
     return;
   }
-  slot.innerHTML = richLinkInner(linkData, !!slot.querySelector('.rich-link-cover'));
+  const withCover = !!slot.querySelector('.rich-link-cover');
+  if (withCover && !linkData.image) linkEmptyCover.add(linkData.url);
+  slot.innerHTML = richLinkInner(linkData, withCover);
   slot.href = safeUrl(linkData.url);
   slot.classList.remove('auto-link-slot', 'is-skeleton');
   slot.removeAttribute('aria-busy');
@@ -429,7 +433,8 @@ export function renderRichLinkCard(linkOrUrl) {
     // Schedule asynchronous auto-fetch for this slot
     setTimeout(async () => {
       const fetched = await fetchLinkMetadata(rawUrl);
-      const motion = await import('./motion.js'); // lazy: motion.js needs a DOM, and api.js is also loaded by DOM-less tests
+      // lazy: motion.js needs a DOM, and api.js is also loaded by DOM-less tests; if it fails, fill without motion
+      const motion = await import('./motion.js').catch(() => ({ animateSpring: () => null, toggleCollapse: () => null }));
       document.querySelectorAll(`.auto-link-slot[data-url="${encodeURIComponent(rawUrl)}"]`).forEach(el => fillLinkSlot(el, fetched, motion));
     }, 10);
 
@@ -437,6 +442,6 @@ export function renderRichLinkCard(linkOrUrl) {
   }
 
   return `
-    <a href="${safeUrl(linkData.url)}" target="_blank" rel="noopener noreferrer" class="rich-link-card" onclick="event.stopPropagation();">${richLinkInner(linkData)}
+    <a href="${safeUrl(linkData.url)}" target="_blank" rel="noopener noreferrer" class="rich-link-card" onclick="event.stopPropagation();">${richLinkInner(linkData, !!linkData.image || linkEmptyCover.has(linkData.url))}
     </a>`;
 }
