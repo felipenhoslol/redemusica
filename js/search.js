@@ -56,9 +56,10 @@ function hl(text, q = state.q) {
   return esc(raw.slice(0, i)) + '<mark>' + esc(raw.slice(i, i + n.length)) + '</mark>' + esc(raw.slice(i + n.length));
 }
 
-// Three placeholder rows the height of a real result row (same classes), so results replace them without a jump
+// Placeholder rows the height of a real result row (same classes), so a list of rows replaces them without a jump.
+// 3 where the answer is a list of rows; 1 in the "Todos" slots, which may be removed or become cards/grids.
 const SKELETON_ROW = `<div class="search-row search-row-skeleton" aria-hidden="true"><span class="search-cover search-cover-empty"></span><div class="search-row-text"><div class="search-row-title">&nbsp;</div><div class="search-row-sub">&nbsp;</div></div></div>`;
-const loading = (text = 'Buscando…') => `<div class="search-skeleton" role="status" aria-label="${esc(text)}">${SKELETON_ROW.repeat(3)}</div>`;
+export const loading = (text = 'Buscando…', rows = 3) => `<div class="search-skeleton" role="status" aria-label="${esc(text)}">${SKELETON_ROW.repeat(rows)}</div>`;
 const sectionHead = (title, tab) => `
   <div class="search-section-head">
     <h2>${esc(title)}</h2>
@@ -263,14 +264,13 @@ async function renderExplore(mySeq) {
     : `<div class="search-loading">Não foi possível carregar as paradas agora.</div>`;
 }
 
+const ALL_SLOTS = [['musicas', 'Músicas'], ['albuns', 'Álbuns'], ['artistas', 'Artistas'], ['pessoas', 'Pessoas'], ['posts', 'Posts'], ['playlists', 'Playlists']];
+/** The "Todos" view while loading: one section per kind, each with a single skeleton row. */
+export const allSlotsHtml = () => ALL_SLOTS.map(([slot, title]) =>
+  `<section class="search-section" data-slot="${slot}">${sectionHead(title, slot)}${loading('Buscando…', 1)}</section>`).join('');
+
 async function renderAll(q, mySeq) {
-  paint(`
-    <section class="search-section" data-slot="musicas">${sectionHead('Músicas', 'musicas')}${loading()}</section>
-    <section class="search-section" data-slot="albuns">${sectionHead('Álbuns', 'albuns')}${loading()}</section>
-    <section class="search-section" data-slot="artistas">${sectionHead('Artistas', 'artistas')}${loading()}</section>
-    <section class="search-section" data-slot="pessoas">${sectionHead('Pessoas', 'pessoas')}${loading()}</section>
-    <section class="search-section" data-slot="posts">${sectionHead('Posts', 'posts')}${loading()}</section>
-    <section class="search-section" data-slot="playlists">${sectionHead('Playlists', 'playlists')}${loading()}</section>`, mySeq);
+  paint(allSlotsHtml(), mySeq);
 
   const fill = (slot, title, html, count) => {
     const el = root?.querySelector(`[data-slot="${slot}"]`);

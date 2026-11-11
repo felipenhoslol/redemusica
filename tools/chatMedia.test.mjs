@@ -65,3 +65,12 @@ test('stickToBottom: chamar de novo na mesma área não duplica o ouvinte e reme
   area.dispatchEvent(new Event('load'));
   assert.equal(area.scrollTop, 300);
 });
+
+test('busca: "Todos" carrega com 1 linha skeleton por seção; abas e listas com 3', async () => {
+  const { allSlotsHtml, loading } = await import('../js/search.js');
+  const rows = (html) => html.match(/search-row-skeleton/g)?.length ?? 0;
+  const sections = allSlotsHtml().split('<section').slice(1);
+  assert.equal(sections.length, 6);
+  sections.forEach(s => assert.equal(rows(s), 1, s));
+  assert.equal(rows(loading()), 3); // renderTab, trending, artist, album
+});

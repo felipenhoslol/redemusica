@@ -173,20 +173,20 @@ export function attachSongToDM(track) {
 
 export function attachImageToChat(imgUrl) {
   attachedImage = imgUrl;
-  readMediaSize(imgUrl).then(size => size && mediaSizes.set(imgUrl, size));
+  readMediaSize(imgUrl).then(size => size && attachedImage === imgUrl && mediaSizes.set(imgUrl, size));
   renderAttachedBars();
 }
 
 export function attachGifToChat(gifUrl) {
   attachedGif = gifUrl;
-  readMediaSize(gifUrl).then(size => size && mediaSizes.set(gifUrl, size));
+  readMediaSize(gifUrl).then(size => size && attachedGif === gifUrl && mediaSizes.set(gifUrl, size));
   renderAttachedBars();
 }
 
 export function clearChatAttachment(type) {
   if (type === 'song') attachedSong = null;
-  if (type === 'image') attachedImage = null;
-  if (type === 'gif') attachedGif = null;
+  if (type === 'image') { mediaSizes.delete(attachedImage); attachedImage = null; }
+  if (type === 'gif') { mediaSizes.delete(attachedGif); attachedGif = null; }
   renderAttachedBars();
 }
 
