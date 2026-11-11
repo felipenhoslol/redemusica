@@ -244,6 +244,21 @@ export async function lookupAlbum(albumId) {
 
 const linkMetadataCache = new Map();
 
+// "Does this link's preview have an image?" survives reloads, so the slot reserves the right box next time
+// shortcut: grows by one entry per distinct link, never pruned; prune if it ever gets big
+const LINK_IMG_KEY = 'rmsn_link_img_v1';
+const linkHasImage = (url) => { try { return JSON.parse(localStorage.getItem(LINK_IMG_KEY) || '{}')[url]; } catch { return undefined; } };
+function rememberLink(url, result) {
+  linkMetadataCache.set(url, result);
+  try {
+    const all = JSON.parse(localStorage.getItem(LINK_IMG_KEY) || '{}');
+    all[url] = !!result.image;
+    localStorage.setItem(LINK_IMG_KEY, JSON.stringify(all));
+  } catch {}
+}
+const normalizeLink = (rawUrl) => /^https?:\/\//.test(rawUrl) ? rawUrl : 'https://' + rawUrl;
+const linkDomain = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
+
 /**
  * Extract first HTTP/HTTPS/WWW URL found in text
  * @param {string} text 
@@ -302,7 +317,7 @@ async function loadLinkMetadata(url) {
           siteName: d.publisher || domain,
           favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
         };
-        linkMetadataCache.set(url, result);
+        rememberLink(url, result);
         return result;
       }
     }
@@ -332,8 +347,66 @@ async function loadLinkMetadata(url) {
     siteName: domain,
     favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
   };
-  linkMetadataCache.set(url, fallback);
+  rememberLink(url, fallback);
   return fallback;
+}
+
+/**
+ * Placeholder for a link preview still loading: same element and box as the real card
+ * (cover unless we know there is no image, header, a title and a description line, footer).
+ * @param {string} rawUrl
+ * @param {boolean|undefined} hasImage from the cache; unknown reserves the cover (the common case)
+ */
+export function linkSlotHtml(rawUrl, hasImage) {
+  const url = normalizeLink(rawUrl);
+  const domain = linkDomain(url);
+  return `<a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer" class="auto-link-slot rich-link-card is-skeleton" data-url="${encodeURIComponent(rawUrl)}" onclick="event.stopPropagation();" aria-busy="true">${richLinkInner({ url, siteName: domain }, hasImage !== false, true)}</a>`;
+}
+
+/**
+ * Inside of the card. `withCover` keeps the 140px cover even without an image (empty placeholder)
+ * so content arriving in a slot never changes its height.
+ */
+function richLinkInner(linkData, withCover = !!linkData.image, skeleton = false) {
+  let domain = linkData.siteName || '';
+  try {
+    domain = domain || new URL(linkData.url).hostname.replace(/^www\./, '');
+  } catch {}
+  const cover = !withCover ? '' : linkData.image
+    ? `<div class="rich-link-cover"><img src="${safeUrl(linkData.image)}" alt="${esc(linkData.title || '')}" loading="lazy" decoding="async" onerror="this.style.display='none'"></div>`
+    : '<div class="rich-link-cover is-empty"></div>';
+  const text = skeleton
+    ? '<div class="rich-link-title skeleton-line">&nbsp;</div><div class="rich-link-desc skeleton-line">&nbsp;</div>'
+    : `<div class="rich-link-title">${esc(linkData.title || domain)}</div>
+        ${linkData.description ? `<div class="rich-link-desc">${esc(linkData.description)}</div>` : ''}`;
+  return `
+      ${cover}
+      <div class="rich-link-body">
+        <div class="rich-link-header">
+          <img src="${safeUrl(linkData.favicon || `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`)}" class="rich-link-favicon" alt="" onerror="this.style.display='none'">
+          <span class="rich-link-domain">${esc(domain)}</span>
+        </div>
+        ${text}
+        <div class="rich-link-footer">
+          <span>Abrir link</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+        </div>
+      </div>`;
+}
+
+/** The preview arrived: fill the slot in place (same box, no outerHTML), or close it when there is nothing to show. */
+function fillLinkSlot(slot, linkData, { animateSpring, toggleCollapse }) {
+  if (!linkData) {
+    const a = toggleCollapse(slot, false, 'block');
+    if (a) a.finished.then(() => slot.remove(), () => {}); // rejected = a later toggle took over
+    else slot.remove();
+    return;
+  }
+  slot.innerHTML = richLinkInner(linkData, !!slot.querySelector('.rich-link-cover'));
+  slot.href = safeUrl(linkData.url);
+  slot.classList.remove('auto-link-slot', 'is-skeleton');
+  slot.removeAttribute('aria-busy');
+  for (const child of slot.children) animateSpring(child, [{ opacity: 0 }, { opacity: 1 }], 'smooth');
 }
 
 /**
@@ -349,47 +422,21 @@ export function renderRichLinkCard(linkOrUrl) {
 
   if (!rawUrl) return '';
 
-  if (!linkData) {
-    const normalized = /^https?:\/\//.test(rawUrl) ? rawUrl : 'https://' + rawUrl;
-    linkData = linkMetadataCache.get(rawUrl) || linkMetadataCache.get(normalized) || null;
-  }
+  const normalized = normalizeLink(rawUrl);
+  if (!linkData) linkData = linkMetadataCache.get(rawUrl) || linkMetadataCache.get(normalized) || null;
 
   if (!linkData) {
     // Schedule asynchronous auto-fetch for this slot
     setTimeout(async () => {
       const fetched = await fetchLinkMetadata(rawUrl);
-      if (fetched) {
-        document.querySelectorAll(`.auto-link-slot[data-url="${encodeURIComponent(rawUrl)}"]`).forEach(el => {
-          el.outerHTML = renderRichLinkCard(fetched);
-        });
-      }
+      const motion = await import('./motion.js'); // lazy: motion.js needs a DOM, and api.js is also loaded by DOM-less tests
+      document.querySelectorAll(`.auto-link-slot[data-url="${encodeURIComponent(rawUrl)}"]`).forEach(el => fillLinkSlot(el, fetched, motion));
     }, 10);
 
-    return `<div class="auto-link-slot" data-url="${encodeURIComponent(rawUrl)}" style="min-height:4px;"></div>`;
+    return linkSlotHtml(rawUrl, linkHasImage(normalized));
   }
 
-  let domain = linkData.siteName || '';
-  try {
-    domain = domain || new URL(linkData.url).hostname.replace(/^www\./, '');
-  } catch {}
-
   return `
-    <a href="${safeUrl(linkData.url)}" target="_blank" rel="noopener noreferrer" class="rich-link-card" onclick="event.stopPropagation();">
-      ${linkData.image ? `
-        <div class="rich-link-cover">
-          <img src="${safeUrl(linkData.image)}" alt="${esc(linkData.title || '')}" loading="lazy" decoding="async" onerror="this.parentElement.style.display='none'">
-        </div>` : ''}
-      <div class="rich-link-body">
-        <div class="rich-link-header">
-          <img src="${safeUrl(linkData.favicon || `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`)}" class="rich-link-favicon" alt="" onerror="this.style.display='none'">
-          <span class="rich-link-domain">${esc(domain)}</span>
-        </div>
-        <div class="rich-link-title">${esc(linkData.title || domain)}</div>
-        ${linkData.description ? `<div class="rich-link-desc">${esc(linkData.description)}</div>` : ''}
-        <div class="rich-link-footer">
-          <span>Abrir link</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
-        </div>
-      </div>
+    <a href="${safeUrl(linkData.url)}" target="_blank" rel="noopener noreferrer" class="rich-link-card" onclick="event.stopPropagation();">${richLinkInner(linkData)}
     </a>`;
 }

@@ -1159,6 +1159,12 @@ input[type="color"] { border: none; background: none; cursor: pointer; width: 30
   overflow: hidden;
 }
 
+/* Loading slot and image-less preview keep the card's box; plain tint, no shimmer */
+.rich-link-cover.is-empty,
+.rich-link-card.is-skeleton .rich-link-cover { background: var(--tint-2); }
+.rich-link-card.is-skeleton .skeleton-line { color: transparent; background: var(--tint-2); border-radius: 4px; width: 85%; }
+.rich-link-card.is-skeleton .skeleton-line + .skeleton-line { width: 60%; }
+
 .rich-link-cover img {
   width: 100%;
   height: 100%;

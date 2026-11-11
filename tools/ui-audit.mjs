@@ -56,3 +56,32 @@ export async function auditAll() {
   if (postId) { window._openPostView(postId); await wait(1200); out.post = auditScreen(document.getElementById('post-view')); document.querySelector('#post-view [data-close]')?.click(); }
   return out;
 }
+
+/**
+ * Watches layout shifts (not caused by input) and long animation frames, including what happened since load.
+ * Use from a perf scenario: const m = (await import('/tools/ui-audit.mjs')).watchMotion(); ...; m.stop()
+ * @returns {{ stop(): { cls: number, shifts: { value: number, sources: string[] }[], longFrames: number[] } }}
+ */
+export function watchMotion() {
+  const shifts = [];
+  const longFrames = [];
+  const observers = [];
+  const observe = (type, onEntry) => {
+    try {
+      const o = new PerformanceObserver(list => list.getEntries().forEach(onEntry));
+      o.observe({ type, buffered: true });
+      observers.push([o, onEntry]);
+    } catch { /* entry type not supported by this browser */ }
+  };
+  observe('layout-shift', e => {
+    if (e.hadRecentInput) return;
+    shifts.push({ value: e.value, sources: (e.sources || []).map(s => { const el = s.node?.nodeType === 1 ? s.node : s.node?.parentElement; return el ? firstClass(el) : '?'; }) });
+  });
+  observe('long-animation-frame', e => { if (e.duration > 50) longFrames.push(Math.round(e.duration)); });
+  return {
+    stop() {
+      observers.forEach(([o, onEntry]) => { o.takeRecords().forEach(onEntry); o.disconnect(); });
+      return { cls: +shifts.reduce((n, s) => n + s.value, 0).toFixed(4), shifts, longFrames };
+    }
+  };
+}
