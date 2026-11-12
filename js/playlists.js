@@ -10,6 +10,7 @@ import { ICONS } from './icons.js';
 import { openSearchModalForPlaylist, showToast, openDoodleModal, closeDoodleModal } from './ui.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { fetchSimilarTracks } from './lastfm.js';
+import { appendBelowFold } from './keptTabs.js';
 
 let currentFilter = 'all'; // 'all' | 'mine' | 'community'
 let searchQuery = '';
@@ -76,10 +77,13 @@ function updatePlaylistsGridOnly(containerEl) {
     : renderEmptyPlaylistsState();
 }
 
+const FIRST_SCREEN = 8; // cards drawn with the tab on its first visit; the rest follow after the first frame
+
 /**
  * Main entry to render the Playlists tab
+ * @param {boolean} [firstDraw] first visit: cards below the fold come after the first frame
  */
-export function renderPlaylistsTab(containerEl) {
+export function renderPlaylistsTab(containerEl, firstDraw = false) {
   if (!containerEl) return;
 
   if (activePlaylistId) {
@@ -93,6 +97,8 @@ export function renderPlaylistsTab(containerEl) {
   }
 
   const { filtered, allPlaylists, activeUser } = getFilteredPlaylists();
+  const cards = filtered.map(pl => renderPlaylistCard(pl, activeUser));
+  const nowCount = firstDraw ? FIRST_SCREEN : cards.length;
 
   containerEl.innerHTML = `
     <div class="playlists-wrap">
@@ -134,10 +140,11 @@ export function renderPlaylistsTab(containerEl) {
 
       <!-- Playlists Grid -->
       <div class="playlists-grid">
-        ${filtered.length ? filtered.map(pl => renderPlaylistCard(pl, activeUser)).join('') : renderEmptyPlaylistsState()}
+        ${cards.length ? cards.slice(0, nowCount).join('') : renderEmptyPlaylistsState()}
       </div>
     </div>
   `;
+  if (nowCount < cards.length) appendBelowFold(containerEl.querySelector('.playlists-grid'), cards.slice(nowCount).join(''));
   mountTabIndicator(containerEl.querySelector('#playlists-filter-pills-wrap'), { key: 'playlists', variant: 'pill' });
 
   // Bind global helpers

@@ -1130,7 +1130,7 @@ window._toggleComments = (postId, btn, event) => {
   let postCard = btn ? btn.closest('.post-card') : null;
   if (!postCard) {
     const cards = Array.from(document.querySelectorAll(`.post-card[data-post-id="${postId}"]`));
-    postCard = cards.find(c => c.offsetParent !== null) || cards[0];
+    postCard = cards.find(c => c.offsetParent !== null && !c.closest('.tab-view-content:not(.active)')) || cards[0];
   }
   if (!postCard) return;
 
@@ -1152,7 +1152,7 @@ function visiblePostCard(postId, el) {
   const card = el ? el.closest('.post-card') : null;
   if (card) return card;
   const cards = Array.from(document.querySelectorAll(`.post-card[data-post-id="${postId}"]`));
-  return cards.find(c => c.offsetParent !== null) || cards[0] || null;
+  return cards.find(c => c.offsetParent !== null && !c.closest('.tab-view-content:not(.active)')) || cards[0] || null; // kept hidden tabs keep an offsetParent
 }
 
 // Who the comment being written answers, per post: { parentId, name }

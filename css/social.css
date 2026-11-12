@@ -199,7 +199,6 @@ a { color: var(--accent); }
 /* ─── Estrutura principal ─── */
 .app-main { padding: 0; }
 .app-content { max-width: 990px; gap: 30px; padding: 0; }
-.tab-view-content { animation: none; }
 .tab-view-content:not(#tab-feed) { padding: 16px 16px 32px; }
 
 .page-header { border-bottom: 1px solid var(--line); padding: 4px 0 14px; }
@@ -658,7 +657,6 @@ a.top-artists-service-badge:hover { text-decoration: underline; text-underline-o
   left: 0;
   pointer-events: none;
   opacity: 0;
-  transition: transform .26s cubic-bezier(.2, .8, .2, 1), width .26s cubic-bezier(.2, .8, .2, 1), opacity .15s;
 }
 .tab-indicator-line > .tab-indicator { bottom: 0; height: 4px; border-radius: var(--pill); background: var(--accent); }
 .tab-indicator-pill > .tab-indicator { top: 0; border-radius: var(--pill); background: var(--accent); z-index: 0; }

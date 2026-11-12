@@ -11,9 +11,9 @@ const keyOf = (el) => el.dataset.postId || el.dataset.flipKey;
 export const screenKey = (tab, uid) => (tab === 'profile' ? `profile:${uid}` : tab);
 
 /** Remember where the current screen is scrolled (call before leaving it). */
-export function saveScroll(key, anchorSelector = ANCHOR) {
-  // Hidden tabs measure 0×0, so this finds the first visible item still (partly) on screen
-  const anchor = [...document.querySelectorAll(anchorSelector)].find(el => keyOf(el) && el.getBoundingClientRect().bottom > 0);
+export function saveScroll(key, anchorSelector = ANCHOR, root = document) {
+  // The first item of the screen being left (`root`) still (partly) on screen; kept hidden tabs are not searched
+  const anchor = [...root.querySelectorAll(anchorSelector)].find(el => keyOf(el) && el.getBoundingClientRect().bottom > 0);
   saved.set(key, {
     y: window.scrollY,
     h: document.documentElement.scrollHeight,

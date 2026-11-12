@@ -459,6 +459,9 @@ function openView(view) {
 
 // ─── public ─────────────────────────────────────────────────────────────────
 
+/** What the search page shows (query, tab, open view): a kept search tab is redrawn on return when this changed. */
+export const searchSignature = () => JSON.stringify(state);
+
 /** Open the search tab already filled (e.g. from a profile's artist list). */
 export function openSearch(q, tab = 'tudo') {
   state.q = q || '';

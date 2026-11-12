@@ -1,5 +1,6 @@
 // UI Controller — modals, search, music ask grid, compare, notifications, global search
 import { animateSpring, swapContent } from './motion.js';
+import { appendBelowFold } from './keptTabs.js';
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar, searchKeyboard } from './dom.js';
 import * as storage from './storage.js';
 import { relativeTime } from './sync.js';
@@ -382,7 +383,8 @@ window._selectTrackFromModal = (track) => {
 // MUSIC ASK GRID — Challenge view
 // ──────────────────────────────────────────
 
-export function renderMusicAskGrid(container, challengeId, userId) {
+/** @param {boolean} [firstDraw] the tab's first visit: questions below the fold come after the first frame */
+export function renderMusicAskGrid(container, challengeId, userId, firstDraw = false) {
   const cid = challengeId || storage.getActiveChallengeId();
   const uid = userId || storage.getActiveUserId();
   const challenge = storage.getAllChallenges().find(c => c.id === cid) || storage.getActiveChallenge();
@@ -425,12 +427,14 @@ export function renderMusicAskGrid(container, challengeId, userId) {
             </button>` : ''}
           </div>` : ''}
       </div>`;
-  }).join('');
+  });
+  const nowCount = firstDraw ? 8 : cards.length;
 
   // All 30 answered: the story image (only for your own Desafio das 30 Músicas)
   const done = isMe && cid === 'classic_30' && questions.every(q => answers[q.id]);
   const doneHtml = done ? `<div class="challenge-done"><span class="challenge-done-text"><span class="ui-icon" aria-hidden="true">${ICONS.check}</span>Desafio concluído</span>${storyButtonHtml('window._downloadChallengeStory(this)')}</div>` : '';
-  container.innerHTML = `${doneHtml}<div class="questions-grid">${cards}</div>`;
+  container.innerHTML = `${doneHtml}<div class="questions-grid">${cards.slice(0, nowCount).join('')}</div>`;
+  if (nowCount < cards.length) appendBelowFold(container.querySelector('.questions-grid'), cards.slice(nowCount).join(''));
 }
 
 window._downloadChallengeStory = (btn) => {

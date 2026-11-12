@@ -347,14 +347,18 @@ body {
 
 /* Tab views */
 .tab-view-content {
-  display: none;
-  animation: fadeIn 0.18s ease-out;
   flex: 1;
   min-width: 0;
 }
-
-.tab-view-content.active {
-  display: block;
+.tab-view-content:not(.active) { display: none; }
+/* Kept tabs (js/keptTabs.js): a hidden tab keeps its styles and layout, so showing it again is one cheap frame
+   (display: none would recompute every style of the tab). Out of the flow, unpainted, not clickable. */
+@supports (content-visibility: hidden) {
+  .app-content { position: relative; }
+  .tab-view-content:not(.active) {
+    display: block; content-visibility: hidden; visibility: hidden;
+    position: absolute; top: 0; left: 0; right: 0;
+  }
 }
 
 @keyframes fadeIn {

@@ -6,7 +6,8 @@ import { initStorage, getActiveUser, getAllUsers, getUserById,
          createPost, setFeaturedSong, addToShowcase, removeFromShowcase,
          getUnreadNotificationCount, getUnreadMessageCount, getFeedPosts, getChallengeAnswers,
          getActiveChallengeId, getChallengeAnswers as getAnswers,
-         updateUserMusicStats, updateUser, addAdminId, getAllPlaylists, getPlaylistById, publishChallengeAnswers } from './storage.js';
+         updateUserMusicStats, updateUser, addAdminId, getAllPlaylists, getPlaylistById, publishChallengeAnswers,
+         getFollowers, getFollowing } from './storage.js';
 
 import { globalAudio } from './audio.js';
 import { ICONS } from './icons.js';
@@ -19,13 +20,14 @@ import { openFeedbackModal } from './feedback.js';
 import { openDisplaySettings, initDisplay } from './display.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { startSync, stopSync, pullNow, searchPeople } from './sync.js';
-import { renderSearchPage, openSearch } from './search.js';
+import { renderSearchPage, openSearch, searchSignature } from './search.js';
 import { mentionedIds } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
 import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop } from './motion.js';
 import { screenKey, saveScroll, restoreScroll, ANCHOR } from './scrollMemory.js';
+import { needsBuild, isStale, enterPanel } from './keptTabs.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
 import { creditHtml } from './credit.js';
@@ -159,28 +161,56 @@ function refreshFromServer() {
   if (friendsEl) renderFriendsWidget(friendsEl);
   import('./profile.js').then(m => m.refreshProfileFollowState());
   if (activeTab === 'comparar') window._refreshCompareView?.(); // someone's challenge answers may have arrived
-  const active = document.activeElement;
-  if (activeTab === 'feed') {
-    const feedPosts = document.getElementById('feed-posts');
-    const typing = feedPosts?.contains(active) || [...(feedPosts?.querySelectorAll('input, textarea') || [])].some(el => el.value);
-    // Redraw only when what the feed shows really changed: a sync with nothing new must not
-    // interrupt animations, close open comments or swap elements under the finger
-    const signature = feedSignature();
-    if (feedPosts && !typing && signature !== lastFeedSignature) {
-      lastFeedSignature = signature;
-      flip(feedPosts, '.post-card', () => renderFeed(feedPosts, feedFilterMode));
-    }
-  }
+  // Redraw only when what the tab shows really changed: a sync with nothing new must not
+  // interrupt animations, close open comments or swap elements under the finger
+  const tab = activeTab, el = document.getElementById(`tab-${tab}`);
+  const scope = tab === 'feed' ? document.getElementById('feed-posts') : el;
+  if (!scope || !TAB_SIGNATURES[tab] || !kept.built.has(tab) || typingIn(scope)) return;
+  if (TAB_SIGNATURES[tab]() === shownSignature[tab]) return;
+  const key = screenKey(tab, currentProfileUserId);
+  saveScroll(key, ANCHOR, el);
+  flip(scope, ANCHOR, () => { redrawTab(tab); restoreScroll(key, el, ANCHOR); }); // the first visible item stays put
 }
 
-let lastFeedSignature = '';
+/** Someone is writing in it: a field has focus, or a comment/reply under a post has text. */
+function typingIn(scope) {
+  const active = document.activeElement;
+  return (scope.contains(active) && active.matches('input, textarea, [contenteditable="true"]'))
+    || [...scope.querySelectorAll('.post-card input, .post-card textarea')].some(f => f.value);
+}
+
+// Kept tabs (keptTabs.js): each tab is built once; a tab is redrawn only when its signature changed
+const kept = { built: new Set(), profileUid: null };
+const shownSignature = {}; // tab → signature of what its DOM shows now
+let lastPull = 0;
+const postsSignature = (posts) => posts.map(p => [
+  p.id, (p.likes || []).length, (p.reposts || []).length, (p.comments || []).length,
+  p.updatedAt || '', p.text?.length || 0, JSON.stringify(p.votes || {}).length
+]);
+const TAB_SIGNATURES = {
+  feed: feedSignature,
+  search: searchSignature,
+  playlists: () => JSON.stringify(getAllPlaylists()),
+  desafios: () => JSON.stringify([getActiveChallengeId(), getChallengeAnswers()]),
+  profile: () => {
+    const uid = currentProfileUserId;
+    return JSON.stringify([getUserById(uid), getFollowers(uid).length, getFollowing(uid).length,
+      postsSignature(getFeedPosts('all').filter(p => p.authorId === uid))]);
+  }
+};
+
+/** Redraw a built tab in place with fresh data (the feed only redraws its posts: the composer keeps its draft). */
+function redrawTab(tab) {
+  const feedPosts = tab === 'feed' && document.getElementById('feed-posts');
+  if (feedPosts) renderFeed(feedPosts, feedFilterMode);
+  else buildTab(tab, currentProfileUserId, false);
+  shownSignature[tab] = TAB_SIGNATURES[tab]?.();
+}
+
 /** The feed on screen now matches the data (after a render or an in-place update). */
-function markFeedShown() { lastFeedSignature = feedSignature(); }
+function markFeedShown() { shownSignature.feed = feedSignature(); }
 function feedSignature() {
-  return JSON.stringify([feedFilterMode, getFeedPosts(feedFilterMode).map(p => [
-    p.id, (p.likes || []).length, (p.reposts || []).length, (p.comments || []).length,
-    p.updatedAt || '', p.text?.length || 0, JSON.stringify(p.votes || {}).length
-  ])]);
+  return JSON.stringify([feedFilterMode, postsSignature(getFeedPosts(feedFilterMode))]);
 }
 
 // ──────────────────────────────────────────
@@ -480,9 +510,15 @@ const setPageTitle = (name) => { document.title = `${name} · rede de música se
 
 function switchTab(tabName) {
   if (tabName === 'admin' && !auth.isAdmin) tabName = 'feed';
+  const uid = tabName === 'profile' ? (nextProfileId || getActiveUser().id) : undefined;
+  nextProfileId = null;
   const from = screenKey(activeTab, currentProfileUserId);
-  const to = screenKey(tabName, nextProfileId || getActiveUser().id);
-  if (from !== to) saveScroll(from, ANCHOR);
+  const to = screenKey(tabName, uid);
+  if (from !== to) {
+    saveScroll(from, ANCHOR, document.getElementById(`tab-${activeTab}`) || document);
+    // What the tab left behind shows now (its own taps already redrew it): only later changes redraw it on return
+    if (kept.built.has(activeTab) && activeTab !== 'feed') shownSignature[activeTab] = TAB_SIGNATURES[activeTab]?.();
+  }
   if (tabName !== 'profile') pushScreen({ tab: tabName });
   setPageTitle(TAB_TITLES[tabName] || 'Feed');
   activeTab = tabName;
@@ -497,21 +533,24 @@ function switchTab(tabName) {
   // Hide all tab contents
   document.querySelectorAll('.tab-view-content').forEach(el => el.classList.remove('active'));
 
-  switch (tabName) {
-    case 'feed':        renderFeedTab();      break;
-    case 'search':      renderSearchTab();    break;
-    case 'playlists':   renderPlaylistsTab(document.getElementById('tab-playlists')); break;
-    case 'chat':        renderChatTab();      break;
-    case 'desafios':    renderDesafiosTab();  break;
-    case 'comparar':    renderCompararTab();  break;
-    case 'profile':     renderProfileTab(nextProfileId); nextProfileId = null; break;
-    case 'admin':       renderAdminTab(document.getElementById('tab-admin')); break;
+  // Kept tabs: built on the first visit; afterwards only shown again (redrawn first if its data changed meanwhile)
+  const build = needsBuild(tabName, kept, uid);
+  if (build) {
+    buildTab(tabName, uid, true);
+    kept.built.add(tabName);
+    if (tabName === 'profile') kept.profileUid = uid;
+    shownSignature[tabName] = TAB_SIGNATURES[tabName]?.();
+  } else {
+    if (tabName === 'profile') enterProfile(uid);
+    if (TAB_SIGNATURES[tabName] && TAB_SIGNATURES[tabName]() !== shownSignature[tabName]) redrawTab(tabName);
+    if (isStale(lastPull, Date.now())) { lastPull = Date.now(); pullNow(); } // new data redraws through refreshFromServer
   }
 
   const el = document.getElementById(`tab-${tabName}`);
   if (el) el.classList.add('active');
-  // Another screen: exactly where it was left (never seen: top). The same one again (its icon tapped): back to the top
-  if (from !== to) restoreScroll(to, el || document.body, ANCHOR);
+  // Another screen: exactly where it was left (never seen: top), then a short enter.
+  // The same one again (its icon tapped): back to the top
+  if (from !== to) { restoreScroll(to, el || document.body, ANCHOR); enterPanel(el); }
   else springScrollTop(el || document.body);
   syncMobileNav();
 
@@ -529,6 +568,20 @@ function switchTab(tabName) {
   window.switchTab = switchTab;
 }
 
+/** Draw a tab from scratch. firstDraw: its first visit (or another profile), not a redraw with new data. */
+function buildTab(tabName, uid, firstDraw) { // firstDraw is also the signal for Task 10's list entrances
+  switch (tabName) {
+    case 'feed':        renderFeedTab();      break;
+    case 'search':      renderSearchTab();    break;
+    case 'playlists':   renderPlaylistsTab(document.getElementById('tab-playlists'), firstDraw); break;
+    case 'chat':        renderChatTab();      break;
+    case 'desafios':    renderDesafiosTab(firstDraw); break;
+    case 'comparar':    renderCompararTab();  break;
+    case 'profile':     renderProfileTab(uid); break;
+    case 'admin':       renderAdminTab(document.getElementById('tab-admin')); break;
+  }
+}
+
 function renderChatTab() {
   const tab = document.getElementById('tab-chat');
   if (!tab) return;
@@ -542,7 +595,6 @@ function renderChatTab() {
 function renderFeedTab() {
   const tab = document.getElementById('tab-feed');
   if (!tab) return;
-  pullNow();
 
   tab.innerHTML = `
     <div class="feed-layout-cols">
@@ -649,7 +701,7 @@ function renderSearchTab() {
 // DESAFIOS TAB
 // ──────────────────────────────────────────
 
-function renderDesafiosTab() {
+function renderDesafiosTab(firstDraw = false) {
   const tab = document.getElementById('tab-desafios');
   if (!tab) return;
 
@@ -668,14 +720,14 @@ function renderDesafiosTab() {
       <div id="questions-grid"></div>
     </div>`;
 
-  const showChallenge = (id) => {
+  const showChallenge = (id, first = false) => {
     const grid = document.getElementById('questions-grid');
     if (!grid) return;
     if (isRankingView()) renderRankingChallenge(grid);
-    else renderMusicAskGrid(grid, id);
+    else renderMusicAskGrid(grid, id, undefined, first);
   };
   renderChallengePills(document.getElementById('challenge-pills'), showChallenge);
-  showChallenge();
+  showChallenge(undefined, firstDraw);
 
   window._refreshChallenges = () => renderDesafiosTab();
 }
@@ -705,13 +757,17 @@ function renderProfileTab(userId) {
   tab.innerHTML = '';
 
   const uid = userId || getActiveUser().id;
+  enterProfile(uid);
+  renderProfileView(tab, uid);
+  syncMobileNav();
+}
+
+/** The profile screen is now this person's: history step, page title. */
+function enterProfile(uid) {
   pushScreen({ tab: 'profile', uid });
   currentProfileUserId = uid;
   const profileUser = getUserById(uid);
   if (profileUser?.name) setPageTitle(`${profileUser.name}${profileUser.handle ? ` (${profileUser.handle})` : ''}`);
-
-  renderProfileView(tab, uid);
-  syncMobileNav();
 }
 
 // ──────────────────────────────────────────
@@ -823,7 +879,12 @@ function bindGlobalHandlers() {
   };
 
   // "Comparar desafios" on a profile: the comparison opens already on that person
-  window._compareWith = (userId) => { openCompareWith(userId); switchTab('comparar'); };
+  window._compareWith = (userId) => {
+    const wasBuilt = kept.built.has('comparar');
+    openCompareWith(userId);
+    switchTab('comparar');
+    if (wasBuilt) window._refreshCompareView?.(); // a kept comparison opens on this person too
+  };
   // Comparar on a profile: challenges are compared only with people you follow
   window._compareFromProfile = (userId) => {
     if (!isFollowing(userId)) { showToast('Siga para comparar desafios'); return; }
@@ -926,7 +987,7 @@ function bindGlobalHandlers() {
     let postCard = btn ? btn.closest('.post-card') : null;
     if (!postCard) {
       const cards = Array.from(document.querySelectorAll(`.post-card[data-post-id="${postId}"]`));
-      postCard = cards.find(c => c.offsetParent !== null) || cards[0];
+      postCard = cards.find(c => c.offsetParent !== null && !c.closest('.tab-view-content:not(.active)')) || cards[0];
     }
     const input = postCard ? postCard.querySelector('.doodle-input') : document.getElementById(`comment-input-${postId}`);
     const text = input?.value?.trim();
