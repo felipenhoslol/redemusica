@@ -20,7 +20,7 @@ const node = (parentElement, extra = {}) => ({ parentElement, scrollWidth: 300, 
 
 const scrollingAncestor = node(BODY, { scrollWidth: 800, overflowX: 'auto' });
 const h = {};
-let running = [], recorded = [];
+let running = [], recorded = [], animateReturnsNull = false;
 const panel = {
   ...node(scrollingAncestor),
   style: {}, offsetWidth: 400,
@@ -29,7 +29,11 @@ const panel = {
   addEventListener(t, f) { h[t] = f; },
   contains(n) { for (; n; n = n.parentElement) if (n === this) return true; return false; },
   animate(kf, opts) {
-    const a = { kf, opts, cancel() { running = running.filter(x => x !== a); } };
+    if (animateReturnsNull) return null;
+    const a = { kf, opts };
+    a.finished = new Promise((res, rej) => { a.finish = res; a.reject = rej; });
+    a.finished.catch(() => {});
+    a.cancel = () => { running = running.filter(x => x !== a); a.reject(new Error('AbortError')); };
     running.push(a); recorded.push(a);
     return a;
   },
@@ -82,15 +86,43 @@ test('releaseKeyframes: out leaves by 60% of the width, in arrives from the same
   assert.equal(enter.at(-1).opacity, 1);
 });
 
-test('a release that commits switches right away (no timer) with two spring animations', () => {
+test('a release that commits lets the old list leave, then switches and the new one enters (no timer)', async () => {
   switched.length = 0;
   drag(inFittingRow, -200);
+  assert.deepEqual(switched, []); // old list still on screen while it leaves
+  assert.equal(recorded.length, 1);
+  const out = recorded[0];
+  assert.equal(out.opts.easing, SPRINGS.smooth.easing);
+  assert.ok(out.opts.duration >= SPRINGS.smooth.duration * 0.5 && out.opts.duration <= SPRINGS.smooth.duration);
+  out.finish();
+  await out.finished;
   assert.deepEqual(switched, ['b']);
   assert.equal(recorded.length, 2);
-  for (const a of recorded) assert.equal(a.opts.easing, SPRINGS.smooth.easing);
-  assert.equal(recorded[1].opts.delay, recorded[0].opts.duration); // in starts where out ends
-  const out = recorded[0].opts.duration;
-  assert.ok(out >= SPRINGS.smooth.duration * 0.5 && out <= SPRINGS.smooth.duration);
+  assert.equal(recorded[1].opts.easing, SPRINGS.smooth.easing);
+  assert.equal(recorded[1].kf[0].transform, 'translateX(240px)');
+  assert.ok(!running.includes(out)); // the held exit frame is released once the new list enters
+});
+
+test('no animation (animate returns null): switches at once', () => {
+  switched.length = 0;
+  animateReturnsNull = true;
+  drag(inFittingRow, -200);
+  animateReturnsNull = false;
+  assert.deepEqual(switched, ['b']);
+});
+
+test('grabbed during the exit: no switch, the old list stays under the finger', async () => {
+  switched.length = 0;
+  drag(inFittingRow, -200);
+  const out = recorded[0];
+  panelComputed = { transform: 'matrix(1, 0, 0, 1, -150, 0)', opacity: '0.5' };
+  h.pointerdown(ev(inFittingRow, 200));
+  await out.finished.catch(() => {});
+  await null;
+  assert.deepEqual(switched, []);
+  assert.equal(panel.style.transform, 'translateX(-150px)');
+  h.pointerup(ev(inFittingRow, 200)); // tap: springs back
+  panelComputed = { transform: 'none', opacity: '1' };
 });
 
 test('a fast release shortens the exit, never below half the spring', () => {

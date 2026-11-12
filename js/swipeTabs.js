@@ -106,17 +106,21 @@ export function bindSwipeTabs(el, { tabs, current, onSwitch }) {
     if (target && (Math.abs(dx) > width * COMMIT || fast)) {
       const opacity = +el.style.opacity;
       clear();
-      if (!reducedMotion()) {
-        const kf = releaseKeyframes(dx, width, dir);
-        if (opacity) kf.out[0].opacity = opacity; // caught mid-fade earlier
-        const { duration, easing } = SPRINGS.smooth;
-        // A fast finger has already covered part of the way: the exit takes what is left at that speed, between half and the whole spring
-        const left = Math.abs(-dir * width * 0.6 - dx);
-        const out = duration * Math.min(Math.max(left / (Math.abs(v) * duration), 0.5), 1);
-        el.animate(kf.out, { duration: out, easing });
-        el.animate(kf.in, { duration, easing, delay: out }); // no backwards fill: it would cover the exit while waiting
-      }
-      onSwitch(target, dir);
+      const kf = releaseKeyframes(dx, width, dir);
+      if (opacity) kf.out[0].opacity = opacity; // caught mid-fade earlier
+      const { duration, easing } = SPRINGS.smooth;
+      // A fast finger has already covered part of the way: the exit takes what is left at that speed, between half and the whole spring
+      const left = Math.abs(-dir * width * 0.6 - dx);
+      const outMs = duration * Math.min(Math.max(left / (Math.abs(v) * duration), 0.5), 1);
+      // The old list leaves; the new one is drawn when it is gone (forwards fill: no frame of it back at rest in between)
+      const out = reducedMotion() ? null : el.animate?.(kf.out, { duration: outMs, easing, fill: 'forwards' });
+      if (!out) { onSwitch(target, dir); return; }
+      // Grabbed during the exit: the animation is cancelled, the old list stays and the new gesture decides from there
+      out.finished.then(() => {
+        onSwitch(target, dir);
+        out.cancel();
+        el.animate(kf.in, { duration, easing });
+      }, () => {});
     } else {
       settle(dx);
     }
