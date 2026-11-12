@@ -221,3 +221,19 @@ export function springScrollTop(el) {
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (from > 0) animateSpring(el, [{ transform: `translateY(${-from}px)` }, { transform: 'none' }], 'smooth');
 }
+
+/**
+ * A list's first draw: the items on screen enter one after another (40 ms apart, at most 8 steps).
+ * Opacity and transform only, so nothing moves the layout; items stay clickable throughout.
+ * Never for a kept tab coming back or an update in place. Reduced motion: nothing.
+ * @param {Iterable<HTMLElement>} items
+ */
+export function stagger(items) {
+  if (reducedMotion()) return;
+  let i = 0;
+  for (const el of items) {
+    if (el.getBoundingClientRect().top >= window.innerHeight) continue; // below the fold: nobody sees it enter
+    animateSpring(el, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], 'smooth',
+      { delay: Math.min(i++, 8) * 40, fill: 'backwards' });
+  }
+}

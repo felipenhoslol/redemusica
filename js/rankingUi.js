@@ -4,7 +4,7 @@ import { lookupArtist, lookupAlbum, searchArtists, searchAlbums, searchAlbumsByS
 import { albumSearchResults, matchingArtist, dedupeReleases, groupReleases, rankingKey, rankItems, RANKING_CHALLENGE_ID } from './ranking.js';
 import { getRanking, setRankingRating, markRankingPosted, deleteRanking, createPost, getUserRankings, getFriendsRankings, getUserById, getActiveUser } from './storage.js';
 import { storyButtonHtml, runStoryButton, renderRankingStory, storyFilename } from './storyImage.js';
-import { popIcon, rollNumber, flip, animateSpring, reducedMotion } from './motion.js';
+import { popIcon, rollNumber, flip, animateSpring, reducedMotion, stagger } from './motion.js';
 import { getArtistImage } from './lastfm.js';
 import { showToast } from './profile.js'; // ui.js re-exports it; importing ui.js here would close a cycle
 import { openRankingView } from './rankingCard.js';
@@ -301,8 +301,6 @@ export function renderRankingChallenge(container) {
         ${listOrEmpty(friends.map(friendRowHtml), 'Ninguém que você segue fez um ranking ainda')}
       </section>
     </div>`;
-  if (!reducedMotion()) container.querySelectorAll('.rk-entry').forEach((el, i) =>
-    animateSpring(el, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], 'smooth', { delay: Math.min(i, 8) * 40, fill: 'backwards' }));
 }
 
 /** Editor inside the challenge area, with a way back to the lists (which then show the new ratings). */
@@ -313,7 +311,8 @@ function openInArea(mode, subject) {
   return openRankingEditor(container.querySelector('.rk-editor-host'), { mode, subject });
 }
 
-window._rankBack = (btn) => { if (!area) return; press(btn); renderRankingChallenge(area.container); };
+// Back to the lists: they enter again (the tab's first draw and a tapped pill stagger from app.js; a redraw never does)
+window._rankBack = (btn) => { if (!area) return; press(btn); renderRankingChallenge(area.container); stagger(area.container.querySelectorAll('.rk-entry')); };
 
 // The pick box and its results grow above "Meus rankings"/"Amigos": those glide down instead of jumping
 const glide = (mutate) => flip(area?.container.querySelector('.rk-area'), '.rk-section[data-flip-key]', mutate);

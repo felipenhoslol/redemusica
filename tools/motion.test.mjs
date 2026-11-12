@@ -149,3 +149,23 @@ test('springScrollTop: vai ao topo na hora e o conteúdo desliza (no máximo uma
   assert.deepEqual(tops, [0, 0]);
   assert.equal(still.calls.length, 0);
 });
+
+test('stagger: só itens visíveis, 40 ms por item até 8, mola smooth; movimento reduzido não anima', async () => {
+  const { stagger } = await import('../js/motion.js');
+  window.innerHeight = 800;
+  const item = (top) => ({ ...fakeEl(), getBoundingClientRect: () => ({ top }) });
+  const items = [...Array.from({ length: 12 }, (_, i) => item(i * 60)), item(800), item(1500)];
+  reduced = false;
+  stagger(items);
+  const calls = items.flatMap(el => el.calls);
+  assert.equal(calls.length, 12);
+  assert.deepEqual(calls.map(c => c.opts.delay), [0, 40, 80, 120, 160, 200, 240, 280, 320, 320, 320, 320]);
+  assert.deepEqual(calls[0].kf, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }]);
+  assert.equal(calls[0].opts.fill, 'backwards');
+  assert.equal(calls[0].opts.duration, SPRINGS.smooth.duration);
+  assert.equal(items[12].calls.length + items[13].calls.length, 0);
+  reduced = true;
+  const still = [item(0), item(100)];
+  stagger(still);
+  assert.equal(still.flatMap(el => el.calls).length, 0);
+});

@@ -25,7 +25,7 @@ import { mentionedIds } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
-import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop } from './motion.js';
+import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop, stagger } from './motion.js';
 import { screenKey, saveScroll, restoreScroll, ANCHOR } from './scrollMemory.js';
 import { needsBuild, isStale, enterPanel, hasFixedContent } from './keptTabs.js';
 import { openAccountSettings } from './account.js';
@@ -557,6 +557,8 @@ function switchTab(tabName) {
   if (from !== to) { restoreScroll(to, el || document.body, ANCHOR); enterPanel(el); }
   else if (el && hasFixedContent(el)) window.scrollTo({ top: 0, behavior: 'instant' }); // no glide: it would transform the tab
   else springScrollTop(el || document.body);
+  // Measured only now: the tab is shown and scrolled where it will be (chat staggers its contacts once they load)
+  if (build && el && LIST_ITEMS[tabName]) stagger(el.querySelectorAll(LIST_ITEMS[tabName]));
   syncMobileNav();
 
   // Floating DM button visibility
@@ -573,13 +575,16 @@ function switchTab(tabName) {
   window.switchTab = switchTab;
 }
 
+// The items of each tab's list that enter in sequence on its first draw
+const LIST_ITEMS = { feed: '.post-card', search: '.search-row', playlists: '.playlist-card', desafios: '.q-card, .rk-entry' };
+
 /** Draw a tab from scratch. firstDraw: its first visit (or another profile), not a redraw with new data. */
 function buildTab(tabName, uid, firstDraw) { // firstDraw is also the signal for Task 10's list entrances
   switch (tabName) {
     case 'feed':        renderFeedTab();      break;
     case 'search':      renderSearchTab();    break;
     case 'playlists':   renderPlaylistsTab(document.getElementById('tab-playlists'), firstDraw); break;
-    case 'chat':        renderChatTab();      break;
+    case 'chat':        renderChatTab(firstDraw); break;
     case 'desafios':    renderDesafiosTab(firstDraw); break;
     case 'comparar':    renderCompararTab();  break;
     case 'profile':     renderProfileTab(uid); break;
@@ -587,10 +592,13 @@ function buildTab(tabName, uid, firstDraw) { // firstDraw is also the signal for
   }
 }
 
-function renderChatTab() {
+function renderChatTab(firstDraw = false) {
   const tab = document.getElementById('tab-chat');
   if (!tab) return;
-  import('./chat.js').then(c => c.renderChatTab(tab));
+  import('./chat.js').then(c => {
+    c.renderChatTab(tab);
+    if (firstDraw) stagger(tab.querySelectorAll('.chat-contact-card'));
+  });
 }
 
 // ──────────────────────────────────────────
@@ -730,6 +738,7 @@ function renderDesafiosTab(firstDraw = false) {
     if (!grid) return;
     if (isRankingView()) renderRankingChallenge(grid);
     else renderMusicAskGrid(grid, id, undefined, first);
+    if (id) stagger(grid.querySelectorAll(LIST_ITEMS.desafios)); // a pill tapped: another list (the tab's first draw staggers in switchTab)
   };
   renderChallengePills(document.getElementById('challenge-pills'), showChallenge);
   showChallenge(undefined, firstDraw);
@@ -792,6 +801,7 @@ function toggleNotifPanel() {
     if (panel) renderNotificationsPanel(panel);
     overlay.classList.add('active');
     growFrom(overlay.querySelector('.notifications-panel')); // laid out only once active
+    if (panel) stagger(panel.querySelectorAll('.notif-item')); // drawn afresh on every open
     setCatMood('alert', 1400);
     renderNotifBadge(); // clear badge
   }
