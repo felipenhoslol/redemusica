@@ -143,10 +143,11 @@ export function enterFrom(el, from, name = 'smooth') {
   const running = el.getAnimations();
   if (running.length) {
     const cs = getComputedStyle(el);
-    from = { opacity: cs.opacity, transform: cs.transform };
+    from = cs.transform === 'none' ? { opacity: cs.opacity } : { opacity: cs.opacity, transform: cs.transform };
   }
   running.forEach(a => a.cancel());
-  return animateSpring(el, [from, { opacity: 1, transform: 'none' }], name);
+  // No transform in `from`: opacity only. Animating transform (even to 'none') makes el the box its fixed descendants position in
+  return animateSpring(el, [from, 'transform' in from ? { opacity: 1, transform: 'none' } : { opacity: 1 }], name);
 }
 
 /** transform-origin that makes `box` grow out of `trigger`: the trigger's centre, relative to the box and kept inside it. */

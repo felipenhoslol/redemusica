@@ -6,13 +6,13 @@ let reduced = false;
 globalThis.window = { matchMedia: () => ({ get matches() { return reduced; } }) };
 globalThis.CSS = { supports: () => true };
 globalThis.document = { createElement: () => ({}), head: { appendChild() {} } };
-globalThis.getComputedStyle = () => ({ opacity: '1', transform: 'none' });
+globalThis.getComputedStyle = (n) => ({ opacity: '1', transform: 'none', position: n?.position || 'static' });
 
-const { needsBuild, isStale, enterPanel, mountBelowFold, appendBelowFold } = await import('../js/keptTabs.js');
+const { needsBuild, isStale, enterPanel, hasFixedContent, mountBelowFold, appendBelowFold } = await import('../js/keptTabs.js');
 
-const fakeEl = () => {
+const fakeEl = (children = [{ position: 'static' }]) => {
   const calls = [];
-  return { calls, getAnimations: () => [], animate: (kf, opts) => { calls.push({ kf, opts }); return { kf, opts }; } };
+  return { calls, getAnimations: () => [], querySelectorAll: () => children, animate: (kf, opts) => { calls.push({ kf, opts }); return { kf, opts }; } };
 };
 
 test('needsBuild: aba já montada fica como está', () => {
@@ -75,4 +75,13 @@ test('appendBelowFold: acrescenta o resto depois; desiste se a lista foi redesen
   await new Promise(r => setTimeout(r, 5));
   assert.deepEqual(kept.added, [['beforeend', '<b>9</b>']]);
   assert.deepEqual(redrawn.added, []);
+});
+
+test('enterPanel: aba com conteúdo fixo (chat no celular, composer) só aparece, sem transform', () => {
+  reduced = false;
+  const el = fakeEl([{ position: 'static' }, { position: 'fixed' }]);
+  assert.equal(hasFixedContent(el), true);
+  assert.ok(enterPanel(el));
+  assert.deepEqual(el.calls[0].kf, [{ opacity: 0 }, { opacity: 1 }]);
+  assert.equal(hasFixedContent(fakeEl()), false);
 });

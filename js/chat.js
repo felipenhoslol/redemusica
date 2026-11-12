@@ -284,6 +284,9 @@ function getSortedContacts() {
 // LARGE CHAT TAB VIEW (Spacious Messenger Section)
 // ──────────────────────────────────────────
 
+/** Which conversation the chat shows (the floating DM window can change it): a kept chat tab is redrawn on return when this changed. */
+export const chatSignature = () => String(activeContactId);
+
 export function renderChatTab(container = document.getElementById('tab-chat')) {
   if (!container) return;
   paintedIds.delete('chat-tab-messages'); // re-entering the tab is a first paint, not new messages

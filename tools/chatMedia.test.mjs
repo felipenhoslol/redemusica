@@ -25,7 +25,7 @@ globalThis.requestAnimationFrame = fn => setTimeout(fn, 0);
 globalThis.Audio = class { addEventListener() {} pause() {} play() { return Promise.resolve(); } };
 try { globalThis.navigator ??= {}; } catch {}
 
-const { mediaBoxStyle, stickToBottom } = await import('../js/chat.js');
+const { mediaBoxStyle, stickToBottom, chatSignature, renderMessages } = await import('../js/chat.js');
 
 class FakeArea extends EventTarget {
   scrollHeight = 1000; clientHeight = 400; scrollTop = 0;
@@ -73,4 +73,12 @@ test('busca: "Todos" carrega com 1 linha skeleton por seção; abas e listas com
   assert.equal(sections.length, 6);
   sections.forEach(s => assert.equal(rows(s), 1, s));
   assert.equal(rows(loading()), 3); // renderTab, trending, artist, album
+});
+
+test('chatSignature: a conversa escolhida na janelinha de DM muda a assinatura (a aba Chat mantida se redesenha na volta)', async () => {
+  (await import('../js/storage.js')).initStorage(); // an active user, as in the app
+  const before = chatSignature();
+  renderMessages('user_dm_test');
+  assert.notEqual(chatSignature(), before);
+  assert.equal(chatSignature(), 'user_dm_test');
 });

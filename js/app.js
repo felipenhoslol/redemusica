@@ -27,7 +27,7 @@ import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
 import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop } from './motion.js';
 import { screenKey, saveScroll, restoreScroll, ANCHOR } from './scrollMemory.js';
-import { needsBuild, isStale, enterPanel } from './keptTabs.js';
+import { needsBuild, isStale, enterPanel, hasFixedContent } from './keptTabs.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
 import { creditHtml } from './credit.js';
@@ -53,7 +53,7 @@ import {
   renderProfileView, renderProfileEditModal, renderFollowListModal,
   openModal, closeModal, showToast
 } from './profile.js';
-import { openDMWindow, closeDMWindow, toggleDMWindow, initChatBindings } from './chat.js';
+import { openDMWindow, closeDMWindow, toggleDMWindow, initChatBindings, chatSignature } from './chat.js';
 import { renderPlaylistsTab } from './playlists.js';
 
 // ──────────────────────────────────────────
@@ -187,9 +187,9 @@ const postsSignature = (posts) => posts.map(p => [
   p.id, (p.likes || []).length, (p.reposts || []).length, (p.comments || []).length,
   p.updatedAt || '', p.text?.length || 0, JSON.stringify(p.votes || {}).length
 ]);
+// What each tab shows from the data (a sync that changes it redraws the tab on screen)
 const TAB_SIGNATURES = {
   feed: feedSignature,
-  search: searchSignature,
   playlists: () => JSON.stringify(getAllPlaylists()),
   desafios: () => JSON.stringify([getActiveChallengeId(), getChallengeAnswers()]),
   profile: () => {
@@ -199,12 +199,16 @@ const TAB_SIGNATURES = {
   }
 };
 
+// What the view state shows (a query, the open conversation): set from outside the tab, compared only on return
+const TAB_VIEW = { search: searchSignature, chat: chatSignature };
+const tabSignature = (tab) => (TAB_SIGNATURES[tab] || TAB_VIEW[tab])?.();
+
 /** Redraw a built tab in place with fresh data (the feed only redraws its posts: the composer keeps its draft). */
 function redrawTab(tab) {
   const feedPosts = tab === 'feed' && document.getElementById('feed-posts');
   if (feedPosts) renderFeed(feedPosts, feedFilterMode);
   else buildTab(tab, currentProfileUserId, false);
-  shownSignature[tab] = TAB_SIGNATURES[tab]?.();
+  shownSignature[tab] = tabSignature(tab);
 }
 
 /** The feed on screen now matches the data (after a render or an in-place update). */
@@ -517,7 +521,7 @@ function switchTab(tabName) {
   if (from !== to) {
     saveScroll(from, ANCHOR, document.getElementById(`tab-${activeTab}`) || document);
     // What the tab left behind shows now (its own taps already redrew it): only later changes redraw it on return
-    if (kept.built.has(activeTab) && activeTab !== 'feed') shownSignature[activeTab] = TAB_SIGNATURES[activeTab]?.();
+    if (kept.built.has(activeTab) && activeTab !== 'feed') shownSignature[activeTab] = tabSignature(activeTab);
   }
   if (tabName !== 'profile') pushScreen({ tab: tabName });
   setPageTitle(TAB_TITLES[tabName] || 'Feed');
@@ -539,10 +543,10 @@ function switchTab(tabName) {
     buildTab(tabName, uid, true);
     kept.built.add(tabName);
     if (tabName === 'profile') kept.profileUid = uid;
-    shownSignature[tabName] = TAB_SIGNATURES[tabName]?.();
+    shownSignature[tabName] = tabSignature(tabName);
   } else {
     if (tabName === 'profile') enterProfile(uid);
-    if (TAB_SIGNATURES[tabName] && TAB_SIGNATURES[tabName]() !== shownSignature[tabName]) redrawTab(tabName);
+    if (tabSignature(tabName) !== shownSignature[tabName]) redrawTab(tabName);
     if (isStale(lastPull, Date.now())) { lastPull = Date.now(); pullNow(); } // new data redraws through refreshFromServer
   }
 
@@ -551,6 +555,7 @@ function switchTab(tabName) {
   // Another screen: exactly where it was left (never seen: top), then a short enter.
   // The same one again (its icon tapped): back to the top
   if (from !== to) { restoreScroll(to, el || document.body, ANCHOR); enterPanel(el); }
+  else if (el && hasFixedContent(el)) window.scrollTo({ top: 0, behavior: 'instant' }); // no glide: it would transform the tab
   else springScrollTop(el || document.body);
   syncMobileNav();
 
@@ -849,9 +854,10 @@ function bindGlobalHandlers() {
   window._openDisplay = () => openDisplaySettings();
   window._openAccount = () => openAccountSettings();
   window._composeNew = () => {
+    const phone = isPhone();
+    if (phone) document.body.classList.add('composing'); // before the switch: the composer is already fixed, so the feed enters with a fade only
     if (activeTab !== 'feed') switchTab('feed'); // already there: keep the feed where it was under the composer
-    if (isPhone()) {
-      document.body.classList.add('composing');
+    if (phone) {
       window._pushLayer('compose');
     } else {
       window.scrollTo({ top: 0 });

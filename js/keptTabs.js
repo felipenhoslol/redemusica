@@ -12,8 +12,16 @@ export function needsBuild(tab, state, uid) {
 /** More than 30 s since the last check with the server. */
 export const isStale = (lastCheck, now) => now - lastCheck > 30000;
 
-/** Short enter for a tab shown again: from 8px below and transparent, or from wherever a running enter has it. */
-export const enterPanel = (el) => enterFrom(el, { opacity: 0, transform: 'translateY(8px)' }, 'smooth');
+/**
+ * The tab shows position: fixed content (the phone chat, the open composer). A transform on the tab would make
+ * the tab their containing block, so they would collapse into it while it moves.
+ */
+export const hasFixedContent = (el) =>
+  [...el.querySelectorAll(':scope > *, #creator-wrap')].some(n => getComputedStyle(n).position === 'fixed');
+
+/** Short enter for a tab shown again: from 8px below and transparent (fade only over fixed content), or from wherever a running enter has it. */
+export const enterPanel = (el) =>
+  el ? enterFrom(el, hasFixedContent(el) ? { opacity: 0 } : { opacity: 0, transform: 'translateY(8px)' }, 'smooth') : null;
 
 /** Run what sits below the fold after the first frame is on screen. */
 export function mountBelowFold(fn) {
