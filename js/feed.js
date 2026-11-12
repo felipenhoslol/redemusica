@@ -8,6 +8,7 @@ import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks, lastFmUserOf } from './lastfm.js';
 import { compressImage, presenceOf, loadInlinePicture, fetchPostById } from './sync.js';
+import { readMediaSize } from './chat.js';
 import { pollHtml } from './poll.js';
 import { sortNewest, applyCut, getCut, remember } from './feedBuffer.js';
 import { rankingPostHtml, openRankingView } from './rankingCard.js';
@@ -322,8 +323,8 @@ export function renderPostCard(post, options = {}) {
           <img src="${safeUrl(u)}" alt="" loading="lazy" decoding="async">
         </button>`).join('')}</div>`
     : post.imageUrl
-    ? `<img class="post-attached-image" src="${safeUrl(post.imageUrl)}" alt="Foto do post de ${esc(author.name)}" loading="lazy" decoding="async" onclick="event.stopPropagation();window._openPhotoViewer(${jsArg([post.imageUrl])}, 0)">`
-    : post.imageLazy ? `<img class="post-attached-image lazy-picture" data-lazy-img="posts:${esc(post.id)}" alt="Foto do post de ${esc(author.name)}" decoding="async">` : '';
+    ? `<img class="post-attached-image" style="${postPhotoStyle(post)}" src="${safeUrl(post.imageUrl)}" alt="Foto do post de ${esc(author.name)}" loading="lazy" decoding="async" onclick="event.stopPropagation();window._openPhotoViewer(${jsArg([post.imageUrl])}, 0)">`
+    : post.imageLazy ? `<img class="post-attached-image lazy-picture" style="${postPhotoStyle(post)}" data-lazy-img="posts:${esc(post.id)}" alt="Foto do post de ${esc(author.name)}" decoding="async">` : '';
   const detectedPostUrl = extractFirstUrl(post.text);
   const linkHtml = post.link ? renderRichLinkCard(post.link) : (detectedPostUrl ? renderRichLinkCard(detectedPostUrl) : '');
 
@@ -634,6 +635,7 @@ export function renderPostCreator(containerEl) {
     const list = window._pendingCreatorImages || (window._pendingCreatorImages = []);
     if (list.length >= MAX_POST_IMAGES) { window.showDoodleToast?.(`Um post pode ter até ${MAX_POST_IMAGES} fotos.`); return; }
     list.push(url);
+    readMediaSize(url).then(size => size && creatorSizes.set(url, size));
     if (!opts.quiet) window.closeDoodleModal?.('post-image-modal');
     renderCreatorImages();
   };
@@ -646,6 +648,21 @@ export function renderPostCreator(containerEl) {
 }
 
 const MAX_POST_IMAGES = 4;
+const creatorSizes = new Map(); // picked photo url -> { width, height }, read while the post is written
+
+/** Width/height of a photo picked in the composer, or {} if it hasn't decoded (the card falls back to 4/3). */
+export const creatorImageSize = (url) => creatorSizes.get(url) || {};
+
+/**
+ * Inline style that gives a single post photo its own shape before it loads: the box follows the photo's
+ * proportion and narrows so its height stays under --post-photo-max (polish.css). Taller than 1:2 keeps a
+ * 1:2 box and the photo is contained in it. '' leaves the CSS 4/3 contain box (posts without dimensions).
+ */
+export function postPhotoStyle(post) {
+  if (!(post.width > 0 && post.height > 0)) return '';
+  const [w, h] = post.width / post.height < 0.5 ? [1, 2] : [post.width, post.height];
+  return `aspect-ratio: ${w} / ${h}; width: min(100%, calc(var(--post-photo-max) * ${w} / ${h})); min-height: 0`;
+}
 
 function renderCreatorImages() {
   const list = window._pendingCreatorImages || [];

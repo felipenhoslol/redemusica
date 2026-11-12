@@ -492,7 +492,7 @@ export function stickToBottom(area) {
 const mediaAttrs = (m) => mediaBoxStyle(m) ? ` width="${m.width}" height="${m.height}" style="${mediaBoxStyle(m)}"` : '';
 
 /** Width/height of a picked photo/GIF, read once it decodes; null if it fails (the box falls back to 4/3). */
-function readMediaSize(url) {
+export function readMediaSize(url) {
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => resolve(img.naturalWidth && img.naturalHeight ? { width: img.naturalWidth, height: img.naturalHeight } : null);

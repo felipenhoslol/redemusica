@@ -48,7 +48,7 @@ import {
 import { renderRankingChallenge } from './rankingUi.js';
 import {
   renderPostCreator, renderFeed, feedView,
-  renderTrendingWidget, renderFriendsWidget, creatorState
+  renderTrendingWidget, renderFriendsWidget, creatorState, creatorImageSize
 } from './feed.js';
 import { getCut, setCut, clearCut } from './feedBuffer.js';
 import {
@@ -1323,6 +1323,7 @@ function bindGlobalHandlers() {
         rating: finalRating,
         imageUrl: images[0] || '',
         images,
+        ...creatorImageSize(images[0]),
         mentions: mentionedIds(text),
         song: window._pendingCreatorSong || null,
         playlistId: window._pendingCreatorPlaylist?.id || null,

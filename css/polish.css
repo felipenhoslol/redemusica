@@ -18,10 +18,14 @@
 .post-attached-image {
   aspect-ratio: 4 / 3;
   height: auto;
-  max-height: 460px;
-  object-fit: contain; /* a foto inteira dentro da caixa fixa (o post não guarda largura/altura); cover cortava retrato e paisagem */
+  --post-photo-max: 460px;
+  max-height: var(--post-photo-max);
+  object-fit: contain; /* nunca corta: com largura/altura salvas a caixa já tem o formato da foto (postPhotoStyle, feed.js); sem elas fica 4:3 */
   background: var(--surface);
 }
+/* No celular a coluna tem ~300px: com 460px uma foto em pé ficava estreita. 70vh deixa um retrato 9:16 usar a
+   largura toda (~530px) e ainda sobra tela para o autor e as ações do post. */
+@media (max-width: 700px) { .post-attached-image { --post-photo-max: 70vh; } }
 
 /* ─── Campo de postar: os ícones começam na coluna do texto, não embaixo da foto ─── */
 @media (min-width: 701px) {

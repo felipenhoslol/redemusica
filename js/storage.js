@@ -705,6 +705,7 @@ export function createPost(postData) {
     votes: {},
     imageUrl: postData.imageUrl || (postData.images || [])[0] || '',
     images: (postData.images || []).slice(0, 4),
+    ...(postData.width > 0 && postData.height > 0 ? { width: postData.width, height: postData.height } : {}), // of imageUrl: reserves its box
     mentions: (postData.mentions || []).slice(0, 20),
     likes: [],
     comments: [],

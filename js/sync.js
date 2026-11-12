@@ -145,8 +145,10 @@ function playlistSnapshot(post) {
   };
 }
 
-function toBody(post) {
+export function toBody(post) {
+  const size = post.width > 0 && post.height > 0 ? { width: post.width, height: post.height } : {}; // of imageUrl: reserves its box
   return {
+    ...size,
     text: post.text || '', lyrics: post.lyrics || '', lyricsSong: post.lyricsSong || '', lyricsArt: post.lyricsArt || '',
     tag: post.tag || '', rating: Number(post.rating) || 0, song: post.song || null, imageUrl: post.imageUrl || '',
     images: (post.images || []).filter(u => /^https:\/\//.test(u)).slice(0, 4),
@@ -159,7 +161,7 @@ function toBody(post) {
 
 const initialOf = (name) => (name || '?').trim()[0]?.toUpperCase() || '?';
 
-function fromRow(row) {
+export function fromRow(row) {
   const b = row.body || {};
   const comments = (row.post_comments || [])
     .sort((x, y) => new Date(x.created_at) - new Date(y.created_at))
@@ -177,6 +179,7 @@ function fromRow(row) {
     text: str(b.text), lyrics: str(b.lyrics), lyricsSong: str(b.lyricsSong), lyricsArt: str(b.lyricsArt),
     tag: '', rating: Math.min(5, Math.max(0, Number(b.rating) || 0)), song: obj(b.song), imageUrl: str(b.imageUrl),
     images: Array.isArray(b.images) ? b.images.filter(u => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 4) : [],
+    ...(Number(b.width) > 0 && Number(b.height) > 0 ? { width: Number(b.width), height: Number(b.height) } : {}),
     mentions: Array.isArray(b.mentions) ? b.mentions.filter(isAccountId) : [],
     ...(b.imageInline ? { imageLazy: true } : {}),
     playlistId: safeId(b.playlistId), playlist: cleanPlaylist(b.playlist),
@@ -678,11 +681,11 @@ export function pullNow() {
 const POST_FIELDS = `id, author_id, edited, created_at,
   text:body->>text, lyrics:body->>lyrics, lyricsSong:body->>lyricsSong, lyricsArt:body->>lyricsArt,
   tag:body->>tag, rating:body->rating, song:body->song, playlistId:body->>playlistId, poll:body->poll,
-  images:body->images, mentions:body->mentions, ranking:body->ranking,
+  images:body->images, mentions:body->mentions, ranking:body->ranking, width:body->width, height:body->height,
   plId:body->playlist->>id, plTitle:body->playlist->>title, plDescription:body->playlist->>description,
   plAuthorId:body->playlist->>authorId, plSongs:body->playlist->songs`;
 const COMMENT_FIELDS = `id, user_id, created_at, text:body->>text, song:body->song, gifUrl:body->>gifUrl, parentId:body->>parentId`;
-const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll', 'images', 'mentions', 'ranking'];
+const LIGHT_KEYS = ['text', 'lyrics', 'lyricsSong', 'lyricsArt', 'tag', 'rating', 'song', 'playlistId', 'poll', 'images', 'mentions', 'ranking', 'width', 'height'];
 
 async function fetchPostRows(db, refine) {
   for (;;) {
