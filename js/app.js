@@ -24,7 +24,8 @@ import { mentionedIds } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
-import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom } from './motion.js';
+import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop } from './motion.js';
+import { screenKey, saveScroll, restoreScroll, ANCHOR } from './scrollMemory.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
 import { creditHtml } from './credit.js';
@@ -452,6 +453,7 @@ function closeLayers(keep) {
   document.getElementById('me-sheet')?.classList.remove('open');
 }
 
+history.scrollRestoration = 'manual'; // switchTab puts each screen back where it was left (scrollMemory.js)
 window.addEventListener('popstate', (e) => {
   if (!appStarted) return;
   const screen = e.state || { tab: 'feed', depth: 0 };
@@ -478,10 +480,11 @@ const setPageTitle = (name) => { document.title = `${name} · rede de música se
 
 function switchTab(tabName) {
   if (tabName === 'admin' && !auth.isAdmin) tabName = 'feed';
+  const from = screenKey(activeTab, currentProfileUserId);
+  const to = screenKey(tabName, nextProfileId || getActiveUser().id);
+  if (from !== to) saveScroll(from, ANCHOR);
   if (tabName !== 'profile') pushScreen({ tab: tabName });
   setPageTitle(TAB_TITLES[tabName] || 'Feed');
-  // A different tab opens at its top, not at the previous tab's scroll position
-  if (tabName !== activeTab) window.scrollTo({ top: 0 });
   activeTab = tabName;
   document.body.dataset.tab = tabName; // lets the layout differ per tab (the feed uses the full width)
 
@@ -507,6 +510,9 @@ function switchTab(tabName) {
 
   const el = document.getElementById(`tab-${tabName}`);
   if (el) el.classList.add('active');
+  // Another screen: exactly where it was left (never seen: top). The same one again (its icon tapped): back to the top
+  if (from !== to) restoreScroll(to, el || document.body, ANCHOR);
+  else springScrollTop(el || document.body);
   syncMobileNav();
 
   // Floating DM button visibility
@@ -787,7 +793,7 @@ function bindGlobalHandlers() {
   window._openDisplay = () => openDisplaySettings();
   window._openAccount = () => openAccountSettings();
   window._composeNew = () => {
-    switchTab('feed');
+    if (activeTab !== 'feed') switchTab('feed'); // already there: keep the feed where it was under the composer
     if (isPhone()) {
       document.body.classList.add('composing');
       window._pushLayer('compose');

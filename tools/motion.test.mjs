@@ -133,3 +133,19 @@ test('originFrom: centro do gatilho relativo à caixa, preso aos limites dela', 
   const box = rect({ left: 120, top: 46, width: 200, height: 180 });
   assert.equal(originFrom(trigger, box), '176px 0px');
 });
+
+test('springScrollTop: vai ao topo na hora e o conteúdo desliza (no máximo uma tela)', async () => {
+  const { springScrollTop } = await import('../js/motion.js');
+  const tops = [];
+  Object.assign(window, { scrollY: 3000, innerHeight: 800, scrollTo: ({ top }) => tops.push(top) });
+  reduced = false;
+  const el = fakeEl();
+  springScrollTop(el);
+  assert.deepEqual(tops, [0]);
+  assert.equal(el.calls[0].kf[0].transform, 'translateY(-800px)');
+  reduced = true;
+  const still = fakeEl();
+  springScrollTop(still);
+  assert.deepEqual(tops, [0, 0]);
+  assert.equal(still.calls.length, 0);
+});

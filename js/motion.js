@@ -209,3 +209,14 @@ export function swapContent(el, html) {
     { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }
   ], 'snappy');
 }
+
+/**
+ * Back to the top of the window with a spring: jump there at once (the page is never in-between),
+ * then let the content glide down into place (FLIP). Reduced motion: just the jump.
+ * @param {HTMLElement} el what glides (the screen's content)
+ */
+export function springScrollTop(el) {
+  const from = Math.min(window.scrollY, window.innerHeight); // from far down only the last screen glides: the eye can't follow more
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  if (from > 0) animateSpring(el, [{ transform: `translateY(${-from}px)` }, { transform: 'none' }], 'smooth');
+}
