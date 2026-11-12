@@ -19,7 +19,7 @@
   aspect-ratio: 4 / 3;
   height: auto;
   max-height: 460px;
-  object-fit: cover;
+  object-fit: contain; /* a foto inteira dentro da caixa fixa (o post não guarda largura/altura); cover cortava retrato e paisagem */
   background: var(--surface);
 }
 
