@@ -21,7 +21,9 @@ export function applyCut(posts, cut, hidden = () => false) {
   const ids = new Set(posts.map(p => p.id));
   const gone = [...cut.shownIds].filter(id => !ids.has(id) && cut.drawn?.has(id)).map(id => cut.drawn.get(id)).filter(p => !hidden(p));
   const all = gone.length ? sortNewest([...posts, ...gone]) : posts;
-  const first = all.findIndex(p => p.id === cut.firstVisibleId);
+  // The anchor itself gone (your own delete, a block): the first post still on screen anchors instead
+  let first = all.findIndex(p => p.id === cut.firstVisibleId);
+  if (first < 0) first = all.findIndex(p => cut.shownIds.has(p.id));
   const visible = [], buffered = [];
   all.forEach((p, i) => (i < first && !cut.shownIds.has(p.id) ? buffered : visible).push(p));
   return { visible, buffered };

@@ -12,7 +12,7 @@ async () => {
     id: `perf_post_${i}`, authorId: authors[i % authors.length].id, text: `olha isso ${url}`, lyrics: '', lyricsSong: '', lyricsArt: '',
     tag: '', rating: 0, song: null, playlistId: null, poll: null, ranking: null, votes: {},
     imageUrl: '/assets/og-image.png', images: ['/assets/og-image.png'], mentions: [],
-    likes: [], comments: [], reposts: [], bookmarks: [], createdAt: new Date(Date.now() - i * 60000).toISOString()
+    likes: [], comments: [], reposts: [], bookmarks: [], createdAt: `há ${i} min`, createdAtIso: new Date(Date.now() - i * 60000).toISOString()
   }));
   localStorage.setItem('rmsn_users_v5', JSON.stringify([...users, ...authors]));
   localStorage.setItem('rmsn_posts_v5', JSON.stringify(posts));

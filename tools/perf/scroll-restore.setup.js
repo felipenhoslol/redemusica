@@ -9,7 +9,7 @@ async () => {
   const posts = Array.from({ length: 60 }, (_, i) => ({
     id: `perf_post_${i}`, authorId: people[i % 2].id, text: `post ${i}: aquele disco que eu não paro de ouvir esta semana`, lyrics: '', lyricsSong: '', lyricsArt: '',
     tag: '', rating: 0, song: null, playlistId: null, poll: null, ranking: null, votes: {}, imageUrl: '', images: [], mentions: [],
-    likes: [], comments: [], reposts: [], bookmarks: [], createdAt: new Date(Date.now() - i * 60000).toISOString()
+    likes: [], comments: [], reposts: [], bookmarks: [], createdAt: `há ${i} min`, createdAtIso: new Date(Date.now() - i * 60000).toISOString()
   }));
   localStorage.setItem('rmsn_users_v5', JSON.stringify([...users, ...people]));
   localStorage.setItem('rmsn_posts_v5', JSON.stringify(posts));

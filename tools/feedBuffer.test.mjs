@@ -59,7 +59,7 @@ test('clearCut clears only its own filter', () => {
   clearCut('following');
 });
 
-test('feed left for another tab: it was cut as drawn, a post arriving meanwhile waits and the list is unchanged', () => {
+test('a cut made before an arrival (what switchTab records on leaving the feed): the new post waits, the list is unchanged', () => {
   const a = post('a', 20), b = post('b', 10), c = post('c', 5);
   remember('all', [a, b, c]);
   setCut('all', { shownIds: new Set(['a', 'b', 'c']), firstVisibleId: 'b' }); // what switchTab records on leaving
@@ -76,6 +76,16 @@ test('posts of someone you blocked leave at once: the cut does not keep them', (
   setCut('all', { shownIds: new Set(['a', 'b']), firstVisibleId: 'a' });
   // getFeedPosts already filters blocked authors out, so a is missing from the data
   const { visible } = applyCut([b], getCut('all'), p => p.authorId === 'blocked');
+  assert.deepEqual(ids(visible), ['b']);
+  clearCut('all');
+});
+
+test('the anchor post deleted by you: a newer post still waits (the next post on screen anchors)', () => {
+  const a = post('a', 20), b = post('b', 10);
+  setCut('all', { shownIds: new Set(['a', 'b']), firstVisibleId: 'a', drawn: new Map() });
+  getCut('all').shownIds.delete('a'); // what _deletePost does
+  const { visible, buffered } = applyCut(sortNewest([post('new', 40), b]), getCut('all'));
+  assert.deepEqual(ids(buffered), ['new']);
   assert.deepEqual(ids(visible), ['b']);
   clearCut('all');
 });
