@@ -180,6 +180,7 @@ export function refreshFromServer() {
 
 /** Freeze the feed as the screen shows it now: posts that would land above the first visible card wait. */
 function cutFeedAtScreen(feedEl) {
+  if (!feedEl) return;
   const cards = [...feedEl.querySelectorAll('.feed-posts-list > .post-card')];
   if (!cards.length) return; // an empty feed simply fills in
   const headerBottom = document.querySelector('#tab-feed .timeline-header')?.getBoundingClientRect().bottom || 0;
@@ -585,6 +586,8 @@ function switchTab(tabName) {
   const to = screenKey(tabName, uid);
   if (from !== to) {
     saveScroll(from, ANCHOR, document.getElementById(`tab-${activeTab}`) || document);
+    // Leaving the feed: it is frozen as drawn, so posts that arrive meanwhile wait behind the pill on return
+    if (activeTab === 'feed' && !getCut(feedFilterMode)) cutFeedAtScreen(document.getElementById('feed-posts'));
     // What the tab left behind shows now (its own taps already redrew it): only later changes redraw it on return
     if (kept.built.has(activeTab) && activeTab !== 'feed') shownSignature[activeTab] = tabSignature(activeTab);
   }
@@ -612,6 +615,7 @@ function switchTab(tabName) {
   } else {
     if (tabName === 'profile') enterProfile(uid);
     if (tabSignature(tabName) !== shownSignature[tabName]) redrawTab(tabName);
+    else if (tabName === 'feed') syncNewPostsPill(); // what arrived while away
     if (isStale(lastPull, Date.now())) { lastPull = Date.now(); pullNow(); } // new data redraws through refreshFromServer
   }
 

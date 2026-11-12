@@ -58,3 +58,24 @@ test('clearCut clears only its own filter', () => {
   assert.equal(getCut('following').firstVisibleId, 'b');
   clearCut('following');
 });
+
+test('feed left for another tab: it was cut as drawn, a post arriving meanwhile waits and the list is unchanged', () => {
+  const a = post('a', 20), b = post('b', 10), c = post('c', 5);
+  remember('all', [a, b, c]);
+  setCut('all', { shownIds: new Set(['a', 'b', 'c']), firstVisibleId: 'b' }); // what switchTab records on leaving
+  const arrived = post('new', 40);
+  const { visible, buffered } = applyCut(sortNewest([arrived, a, b, c]), getCut('all'));
+  assert.deepEqual(ids(visible), ['a', 'b', 'c']);
+  assert.deepEqual(ids(buffered), ['new']);
+  clearCut('all');
+});
+
+test('posts of someone you blocked leave at once: the cut does not keep them', () => {
+  const a = post('a', 20, { authorId: 'blocked' }), b = post('b', 10, { authorId: 'friend' });
+  remember('all', [a, b]);
+  setCut('all', { shownIds: new Set(['a', 'b']), firstVisibleId: 'a' });
+  // getFeedPosts already filters blocked authors out, so a is missing from the data
+  const { visible } = applyCut([b], getCut('all'), p => p.authorId === 'blocked');
+  assert.deepEqual(ids(visible), ['b']);
+  clearCut('all');
+});

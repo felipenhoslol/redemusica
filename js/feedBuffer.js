@@ -14,11 +14,12 @@ export const sortNewest = (posts) => [...posts].sort((a, b) => timeOf(b) - timeO
  * from the data (deleted by someone) keep their last drawn copy until the cut is cleared.
  * @param {Array} posts sorted newest first
  * @param {{ shownIds: Set<string>, firstVisibleId: string, drawn?: Map<string, object> } | null} cut
+ * @param {(post) => boolean} [hidden] gone by your own choice (an author you blocked): not kept
  */
-export function applyCut(posts, cut) {
+export function applyCut(posts, cut, hidden = () => false) {
   if (!cut) return { visible: posts, buffered: [] };
   const ids = new Set(posts.map(p => p.id));
-  const gone = [...cut.shownIds].filter(id => !ids.has(id) && cut.drawn?.has(id)).map(id => cut.drawn.get(id));
+  const gone = [...cut.shownIds].filter(id => !ids.has(id) && cut.drawn?.has(id)).map(id => cut.drawn.get(id)).filter(p => !hidden(p));
   const all = gone.length ? sortNewest([...posts, ...gone]) : posts;
   const first = all.findIndex(p => p.id === cut.firstVisibleId);
   const visible = [], buffered = [];

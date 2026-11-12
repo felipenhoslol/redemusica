@@ -714,7 +714,8 @@ function renderCreatorRating(el) {
 // ──────────────────────────────────────────
 
 /** What the feed of this filter draws (visible) and what waits behind the "novos posts" pill (buffered). */
-export const feedView = (filterMode) => applyCut(sortNewest(Storage.getFeedPosts(filterMode)), getCut(filterMode));
+export const feedView = (filterMode) =>
+  applyCut(sortNewest(Storage.getFeedPosts(filterMode)), getCut(filterMode), p => Storage.isBlocked(p.authorId));
 
 export function renderFeed(container, filterMode = 'all') {
   const posts = feedView(filterMode).visible;
