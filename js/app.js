@@ -28,7 +28,7 @@ import { bindSwipeTabs } from './swipeTabs.js';
 import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop, stagger, animateSpring } from './motion.js';
 import { screenKey, saveScroll, restoreScroll, ANCHOR } from './scrollMemory.js';
 import { needsBuild, isStale, enterPanel, hasFixedContent } from './keptTabs.js';
-import { withTransition, withReturn, transitioning } from './viewTransition.js';
+import { withTransition, withReturn, transitioning, afterPending } from './viewTransition.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
 import { creditHtml } from './credit.js';
@@ -543,7 +543,8 @@ window._pushLayer = (layer, extra = {}) => pushScreen({ tab: activeTab, uid: cur
 window._leaveLayer = (layer) => {
   if (restoringHistory || history.state?.layer !== layer) return;
   // Wait a tick: if the same tap also navigated, that navigation already took this step's place
-  setTimeout(() => { if (history.state?.layer === layer) history.back(); }, 0);
+  // (and after a transition's pending updates: a profile opened from the post pushes its step there)
+  setTimeout(() => afterPending(() => { if (history.state?.layer === layer) history.back(); }), 0);
 };
 
 function closeLayers(keep) {

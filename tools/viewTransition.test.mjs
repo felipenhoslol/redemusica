@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 let reduced = false;
 globalThis.window = { matchMedia: () => ({ get matches() { return reduced; } }) };
 globalThis.CSS = { supports: () => true };
+globalThis.history = { state: null };
 
 // A tiny DOM: elements are on screen unless `hidden`; querySelector looks them up by selector
 const els = {};
@@ -31,7 +32,7 @@ globalThis.document = {
   removeEventListener: (type, fn) => { const i = listeners.findIndex(l => l.type === type && l.fn === fn); if (i >= 0) listeners.splice(i, 1); }
 };
 
-const { withTransition, withReturn, transitioning } = await import('../js/viewTransition.js');
+const { withTransition, withReturn, transitioning, afterPending } = await import('../js/viewTransition.js');
 
 // Fake API: runs the callback at once and logs the names seen at each moment
 let log, skipped;
@@ -174,4 +175,73 @@ test('par com `back`: a volta pousa nesse seletor (origem redesenhada)', async (
   withReturn(() => {});
   assert.deepEqual(log[1].names, ['grid .cover=pl-cover']);
   await settle();
+});
+
+// Like the browser: the callback runs later (after the old screen is captured), not inside startViewTransition
+const installAsync = () => {
+  log = []; skipped = 0;
+  document.startViewTransition = (cb) => {
+    let done;
+    const finished = new Promise(r => { done = r; });
+    setTimeout(() => { cb(); setTimeout(done, 0); }, 5);
+    return { finished, ready: Promise.resolve(), skipTransition: () => { skipped++; } };
+  };
+};
+
+test('callback assíncrono: o que chega antes da captura entra na mesma transição, em ordem', async () => {
+  installAsync();
+  const order = [];
+  withTransition(() => order.push('A'), { from: els.avatar, toSelector: '#tab-profile .avatar', name: 'profile-avatar' });
+  withTransition(() => order.push('B'));
+  withReturn(() => order.push('C'));
+  afterPending(() => order.push('D'));
+  assert.deepEqual(order, []);
+  await new Promise(r => setTimeout(r, 30));
+  assert.deepEqual(order, ['A', 'B', 'C', 'D']);
+  afterPending(() => order.push('E')); // nothing waiting: at once
+  assert.deepEqual(order, ['A', 'B', 'C', 'D', 'E']);
+  assert.deepEqual(names(), []);
+});
+
+test('post aberto → toque no autor: o passo do perfil existe antes de fechar o post decidir voltar', async () => {
+  installAsync();
+  history.state = { tab: 'feed', layer: 'post', depth: 1 };
+  const backs = [];
+  const goToProfile = () => withTransition(() => { history.state = { tab: 'profile', uid: 'u', depth: 1 }; },
+    { from: els.avatar, toSelector: '#tab-profile .avatar', name: 'profile-avatar' });
+  // app.js _leaveLayer('post'), reached from the post view's setTimeout(close, 0)
+  const leaveLayer = () => setTimeout(() => afterPending(() => { if (history.state?.layer === 'post') backs.push('back'); }), 0);
+  goToProfile();
+  setTimeout(leaveLayer, 0);
+  await new Promise(r => setTimeout(r, 40));
+  assert.deepEqual(backs, [], "no history.back: the profile took the post step's place");
+  assert.equal(history.state.tab, 'profile');
+  history.state = null;
+});
+
+test('voo lembrado não volta de uma tela mais funda (depois de outra navegação)', async () => {
+  install();
+  history.state = { depth: 2 };
+  withTransition(() => {}, { from: els.avatar, toSelector: '#tab-profile .avatar', name: 'profile-avatar' });
+  await settle();
+  history.state = { depth: 3 }; // went somewhere else from the profile, then forward/back landed deeper
+  log = [];
+  withReturn(() => {});
+  assert.equal(log.length, 0);
+  history.state = { depth: 1 }; // back from the profile's own step: flies
+  withReturn(() => {});
+  assert.deepEqual(log[0].names, ['#tab-profile .avatar=profile-avatar']);
+  await settle();
+  history.state = null;
+});
+
+test('skipTransition libera na hora: a próxima troca não espera o finished', async () => {
+  installAsync();
+  withTransition(() => {}, { from: els.cover, toSelector: '#post-view .cover', name: 'post-cover' });
+  await new Promise(r => setTimeout(r, 8)); // callback ran, finished not yet
+  assert.equal(transitioning(), true);
+  listeners.find(x => x.type === 'pointerdown').fn();
+  assert.equal(transitioning(), false);
+  await new Promise(r => setTimeout(r, 20));
+  assert.deepEqual(names(), []);
 });
