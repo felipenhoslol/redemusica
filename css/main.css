@@ -480,10 +480,17 @@ body {
   padding: 16px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s;
+  transition: opacity var(--spring-press-dur, 160ms) var(--spring-press, var(--ease-out));
 }
 
-.modal-overlay.active { opacity: 1; pointer-events: auto; }
+.modal-overlay.active { opacity: 1; pointer-events: auto; transition-duration: var(--spring-snappy-dur, 220ms); transition-timing-function: var(--spring-snappy, var(--ease-out)); }
+/* The box grows from what opened it (openModal sets transform-origin), shrinks back there faster */
+.modal-overlay .modal-box { transform: scale(.96); transition: transform var(--spring-press-dur, 160ms) var(--spring-press, var(--ease-out)); }
+.modal-overlay.active .modal-box { transform: none; transition-duration: var(--spring-snappy-dur, 220ms); transition-timing-function: var(--spring-snappy, var(--ease-out)); }
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay, .modal-overlay .modal-box { transition: none; }
+  .modal-overlay .modal-box { transform: none; }
+}
 
 .modal-box {
   width: 100%;

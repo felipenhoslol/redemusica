@@ -24,7 +24,7 @@ import { mentionedIds } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
-import { flip, popIcon, rollNumber, swapContent } from './motion.js';
+import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom } from './motion.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
 import { creditHtml } from './credit.js';
@@ -724,6 +724,7 @@ function toggleNotifPanel() {
     const panel = document.getElementById('notif-panel-content');
     if (panel) renderNotificationsPanel(panel);
     overlay.classList.add('active');
+    growFrom(overlay.querySelector('.notifications-panel')); // laid out only once active
     setCatMood('alert', 1400);
     renderNotifBadge(); // clear badge
   }
@@ -900,7 +901,7 @@ function bindGlobalHandlers() {
     const saved = toggleBookmark(postId);
     showToast(saved ? 'Post salvo!' : 'Removido dos salvos.');
     // Close options dropdown
-    document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
     document.querySelectorAll(`.post-card[data-post-id="${CSS.escape(postId)}"] .btn-post-action[onclick*="_bookmarkPost"]`).forEach(b => {
       b.classList.toggle('bookmarked', saved);
       if (saved) popIcon(b);
@@ -936,7 +937,7 @@ function bindGlobalHandlers() {
   };
 
   window._openEditPost = (postId) => {
-    document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
     const post = getPostById(postId);
     if (!post) return;
 
@@ -989,13 +990,13 @@ function bindGlobalHandlers() {
     pinPost(postId);
     const activeUser = getActiveUser();
     showToast(activeUser.pinnedPostId === postId ? 'Post fixado!' : 'Post desfixado.');
-    document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
     refreshPostsView();
   };
 
   // Delete post
   window._deletePost = (postId) => {
-    document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
     if (!confirm('Excluir este post?')) return;
     deletePost(postId);
     showToast('Post excluído.');
@@ -1005,7 +1006,7 @@ function bindGlobalHandlers() {
   // Report user
   window._reportUser = (userId) => {
     showToast('Usuário reportado. Obrigado.');
-    document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
+    document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
   };
 
   // Post options dropdown — contextual to clicked card
@@ -1015,9 +1016,9 @@ function bindGlobalHandlers() {
     const postCard = btn ? btn.closest('.post-card') : null;
     const dropdown = postCard ? postCard.querySelector('.post-options-dropdown') : document.getElementById(`post-options-${postId}`);
     if (!dropdown) return;
-    const wasOpen = dropdown.style.display === 'block';
-    document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
-    if (!wasOpen) dropdown.style.display = 'block';
+    const wasOpen = dropdown.dataset.open === 'true';
+    document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
+    if (!wasOpen) setPopover(dropdown, true, btn);
   };
 
   // Cache for resolved iTunes tracks to avoid repeated network requests
@@ -1611,7 +1612,7 @@ function bindGlobalHandlers() {
   // Close options dropdowns on outside click
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.post-options-btn') && !e.target.closest('.post-options-dropdown')) {
-      document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
+      document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
     }
   });
 

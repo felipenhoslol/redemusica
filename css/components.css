@@ -24,14 +24,24 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: slideInLeft 0.2s ease;
 }
 
-@keyframes slideInLeft {
-  from { transform: translateX(-20px); opacity: 0; }
-  to   { transform: translateX(0);     opacity: 1; }
+/* Desktop: the panel grows from the bell (toggleNotifPanel sets transform-origin) and shrinks back there.
+   The overlay keeps its display for the exit (allow-discrete); without support it just vanishes.
+   Phone: the panel is a page (mobile.css), no scale. */
+@media (min-width: 701px) and (prefers-reduced-motion: no-preference) {
+  .notifications-overlay { transition: display var(--spring-press-dur, 160ms) allow-discrete; }
+  .notifications-overlay:not(.active) { pointer-events: none; }
+  .notifications-panel {
+    transition: transform var(--spring-snappy-dur, 220ms) var(--spring-snappy, var(--ease-out)),
+                opacity var(--spring-snappy-dur, 220ms) var(--spring-snappy, var(--ease-out));
+  }
+  .notifications-overlay:not(.active) .notifications-panel {
+    opacity: 0; transform: scale(.96);
+    transition-duration: var(--spring-press-dur, 160ms); transition-timing-function: var(--spring-press, var(--ease-out));
+  }
+  @starting-style { .notifications-overlay.active .notifications-panel { opacity: 0; transform: scale(.96); } }
 }
-@media (prefers-reduced-motion: reduce) { .notifications-panel { animation: none; } }
 
 .notif-panel-header {
   display: flex;

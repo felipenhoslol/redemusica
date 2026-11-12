@@ -436,6 +436,23 @@
   overflow: hidden;
 }
 
+/* Grows from the "⋯" (setPopover sets transform-origin); closing is quicker and counts as closed at once */
+.post-options-dropdown {
+  opacity: 0; transform: scale(.96); visibility: hidden; pointer-events: none;
+  transition: transform var(--spring-press-dur, 160ms) var(--spring-press, var(--ease-out)),
+              opacity var(--spring-press-dur, 160ms) var(--spring-press, var(--ease-out)),
+              visibility 0s var(--spring-press-dur, 160ms);
+}
+.post-options-dropdown[data-open="true"] {
+  opacity: 1; transform: none; visibility: visible; pointer-events: auto;
+  transition: transform var(--spring-snappy-dur, 220ms) var(--spring-snappy, var(--ease-out)),
+              opacity var(--spring-snappy-dur, 220ms) var(--spring-snappy, var(--ease-out)),
+              visibility 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .post-options-dropdown, .post-options-dropdown[data-open="true"] { transform: none; transition: none; }
+}
+
 .post-options-item {
   display: block;
   width: 100%;

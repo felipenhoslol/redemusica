@@ -1,6 +1,7 @@
 // Lyric picker for the composer: find the song, load its lyrics from LRCLIB (free, no key, crowdsourced),
 // tap the lines to quote. Posts carry only a short excerpt (max 4 lines / 280 characters).
 import { esc, safeUrl, searchKeyboard } from './dom.js';
+import { growFrom } from './motion.js';
 import { ICONS } from './icons.js';
 import { searchTracks } from './api.js';
 
@@ -217,5 +218,6 @@ export function openLyricPicker({ track = null, onPick, onManual }) {
   });
 
   if (song) showLyrics(song); else showSearch();
+  growFrom(root.querySelector('.app-dialog-panel'));
   requestAnimationFrame(() => root.classList.add('open'));
 }

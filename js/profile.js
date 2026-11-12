@@ -7,6 +7,7 @@ import { openSearchModalForFeaturedSong } from './ui.js';
 import { getArtistImage } from './lastfm.js';
 import { presenceOf } from './sync.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
+import { growFrom } from './motion.js';
 import { BIO_FONTS, bioFont, bioFontStyle } from './bioFonts.js';
 import { adminBadge } from './badges.js';
 import { globalAudio } from './audio.js';
@@ -800,6 +801,7 @@ export function openModal(id) {
   // Modais e diálogos dividem o mesmo z-index: ir para o fim do body põe este por cima do que já estava aberto
   document.body.appendChild(modal);
   void modal.offsetWidth; // nó recém-movido: sem isso o fade de entrada não roda
+  growFrom(modal.querySelector('.modal-box'));
   modal.classList.add('active');
 }
 export function closeModal(id) {

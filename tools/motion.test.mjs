@@ -13,7 +13,7 @@ const natural = { display: 'flex', height: '120px', opacity: '1' };
 globalThis.getComputedStyle = (el) =>
   el?.running?.length || !el?.style?.display || el.style.display === 'none' ? computed : natural;
 
-const { animateSpring, toggleCollapse, isCollapseOpen, enterFrom, SPRINGS } = await import('../js/motion.js');
+const { animateSpring, toggleCollapse, isCollapseOpen, enterFrom, originFrom, SPRINGS } = await import('../js/motion.js');
 
 const fakeEl = () => {
   const calls = [];
@@ -125,4 +125,11 @@ test('enterFrom: movimento reduzido cancela e não anima', () => {
   el.running.push({ cancel() { el.running = []; } });
   assert.equal(enterFrom(el, { opacity: 0 }), null);
   assert.equal(el.running.length, 0);
+});
+
+test('originFrom: centro do gatilho relativo à caixa, preso aos limites dela', () => {
+  const rect = (r) => ({ getBoundingClientRect: () => r });
+  const trigger = rect({ left: 280, top: 10, width: 32, height: 32 });
+  const box = rect({ left: 120, top: 46, width: 200, height: 180 });
+  assert.equal(originFrom(trigger, box), '176px 0px');
 });

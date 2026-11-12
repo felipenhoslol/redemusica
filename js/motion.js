@@ -149,6 +149,35 @@ export function enterFrom(el, from, name = 'smooth') {
   return animateSpring(el, [from, { opacity: 1, transform: 'none' }], name);
 }
 
+/** transform-origin that makes `box` grow out of `trigger`: the trigger's centre, relative to the box and kept inside it. */
+export function originFrom(trigger, box) {
+  const t = trigger.getBoundingClientRect(), b = box.getBoundingClientRect();
+  const inside = (v, max) => Math.round(Math.min(Math.max(v, 0), max));
+  return `${inside(t.left + t.width / 2 - b.left, b.width)}px ${inside(t.top + t.height / 2 - b.top, b.height)}px`;
+}
+
+/** The control the event being handled came from (inline onclick or listener), if any. */
+function eventTrigger() {
+  const e = window.event;
+  if (e?.currentTarget?.nodeType === 1) return e.currentTarget; // an element, not document/window
+  return e?.target?.closest?.('button, a, [onclick], [role="button"]') || null;
+}
+
+/** Point a modal/dialog box at what was tapped to open it (centre when nothing was, e.g. a forced update). */
+export function growFrom(box, trigger = eventTrigger()) {
+  if (box) box.style.transformOrigin = trigger ? originFrom(trigger, box) : 'center';
+}
+
+/**
+ * Open/close a dropdown or popover. The CSS transition (scoped to the popover's class, `[data-open]`)
+ * does the motion; `data-open="false"` counts as closed even while it is still fading out.
+ */
+export function setPopover(el, open, trigger) {
+  if (!el) return;
+  if (open) growFrom(el, trigger || null);
+  el.dataset.open = String(open);
+}
+
 /** Feedback for a toggle that just turned on (like, repost, bookmark): the icon lands with a soft pop. */
 export function popIcon(btn) {
   const icon = btn?.querySelector('svg');

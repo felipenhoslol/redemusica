@@ -1,7 +1,7 @@
 // Feed module — post creation, rendering, interactions, lyric cards
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
-import { toggleCollapse, isCollapseOpen } from './motion.js';
+import { toggleCollapse, isCollapseOpen, setPopover, growFrom } from './motion.js';
 import { globalAudio, playAttr, playIcon } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
@@ -356,7 +356,7 @@ export function renderPostCard(post, options = {}) {
           </button>
         </div>
       </div>
-      <div id="post-options-${post.id}" class="post-options-dropdown" style="display:none;">
+      <div id="post-options-${post.id}" class="post-options-dropdown" data-open="false">
         ${isOwner ? `
           <button class="post-options-item" onclick="window._openEditPost('${post.id}')">Editar post</button>
           <button class="post-options-item" onclick="window._pinPost('${post.id}')">
@@ -1063,7 +1063,7 @@ window._handleCommentImageUpload = (event, postId) => {
 };
 
 window._showPostPeople = (postId, kind) => {
-  document.querySelectorAll('.post-options-dropdown').forEach(d => d.style.display = 'none');
+  document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
   const post = Storage.getPostById(postId);
   if (!post) return;
   const ids = [...(kind === 'reposts' ? post.reposts : post.likes) || []].reverse(); // most recent first
@@ -1456,6 +1456,7 @@ window._openPostView = async (postId, opts = {}) => {
     // Going to someone's profile from inside the post leaves the post view
     else if (e.target.closest('.post-author, .comment-name, .comment-avatar, .mention-link')) setTimeout(close, 0);
   });
+  growFrom(root.querySelector('.app-dialog-panel'));
   requestAnimationFrame(() => root.classList.add('open'));
 
   const post = Storage.getPostById(postId) || await fetchPostById(postId);

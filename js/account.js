@@ -1,6 +1,7 @@
 // Account settings: shows the sign-in e-mail and lets the person change their e-mail or password.
 // The current password is checked first, so an unattended open session can't be used to take over the account.
 import { esc } from './dom.js';
+import { growFrom } from './motion.js';
 import { ICONS } from './icons.js';
 import * as sb from './supabase.js';
 import { auth } from './auth.js';
@@ -134,6 +135,7 @@ export function openAccountSettings() {
     });
   });
 
+  growFrom(root.querySelector('.app-dialog-panel'));
   requestAnimationFrame(() => {
     root.classList.add('open');
     (root.querySelector('#acc-new-email') || root.querySelector('[data-close]'))?.focus({ preventScroll: true });

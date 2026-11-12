@@ -1,5 +1,5 @@
 // Reduced motion: no animation that moves things (transform) while liking, opening comments,
-// changing song, showing a toast and opening notifications. Run with tools/perf.mjs --reduced.
+// changing song, showing a toast, opening a post menu and opening notifications. Run with tools/perf.mjs --reduced.
 async () => {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   for (let i = 0; i < 50 && !document.getElementById('creator-text'); i++) await wait(100);
@@ -17,6 +17,9 @@ async () => {
     const a = e.target.getAnimations().find(x => x.animationName === e.animationName);
     if (a && hasTransform(a.effect.getKeyframes())) moving.push(`css ${e.animationName} on ${label(e.target)}`);
   }, true);
+  document.addEventListener('transitionrun', (e) => {
+    if (e.propertyName === 'transform') moving.push(`transition transform on ${label(e.target)}`);
+  }, true);
 
   const steps = {};
   const click = (sel) => { const el = document.querySelector(sel); el?.click(); return el; };
@@ -33,6 +36,11 @@ async () => {
   await wait(500);
   steps.comments = !!click('.post-card .btn-post-action[onclick*="_toggleComments"]');
   await wait(500);
+  click('.post-card .post-options-btn');
+  await wait(400);
+  steps.menu = !!document.querySelector('.post-options-dropdown[data-open="true"]');
+  document.body.click(); // outside click closes it
+  await wait(300);
 
   const tracks = [...document.querySelectorAll('[onclick^="window._playTrack"]')];
   tracks[0]?.click();

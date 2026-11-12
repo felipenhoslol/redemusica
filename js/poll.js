@@ -1,6 +1,7 @@
 // Song polls: a post with 2–4 songs that people vote on. Results show after voting (or to the author),
 // so nobody is swayed before choosing. Votes live in post.votes ({ userId: optionIndex }) and sync via sync.js.
 import { esc, safeUrl, jsArg, avatarInner, searchKeyboard } from './dom.js';
+import { growFrom } from './motion.js';
 import { ICONS } from './icons.js';
 import * as Storage from './storage.js';
 import { searchTracks } from './api.js';
@@ -163,6 +164,7 @@ export function openPollBuilder(initial, onDone) {
   });
 
   paint();
+  growFrom(root.querySelector('.app-dialog-panel'));
   requestAnimationFrame(() => { root.classList.add('open'); input.focus({ preventScroll: true }); });
 }
 
@@ -216,5 +218,6 @@ window._showPollVotes = (postId) => {
     const voter = e.target.closest('[data-profile]');
     if (voter) { close(); document.getElementById('post-view')?.remove(); window._goToProfile?.(voter.dataset.profile); }
   });
+  growFrom(root.querySelector('.app-dialog-panel'));
   requestAnimationFrame(() => root.classList.add('open'));
 };
