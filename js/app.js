@@ -661,11 +661,11 @@ function renderFeedTab() {
   bindSwipeTabs(feedPosts, {
     tabs: ['all', 'following'],
     current: () => feedFilterMode,
-    onSwitch: (mode) => window.setFeedFilter(mode)
+    onSwitch: (mode) => window.setFeedFilter(mode, { swiped: true }) // the swipe animates the panel itself
   });
 
 
-  window.setFeedFilter = (mode) => {
+  window.setFeedFilter = (mode, { swiped = false } = {}) => {
     const order = ['all', 'following'];
     const direction = tabDirection(order.indexOf(feedFilterMode), order.indexOf(mode));
     feedFilterMode = mode;
@@ -681,7 +681,7 @@ function renderFeedTab() {
       feedPostsEl.dataset.shown = ''; // another list: start from the first page
       renderFeed(feedPostsEl, feedFilterMode);
       markFeedShown();
-      if (direction) animatePanel(feedPostsEl, direction);
+      if (direction && !swiped) animatePanel(feedPostsEl, direction);
     }
   };
 
