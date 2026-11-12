@@ -25,7 +25,7 @@ import { mentionedIds } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
-import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop, stagger } from './motion.js';
+import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop, stagger, animateSpring } from './motion.js';
 import { screenKey, saveScroll, restoreScroll, ANCHOR } from './scrollMemory.js';
 import { needsBuild, isStale, enterPanel, hasFixedContent } from './keptTabs.js';
 import { openAccountSettings } from './account.js';
@@ -46,9 +46,10 @@ import {
 } from './ui.js';
 import { renderRankingChallenge } from './rankingUi.js';
 import {
-  renderPostCreator, renderFeed,
+  renderPostCreator, renderFeed, feedView,
   renderTrendingWidget, renderFriendsWidget, creatorState
 } from './feed.js';
+import { getCut, setCut, clearCut } from './feedBuffer.js';
 import {
   renderProfileView, renderProfileEditModal, renderFollowListModal,
   openModal, closeModal, showToast
@@ -153,7 +154,8 @@ async function openProfileFromLink() {
 }
 
 // New data from the server: redraw what's on screen, unless the person is typing in it
-function refreshFromServer() {
+// (exported for tools/perf/new-posts.js, which fakes an arrival)
+export function refreshFromServer() {
   renderNotifBadge();
   showNotificationPopups();
   renderChatBadge();
@@ -166,10 +168,73 @@ function refreshFromServer() {
   const tab = activeTab, el = document.getElementById(`tab-${tab}`);
   const scope = tab === 'feed' ? document.getElementById('feed-posts') : el;
   if (!scope || !TAB_SIGNATURES[tab] || !kept.built.has(tab) || typingIn(scope)) return;
-  if (TAB_SIGNATURES[tab]() === shownSignature[tab]) return;
-  const key = screenKey(tab, currentProfileUserId);
-  saveScroll(key, ANCHOR, el);
-  flip(scope, ANCHOR, () => { redrawTab(tab); restoreScroll(key, el, ANCHOR); }); // the first visible item stays put
+  // The feed: what arrives above what you are reading waits behind the "novos posts" pill
+  if (tab === 'feed' && !getCut(feedFilterMode) && feedSignature() !== shownSignature.feed) cutFeedAtScreen(scope);
+  if (TAB_SIGNATURES[tab]() !== shownSignature[tab]) {
+    const key = screenKey(tab, currentProfileUserId);
+    saveScroll(key, ANCHOR, el);
+    flip(scope, ANCHOR, () => { redrawTab(tab); restoreScroll(key, el, ANCHOR); }); // the first visible item stays put
+  }
+  if (tab === 'feed') syncNewPostsPill();
+}
+
+/** Freeze the feed as the screen shows it now: posts that would land above the first visible card wait. */
+function cutFeedAtScreen(feedEl) {
+  const cards = [...feedEl.querySelectorAll('.feed-posts-list > .post-card')];
+  if (!cards.length) return; // an empty feed simply fills in
+  const headerBottom = document.querySelector('#tab-feed .timeline-header')?.getBoundingClientRect().bottom || 0;
+  const first = cards.find(c => c.getBoundingClientRect().bottom > headerBottom) || cards[0];
+  setCut(feedFilterMode, { shownIds: new Set(cards.map(c => c.dataset.postId)), firstVisibleId: first.dataset.postId });
+}
+
+// "N novos posts": out of the flow under the feed header, so showing it moves nothing
+function syncNewPostsPill() {
+  const { buffered } = feedView(feedFilterMode);
+  if (buffered.length) showNewPostsPill(buffered); else hideNewPostsPill();
+}
+
+function showNewPostsPill(buffered) {
+  const header = document.querySelector('#tab-feed .timeline-header');
+  if (!header) return;
+  const n = buffered.length;
+  const faces = [...new Set(buffered.map(p => p.authorId))].map(getUserById).filter(Boolean).slice(0, 3);
+  let pill = header.querySelector('.new-posts-pill:not(.leaving)');
+  if (!pill) {
+    pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'new-posts-pill';
+    pill.onclick = flushNewPosts;
+    header.appendChild(pill);
+    animateSpring(pill, [{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }], 'snappy');
+  }
+  pill.innerHTML = `<span class="new-posts-faces" aria-hidden="true">${faces.map(u =>
+    `<span class="new-posts-face">${avatarInner(u.avatar, u.name)}</span>`).join('')}</span><span class="new-posts-label">${n} ${n === 1 ? 'novo post' : 'novos posts'}</span>`;
+}
+
+function hideNewPostsPill() {
+  const pill = document.querySelector('#tab-feed .new-posts-pill:not(.leaving)');
+  if (!pill) return;
+  pill.classList.add('leaving');
+  const out = animateSpring(pill, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-8px)' }], 'snappy', { fill: 'forwards' });
+  if (out) out.onfinish = () => pill.remove(); else pill.remove();
+}
+
+/** Show what waited (the pill tapped, or your own post published): back to the top, the new posts enter. */
+function flushNewPosts() {
+  clearCut(feedFilterMode);
+  hideNewPostsPill();
+  const tab = document.getElementById('tab-feed'), feedEl = document.getElementById('feed-posts');
+  if (!tab || !feedEl) return;
+  const had = new Set([...feedEl.querySelectorAll('.post-card')].map(c => c.dataset.postId));
+  if (activeTab === 'feed') { // (published from another screen: the feed is just up to date when you get there)
+    if (hasFixedContent(tab)) window.scrollTo({ top: 0, behavior: 'instant' }); // no glide: it would transform the tab
+    else springScrollTop(tab);
+  }
+  flip(feedEl, '.post-card', () => renderFeed(feedEl, feedFilterMode));
+  markFeedShown();
+  const fresh = [...feedEl.querySelectorAll('.feed-posts-list > .post-card')].filter(c => !had.has(c.dataset.postId));
+  fresh.forEach(c => c.getAnimations().forEach(a => a.cancel())); // they enter in sequence instead of flip's fade
+  stagger(fresh);
 }
 
 /** Someone is writing in it: a field has focus, or a comment/reply under a post has text. */
@@ -206,7 +271,7 @@ const tabSignature = (tab) => (TAB_SIGNATURES[tab] || TAB_VIEW[tab])?.();
 /** Redraw a built tab in place with fresh data (the feed only redraws its posts: the composer keeps its draft). */
 function redrawTab(tab) {
   const feedPosts = tab === 'feed' && document.getElementById('feed-posts');
-  if (feedPosts) renderFeed(feedPosts, feedFilterMode);
+  if (feedPosts) { renderFeed(feedPosts, feedFilterMode); syncNewPostsPill(); }
   else buildTab(tab, currentProfileUserId, false);
   shownSignature[tab] = tabSignature(tab);
 }
@@ -214,7 +279,7 @@ function redrawTab(tab) {
 /** The feed on screen now matches the data (after a render or an in-place update). */
 function markFeedShown() { shownSignature.feed = feedSignature(); }
 function feedSignature() {
-  return JSON.stringify([feedFilterMode, postsSignature(getFeedPosts(feedFilterMode))]);
+  return JSON.stringify([feedFilterMode, postsSignature(feedView(feedFilterMode).visible)]);
 }
 
 // ──────────────────────────────────────────
@@ -677,6 +742,8 @@ function renderFeedTab() {
     const order = ['all', 'following'];
     const direction = tabDirection(order.indexOf(feedFilterMode), order.indexOf(mode));
     feedFilterMode = mode;
+    clearCut(mode); // another list: everything it has, from the top
+    hideNewPostsPill();
     const tabFeed = document.getElementById('tab-feed');
     if (tabFeed) {
       tabFeed.querySelectorAll('.feed-filter-btn').forEach(b => {
@@ -955,7 +1022,7 @@ function bindGlobalHandlers() {
     if (activeTab === 'feed') {
       const feedEl = document.getElementById('feed-posts');
       // Posts glide to their new places instead of jumping (FLIP)
-      if (feedEl) { flip(feedEl, '.post-card', () => renderFeed(feedEl, feedFilterMode)); markFeedShown(); }
+      if (feedEl) { flip(feedEl, '.post-card', () => renderFeed(feedEl, feedFilterMode)); markFeedShown(); syncNewPostsPill(); }
     } else if (activeTab === 'profile') {
       window._refreshProfile?.();
     }
@@ -1082,6 +1149,7 @@ function bindGlobalHandlers() {
     document.querySelectorAll('.post-options-dropdown').forEach(d => setPopover(d, false));
     if (!confirm('Excluir este post?')) return;
     deletePost(postId);
+    ['all', 'following'].forEach(m => getCut(m)?.shownIds.delete(postId)); // yours goes now (others' deletions wait for the pill)
     showToast('Post excluído.');
     refreshPostsView();
   };
@@ -1244,9 +1312,9 @@ function bindGlobalHandlers() {
       const feedEl = document.getElementById('feed-posts');
       if (creatorWrap && feedEl) {
         renderPostCreator(creatorWrap);
-        flip(feedEl, '.post-card', () => renderFeed(feedEl, feedFilterMode));
-        markFeedShown();
+        flushNewPosts(); // your post on top, with whatever was waiting
       } else {
+        clearCut(feedFilterMode);
         renderFeedTab();
       }
     }

@@ -750,3 +750,29 @@
 @media (hover: hover) and (pointer: fine) {
   .post-attached-playlist:hover { background-color: var(--hover); border-color: var(--accent); }
 }
+
+/* "N novos posts": floats just under the feed header, out of the flow (showing it moves nothing) */
+.new-posts-pill {
+  position: absolute; top: calc(100% + 10px); left: 0; right: 0; z-index: 1;
+  width: max-content; margin: 0 auto;
+  display: flex; align-items: center; gap: 8px;
+  min-height: 36px; padding: 4px 14px 4px 6px;
+  border: 0; border-radius: var(--pill);
+  background: var(--accent); color: var(--on-accent);
+  font: 700 var(--fs-detail) var(--f-ui);
+  box-shadow: 0 0 0 2px var(--bg); /* a ring, not a cast shadow: it separates the pill from the posts under it */
+  cursor: pointer;
+  transition: transform var(--spring-snappy-dur, 220ms) var(--spring-snappy, var(--ease-out));
+}
+.new-posts-pill:active { transform: scale(.96); }
+.new-posts-pill.leaving { pointer-events: none; }
+.new-posts-pill:has(.new-posts-faces:empty) { padding-left: 14px; }
+.new-posts-faces { display: flex; }
+.new-posts-faces:empty { display: none; }
+.new-posts-face {
+  width: 26px; height: 26px; margin-left: -8px; overflow: hidden;
+  display: grid; place-items: center; border-radius: 50%;
+  border: 2px solid var(--accent); background: var(--surface); color: var(--text);
+  font-size: 11px;
+}
+.new-posts-face:first-child { margin-left: 0; }

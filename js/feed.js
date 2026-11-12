@@ -8,6 +8,7 @@ import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks, lastFmUserOf } from './lastfm.js';
 import { compressImage, presenceOf, loadInlinePicture, fetchPostById } from './sync.js';
 import { pollHtml } from './poll.js';
+import { sortNewest, applyCut, getCut, remember } from './feedBuffer.js';
 import { rankingPostHtml, openRankingView } from './rankingCard.js';
 import { auth } from './auth.js';
 import { adminBadge } from './badges.js';
@@ -712,8 +713,12 @@ function renderCreatorRating(el) {
 // FEED RENDERING
 // ──────────────────────────────────────────
 
+/** What the feed of this filter draws (visible) and what waits behind the "novos posts" pill (buffered). */
+export const feedView = (filterMode) => applyCut(sortNewest(Storage.getFeedPosts(filterMode)), getCut(filterMode));
+
 export function renderFeed(container, filterMode = 'all') {
-  const posts = Storage.getFeedPosts(filterMode);
+  const posts = feedView(filterMode).visible;
+  remember(filterMode, posts);
   const activeUser = Storage.getActiveUser();
 
   if (!posts.length) {

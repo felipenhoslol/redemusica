@@ -401,3 +401,7 @@ html[data-skin="yt2016"] :is(.mobile-header, .mobile-tabbar) :focus-visible { ou
 html[data-skin="yt2016"] .mobile-badge { background: var(--yt-masthead-text); color: var(--yt-active-bg); box-shadow: 0 0 0 2px var(--yt-masthead-bg); font-weight: 500; }
 html[data-skin="yt2016"] .mobile-tab-me.active .post-author-avatar { box-shadow: 0 0 0 2px var(--yt-masthead-bg), 0 0 0 4px var(--yt-masthead-text); }
 html[data-skin="yt2016"] .mobile-fab { background: var(--yt-active-bg); color: var(--yt-active-text); box-shadow: var(--yt-shadow-pop); }
+
+/* "N novos posts": the 2016 flat button (square corners, no lift) */
+html[data-skin="yt2016"] .new-posts-pill { border-radius: 2px; box-shadow: var(--yt-shadow-pop); font: 500 var(--fs-detail) var(--f-ui); }
+html[data-skin="yt2016"] .new-posts-face { border-radius: 2px; }
