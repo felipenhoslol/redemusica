@@ -9,7 +9,7 @@ const el = () => ({
   innerHTML: '', style: {}, value: '', dataset: {}, classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
   addEventListener() {}, removeEventListener() {}, setAttribute() {}, getAttribute: () => null, removeAttribute() {},
   querySelector: () => el(), querySelectorAll: () => [], appendChild() {}, append() {}, remove() {}, focus() {},
-  closest: () => null, contains: () => false, getBoundingClientRect: () => ({}),
+  closest: () => null, contains: () => false, getBoundingClientRect: () => ({}), insertAdjacentElement() {}, insertAdjacentHTML() {},
 });
 globalThis.window = globalThis;
 globalThis.addEventListener ??= () => {};
@@ -43,7 +43,10 @@ globalThis.supabase = { createClient: () => db };
 store.set('rmsn_active_v5', 'user_me');
 store.set('rmsn_users_v5', JSON.stringify([{ id: 'user_me', name: 'eu', handle: '@eu' }]));
 
-const { postPhotoStyle } = await import('../js/feed.js');
+// Every picked photo "decodes" as 900x1600
+globalThis.Image = class { set src(u) { this.naturalWidth = 900; this.naturalHeight = 1600; queueMicrotask(() => this.onload?.()); } };
+
+const { postPhotoStyle, creatorImageSize, renderPostCreator } = await import('../js/feed.js');
 const Sync = await import('../js/sync.js');
 after(() => Sync.stopSync());
 
@@ -55,6 +58,30 @@ test('postPhotoStyle: a caixa segue o formato da foto e estreita até caber na a
 
 test('postPhotoStyle: foto mais alta que 1:2 fica numa caixa 1:2 (contida, sem cortar)', () => {
   assert.match(postPhotoStyle({ width: 600, height: 1800 }), /^aspect-ratio: 1 \/ 2; width: min\(100%, calc\(var\(--post-photo-max\) \* 1 \/ 2\)\)/);
+});
+
+test('postPhotoStyle: foto mais larga que 2:1 fica numa caixa 2:1 (contida, sem cortar)', () => {
+  assert.equal(postPhotoStyle({ width: 4000, height: 1000 }),
+    'aspect-ratio: 2 / 1; width: min(100%, calc(var(--post-photo-max) * 2 / 1)); min-height: 0');
+  assert.match(postPhotoStyle({ width: 2000, height: 1000 }), /^aspect-ratio: 2000 \/ 1000;/);
+});
+
+test('composer: o tamanho da foto some ao tirá-la e depois de publicar (não acumula data URLs)', async () => {
+  renderPostCreator(el());
+  const tick = () => new Promise(r => setTimeout(r, 0));
+  window._setPostCreatorImage('data:image/jpeg;base64,AAA', { quiet: true });
+  window._setPostCreatorImage('data:image/jpeg;base64,BBB', { quiet: true });
+  await tick();
+  assert.deepEqual(creatorImageSize('data:image/jpeg;base64,AAA'), { width: 900, height: 1600 });
+  window._removeCreatorImage(0);
+  assert.deepEqual(creatorImageSize('data:image/jpeg;base64,AAA'), {});
+  assert.deepEqual(creatorImageSize('data:image/jpeg;base64,BBB'), { width: 900, height: 1600 });
+  window._pendingCreatorImages = []; window._removeCreatorImage(); // what _submitPost does after publishing
+  assert.deepEqual(creatorImageSize('data:image/jpeg;base64,BBB'), {});
+  window._setPostCreatorImage('data:image/jpeg;base64,CCC', { quiet: true });
+  window._removeCreatorImage(); // removed before it decoded: the late size is not kept
+  await tick();
+  assert.deepEqual(creatorImageSize('data:image/jpeg;base64,CCC'), {});
 });
 
 test('postPhotoStyle: sem dimensões (posts antigos) deixa a caixa 4:3 do CSS', () => {

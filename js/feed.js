@@ -635,7 +635,8 @@ export function renderPostCreator(containerEl) {
     const list = window._pendingCreatorImages || (window._pendingCreatorImages = []);
     if (list.length >= MAX_POST_IMAGES) { window.showDoodleToast?.(`Um post pode ter até ${MAX_POST_IMAGES} fotos.`); return; }
     list.push(url);
-    readMediaSize(url).then(size => size && creatorSizes.set(url, size));
+    // only while the photo is still attached: a late decode must not re-add a removed/published one
+    readMediaSize(url).then(size => size && window._pendingCreatorImages?.includes(url) && creatorSizes.set(url, size));
     if (!opts.quiet) window.closeDoodleModal?.('post-image-modal');
     renderCreatorImages();
   };
@@ -643,6 +644,7 @@ export function renderPostCreator(containerEl) {
   window._removeCreatorImage = (index) => {
     const list = window._pendingCreatorImages || [];
     if (index === undefined) list.length = 0; else list.splice(index, 1);
+    forgetCreatorSizes(list);
     renderCreatorImages();
   };
 }
@@ -653,14 +655,20 @@ const creatorSizes = new Map(); // picked photo url -> { width, height }, read w
 /** Width/height of a photo picked in the composer, or {} if it hasn't decoded (the card falls back to 4/3). */
 export const creatorImageSize = (url) => creatorSizes.get(url) || {};
 
+/** Drops the sizes of photos no longer attached (keys are whole data URLs: hundreds of KB each). */
+export function forgetCreatorSizes(attached = []) {
+  for (const url of creatorSizes.keys()) if (!attached.includes(url)) creatorSizes.delete(url);
+}
+
 /**
  * Inline style that gives a single post photo its own shape before it loads: the box follows the photo's
- * proportion and narrows so its height stays under --post-photo-max (polish.css). Taller than 1:2 keeps a
- * 1:2 box and the photo is contained in it. '' leaves the CSS 4/3 contain box (posts without dimensions).
+ * proportion and narrows so its height stays under --post-photo-max (polish.css). Past 1:2 (tall) or 2:1
+ * (wide) the box stops at that limit and the photo is contained in it. '' leaves the CSS 4/3 contain box (posts without dimensions).
  */
 export function postPhotoStyle(post) {
   if (!(post.width > 0 && post.height > 0)) return '';
-  const [w, h] = post.width / post.height < 0.5 ? [1, 2] : [post.width, post.height];
+  const r = post.width / post.height;
+  const [w, h] = r < 0.5 ? [1, 2] : r > 2 ? [2, 1] : [post.width, post.height];
   return `aspect-ratio: ${w} / ${h}; width: min(100%, calc(var(--post-photo-max) * ${w} / ${h})); min-height: 0`;
 }
 
