@@ -1060,6 +1060,7 @@ window._submitNewChallenge = () => {
 
 // Where a notification leads: the post it is about, the conversation, or the person's profile
 function notifTargetAttrs(n, profileId, name) {
+  if (n.challengeId) return `role="button" tabindex="0" data-notif-challenge="${esc(n.challengeId)}" title="Ver o desafio"`;
   if (n.postId) return `role="button" tabindex="0" data-notif-post="${esc(n.postId)}"${n.commentId ? ` data-notif-comment="${esc(n.commentId)}"` : ''} title="Ver o post"`;
   if (!profileId) return '';
   if (n.type === 'message') return `role="button" tabindex="0" data-notif-chat="${esc(profileId)}" title="Abrir conversa com ${esc(name)}"`;
@@ -1067,7 +1068,11 @@ function notifTargetAttrs(n, profileId, name) {
 }
 
 function openNotificationTarget(el) {
-  if (el.dataset.notifPost) window._openPostView?.(el.dataset.notifPost, { commentId: el.dataset.notifComment });
+  if (el.dataset.notifChallenge) {
+    if (storage.getAllChallenges().some(c => c.id === el.dataset.notifChallenge)) storage.setActiveChallengeId(el.dataset.notifChallenge);
+    window.switchTab?.('desafios');
+    window._refreshChallenges?.();
+  } else if (el.dataset.notifPost) window._openPostView?.(el.dataset.notifPost, { commentId: el.dataset.notifComment });
   else if (el.dataset.notifChat) {
     // Opens even if you don't follow them back: it's a conversation they started
     window.switchTab?.('chat');
@@ -1075,7 +1080,7 @@ function openNotificationTarget(el) {
   } else if (el.dataset.notifProfile) window._goToProfile?.(el.dataset.notifProfile);
 }
 
-const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', reply: 'chat', message: 'send', mention: 'edit' };
+const NOTIF_ICONS = { like: 'heartFilled', comment_like: 'heartFilled', follow: 'profile', repost: 'repost', comment: 'chat', reply: 'chat', message: 'send', mention: 'edit', review: 'star' };
 
 function emailReminderHtml() {
   if (!needsEmailConfirmation()) return '';
@@ -1100,7 +1105,7 @@ export function renderNotificationsPanel(container) {
   container.onclick = (e) => {
     const verify = e.target.closest('[data-send-verify]');
     if (verify) { sendVerify(verify); return; }
-    const item = e.target.closest('[data-notif-profile], [data-notif-chat], [data-notif-post]');
+    const item = e.target.closest('[data-notif-profile], [data-notif-chat], [data-notif-post], [data-notif-challenge]');
     if (!item) return;
     if (document.getElementById('notif-overlay')?.classList.contains('active')) window.toggleNotifPanel?.();
     openNotificationTarget(item);
@@ -1120,7 +1125,7 @@ export function renderNotificationsPanel(container) {
     const icon = ICONS[NOTIF_ICONS[n.type]] || '';
     const profileId = fromUser ? n.fromUserId : '';
     return `
-      <div class="notif-item${!n.read ? ' unread' : ''}${profileId || n.postId ? '' : ' no-link'}" ${notifTargetAttrs(n, profileId, name)}>
+      <div class="notif-item${!n.read ? ' unread' : ''}${profileId || n.postId || n.challengeId ? '' : ' no-link'}" ${notifTargetAttrs(n, profileId, name)}>
         <div class="notif-avatar" style="overflow:hidden;">${avatarHtml}</div>
         <div class="notif-body">
           <div class="notif-text">
@@ -1134,7 +1139,7 @@ export function renderNotificationsPanel(container) {
   }).join('');
 
   container.onkeydown = (e) => {
-    if (e.key === 'Enter' && e.target.matches('[data-notif-profile], [data-notif-chat], [data-notif-post]')) e.target.click();
+    if (e.key === 'Enter' && e.target.matches('[data-notif-profile], [data-notif-chat], [data-notif-post], [data-notif-challenge]')) e.target.click();
   };
 }
 
@@ -1179,7 +1184,8 @@ export function showNotificationPopups() {
     const card = document.createElement('div');
     card.className = 'notif-popup';
     card.dataset.notifId = n.id;
-    if (n.postId) { card.dataset.notifPost = n.postId; if (n.commentId) card.dataset.notifComment = n.commentId; }
+    if (n.challengeId) card.dataset.notifChallenge = n.challengeId;
+    else if (n.postId) { card.dataset.notifPost = n.postId; if (n.commentId) card.dataset.notifComment = n.commentId; }
     else if (fromUser) card.dataset[n.type === 'message' ? 'notifChat' : 'notifProfile'] = n.fromUserId;
     card.innerHTML = `
       <div class="notif-avatar" style="overflow:hidden;">${isImageAvatar(fromUser?.avatar)
@@ -1337,17 +1343,14 @@ export function renderPlayerBar() {
     if (event === 'play') {
       const btn = document.getElementById('player-play-btn');
       if (btn) swapContent(btn, ICONS.pause);
-      document.getElementById('featured-vinyl-img')?.classList.add('playing');
     }
     if (event === 'pause') {
       const btn = document.getElementById('player-play-btn');
       if (btn) swapContent(btn, ICONS.play);
-      document.getElementById('featured-vinyl-img')?.classList.remove('playing');
     }
     if (event === 'error') {
       const btn = document.getElementById('player-play-btn');
       if (btn) btn.innerHTML = ICONS.play;
-      document.getElementById('featured-vinyl-img')?.classList.remove('playing');
       showToast(data?.message || 'Não foi possível reproduzir esta música.');
     }
     if (event === 'buffering') {

@@ -3,7 +3,7 @@ import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
 import { toggleCollapse, isCollapseOpen, setPopover, growFrom } from './motion.js';
 import { withTransition, withReturn } from './viewTransition.js';
-import { globalAudio, playAttr, playIcon } from './audio.js';
+import { globalAudio, playAttr, playIcon, vinylStage } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
 import { fetchLastFmTrendingTracks, lastFmUserOf } from './lastfm.js';
@@ -305,7 +305,7 @@ export function renderPostCard(post, options = {}) {
   const songHtml = post.song ? `
     <div class="post-attached-song">
       <div class="post-song-info">
-        <img class="post-song-cover" src="${safeUrl(post.song.artwork || '')}" alt="" onerror="this.style.display='none'">
+        ${vinylStage(post.song, { coverClass: 'post-song-cover' })}
         <div>
           <div class="post-song-title">${esc(post.song.title)}</div>
           <div class="post-song-artist">${esc(post.song.artist)}${Number(post.song.startAt) > 0 ? ` · a partir de 0:${String(Math.round(post.song.startAt)).padStart(2, '0')}` : ''}</div>

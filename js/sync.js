@@ -3,6 +3,7 @@
 import { getSupabase } from './supabase.js';
 import * as Storage from './storage.js';
 import { cleanRanking } from './ranking.js';
+import { reviewFromRow, reviewNotifications } from './ratings.js';
 
 const POLL_MS = 45000;
 const PROFILE_FIELDS = 'id, name, handle, avatar_url';
@@ -32,6 +33,7 @@ let profileTimer = null;
 let warnedProfileSql = false;
 let votesTable = true;      // false until supabase/004_polls.sql has been run
 let rankingsTable = true;   // false until supabase/014_rankings.sql has been run (tabela star_rankings)
+let reviewsTable = true;    // false until supabase/016_challenge_reviews.sql has been run
 let commentLikesTable = true; // false until supabase/005_comment_likes.sql has been run
 let presenceOn = true;      // false until supabase/006_presence.sql has been run
 let presenceTimer = null;
@@ -575,12 +577,14 @@ export function pullNow() {
     // Each part stands on its own: if the posts fail, followers, profiles and who's online still update
     if (fullProfiles) refreshAdminIds(db); // background: rarely changes
     const rankingIds = [me, ...Storage.getFollowing()];
-    const [postsRes, followsRes, profilesRes, presenceRes, rankingsRes] = await Promise.allSettled([
+    const [postsRes, followsRes, profilesRes, presenceRes, rankingsRes, reviewsRes] = await Promise.allSettled([
       fetchPosts(db, q => q.order('created_at', { ascending: false }).limit(150)),
       must(db.from('follows').select('follower_id, following_id, created_at').limit(5000)),
       fetchProfiles(db, q => (fullProfiles ? q : q.gt('updated_at', profilesSince)).eq('banned', false).limit(1000)),
       fetchPresence(db),
-      rankingsTable ? must(db.from('star_rankings').select('user_id, key, body, updated_at').in('user_id', rankingIds)) : null
+      rankingsTable ? must(db.from('star_rankings').select('user_id, key, body, updated_at').in('user_id', rankingIds)) : null,
+      reviewsTable ? must(db.from('challenge_reviews').select(REVIEW_FIELDS).eq('target_id', me).neq('reviewer_id', me)
+        .order('updated_at', { ascending: false }).limit(60)) : null
     ]);
     const rows = postsRes.status === 'fulfilled' ? postsRes.value : null;
     const follows = followsRes.status === 'fulfilled' ? followsRes.value : null;
@@ -594,6 +598,8 @@ export function pullNow() {
       else console.warn('Rankings não atualizados:', rankingsRes.reason?.code, rankingsRes.reason?.message);
     }
     const rankings = rankingsRes.status === 'fulfilled' ? rankingsRes.value : null;
+    if (reviewsRes.status === 'rejected' && isMissingTable(reviewsRes.reason)) reviewsTable = false;
+    const reviews = reviewsRes.status === 'fulfilled' && reviewsRes.value ? reviewsRes.value.map(reviewFromRow) : null;
     // A save/delete of mine still on its way up wins over what the server has now
     if (rankings) Storage.mergeRemoteRankings(rankings.filter(r => !(r.user_id === me && pendingRankings.has(r.key))), rankingIds);
 
@@ -622,7 +628,8 @@ export function pullNow() {
       follows ? follows.map(f => `${f.follower_id}>${f.following_id}`).sort().join(',') : 'follows?',
       others.map(p => [p.id, presenceOf({ lastSeenAt: p.last_seen_at }).online]),
       profilesVersion, [...pending], [...pendingComments],
-      rankings ? rankings.map(r => `${r.user_id}:${r.key}:${r.updated_at}`).sort().join(',') : 'rankings?'
+      rankings ? rankings.map(r => `${r.user_id}:${r.key}:${r.updated_at}`).sort().join(',') : 'rankings?',
+      reviews ? reviews.map(r => `${r.reviewerId}:${r.challengeId}:${r.questionId}:${r.updatedAt}`).join(',') : 'reviews?'
     ]);
     if (signature !== lastSignature) {
       lastSignature = signature;
@@ -639,6 +646,7 @@ export function pullNow() {
       }
       if (posts) Storage.replacePostsCache(posts, [...pending], [...pendingComments]);
       if (rows && follows) Storage.mergeRemoteNotifications(me, buildNotifications(rows, follows), 'feed');
+      if (reviews) Storage.mergeRemoteNotifications(me, reviewNotifications(reviews, me), 'reviews');
       handlers.onUpdate?.();
     }
     if (!rows) throw postsRes.reason; // reported below (the rest already updated)
@@ -935,6 +943,16 @@ const cleanTerm = (q) => q.replace(/[,()*%\\:"']/g, ' ').replace(/\s+/g, ' ').tr
 
 export const isSyncing = () => Boolean(me) && !disabled;
 
+const REVIEW_FIELDS = 'reviewer_id, target_id, challenge_id, question_id, rating, song, updated_at';
+/** Challenge reviews `userId` gave, newest first (empty when the table is missing or offline). */
+export async function fetchReviewsBy(userId, limit = 200) {
+  if (!me || !reviewsTable) return [];
+  try {
+    return (await must(getSupabase().from('challenge_reviews').select(REVIEW_FIELDS).eq('reviewer_id', userId)
+      .order('updated_at', { ascending: false }).limit(limit))).map(reviewFromRow);
+  } catch (err) { if (isMissingTable(err)) reviewsTable = false; return []; }
+}
+
 /** People whose name or @handle contains the term. */
 export async function searchPeople(q, limit = 30) {
   const term = cleanTerm(q.replace(/^@/, ''));
@@ -1011,6 +1029,15 @@ const hooks = {
   saveRanking(ranking) {
     rankingWrite(ranking.key, ranking, db => db.from('star_rankings')
       .upsert({ user_id: me, key: ranking.key, body: ranking, updated_at: ranking.updatedAt }, { onConflict: 'user_id,key' }));
+  },
+  saveReview(r) {
+    if (!reviewsTable || !isAccountId(r.targetUserId)) return; // shortcut: reviews of local demo users stay in this browser
+    write(db => must(db.from('challenge_reviews').upsert({
+      reviewer_id: me, target_id: r.targetUserId, challenge_id: String(r.challengeId), question_id: String(r.questionId),
+      rating: r.rating, song: r.song ? { id: r.song.id, title: r.song.title, artist: r.song.artist, artwork: r.song.artwork || '', previewUrl: r.song.previewUrl || '' } : null,
+      updated_at: r.createdAt
+    }, { onConflict: 'reviewer_id,target_id,challenge_id,question_id' })).catch(err => { if (isMissingTable(err)) reviewsTable = false; else throw err; }),
+    'Não foi possível salvar sua avaliação.');
   },
   deleteRanking(key) {
     rankingWrite(key, null, db => db.from('star_rankings').delete().eq('user_id', me).eq('key', key));
@@ -1134,6 +1161,7 @@ export function startSync(userId, opts = {}) {
   warnedProfileSql = false;
   votesTable = true;
   rankingsTable = true;
+  reviewsTable = true;
   commentLikesTable = true;
   presenceOn = true;
   messagesOn = true;

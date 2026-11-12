@@ -1,16 +1,17 @@
 // Profile module — render, edit, follow, pin, showcase, sub-tabs
 import { esc, safeUrl, cssUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
-import { ICONS, renderRatingStars } from './icons.js';
+import { ICONS } from './icons.js';
 import { renderPostCard } from './feed.js';
 import { openSearchModalForFeaturedSong } from './ui.js';
 import { getArtistImage } from './lastfm.js';
-import { presenceOf } from './sync.js';
+import { presenceOf, fetchReviewsBy } from './sync.js';
+import { mergeRatings } from './ratings.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
-import { growFrom } from './motion.js';
+import { growFrom, stagger } from './motion.js';
 import { BIO_FONTS, bioFont, bioFontStyle } from './bioFonts.js';
 import { adminBadge } from './badges.js';
-import { globalAudio } from './audio.js';
+import { vinylStage, playAttr, playIcon, playClass } from './audio.js';
 
 // ──────────────────────────────────────────
 // PROFILE RENDER
@@ -56,29 +57,7 @@ export function renderProfileView(container, targetUserId, subTab = 'posts') {
       <!-- Main Content Row -->
       <div class="featured-content-row">
         <!-- Vinyl Stage: Realistic 90px Sleeve + 90px Spinning Vinyl Record -->
-        <div class="featured-vinyl-stage" onclick="window._playTrack(${jsArg(user.featuredSong)})" title="Clique para reproduzir / pausar">
-          <!-- Album Sleeve Cover -->
-          <div class="featured-album-sleeve">
-            <img class="featured-sleeve-art"
-              src="${safeUrl(artworkUrl)}"
-              alt="${esc(user.featuredSong.title)}"
-              onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'">
-            <div class="sleeve-edge-sheen"></div>
-          </div>
-
-          <!-- Realistic Vinyl Record Disc -->
-          <div class="featured-vinyl-disk${globalAudio.getIsPlaying() ? ' playing' : ''}" id="featured-vinyl-img">
-            <div class="vinyl-groove-rings"></div>
-            <div class="vinyl-light-sheen"></div>
-            <div class="vinyl-center-label">
-              <img class="vinyl-label-art"
-                src="${safeUrl(artworkUrl)}"
-                alt=""
-                onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'">
-              <div class="vinyl-spindle-hole"></div>
-            </div>
-          </div>
-        </div>
+        ${vinylStage({ ...user.featuredSong, artwork: artworkUrl }, { onclick: `window._playTrack(${jsArg(user.featuredSong)})`, title: 'Clique para reproduzir / pausar' })}
 
         <!-- Info Details -->
         <div class="featured-info">
@@ -88,9 +67,7 @@ export function renderProfileView(container, targetUserId, subTab = 'posts') {
 
         <!-- Large Play Button -->
         <div class="featured-actions">
-          <button class="featured-play-btn" onclick="window._playTrack(${jsArg(user.featuredSong)})" title="Tocar música de destaque">
-            ${ICONS.play}
-          </button>
+          <button class="featured-play-btn${playClass(user.featuredSong)}" ${playAttr(user.featuredSong)} onclick="window._playTrack(${jsArg(user.featuredSong)})" title="Tocar música de destaque">${playIcon(user.featuredSong)}</button>
         </div>
       </div>
     </div>` : (isMe ? `
@@ -483,117 +460,7 @@ function loadProfileTab(tabId, userId) {
       </div>`;
 
   } else if (tabId === 'avaliados') {
-    // Collect all posts with ratings by this user
-    const allPosts = Storage.getFeedPosts('all');
-    const ratedPosts = allPosts.filter(p => p.authorId === userId && p.rating > 0 && (p.song || p.lyricsSong));
-
-    // Also collect challenge reviews created by this user
-    const allReviews = Storage.getAllReviews();
-    const challengeReviews = [];
-    Object.keys(allReviews).forEach(k => {
-      const rev = allReviews[k]?.[userId];
-      if (rev && rev.rating > 0) {
-        const parts = k.split('_');
-        const cid = rev.challengeId || parts[0];
-        const targetUid = rev.targetUserId || parts[1];
-        const qid = rev.questionId || parts[2];
-        const targetUser = Storage.getUserById(targetUid);
-        
-        let song = rev.song;
-        if (!song) {
-          const answers = Storage.getChallengeAnswers(cid, targetUid);
-          song = answers?.[qid];
-        }
-
-        if (song) {
-          challengeReviews.push({
-            id: `ch_rev_${k}`,
-            rating: rev.rating,
-            comment: rev.comment || '',
-            song: song,
-            targetUserName: targetUser?.name || 'Música Comparada',
-            createdAt: rev.createdAt || 'agora',
-            isChallengeReview: true
-          });
-        }
-      }
-    });
-
-    const allEvaluations = [
-      ...ratedPosts.map(p => ({
-        id: p.id,
-        rating: p.rating,
-        comment: p.text || '',
-        lyrics: p.lyrics || '',
-        song: p.song || { title: p.lyricsSong || 'Música', artist: '', artwork: p.lyricsArt || '' },
-        createdAt: p.createdAt || '',
-        isPost: true
-      })),
-      ...challengeReviews
-    ];
-
-    if (!allEvaluations.length) {
-      el.innerHTML = `
-        <div class="empty-state" style="padding:24px 14px;text-align:center;">
-          <div class="empty-state-title">Sem avaliações ainda</div>
-          <div class="empty-state-sub" style="font-size:var(--fs-detail);color:var(--muted);margin-top:4px;">
-            Ao dar uma nota (estrelas) para uma música em um post ou na aba de comparar, ela aparecerá aqui.
-          </div>
-        </div>`;
-      return;
-    }
-
-    el.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">
-        ${allEvaluations.map(item => {
-          const s = item.song || {};
-          const trackObj = {
-            title: s.title || 'Música',
-            artist: s.artist || '',
-            artwork: s.artwork || '',
-            previewUrl: s.previewUrl || ''
-          };
-          return `
-            <div class="rated-song-card" style="background:var(--bg-card);border:var(--border);border-radius:var(--radius-lg);padding:12px 14px;display:flex;gap:12px;align-items:flex-start;transition:background 0.15s;">
-              <img src="${safeUrl(s.artwork || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80')}" 
-                   alt="${esc(s.title || '')}" 
-                   style="width:54px;height:54px;min-width:54px;border-radius:8px;object-fit:cover;border:1px solid var(--tint-2);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);"
-                   onclick="window._playTrack(${jsArg(trackObj)})"
-                   title="Ouvir prévia">
-              <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
-                  <div style="min-width:0;flex:1;">
-                    <div style="font-size:var(--fs-detail);font-weight:800;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" onclick="window._playTrack(${jsArg(trackObj)})" title="Clique para ouvir">
-                      ${esc(s.title || 'Sem título')}
-                    </div>
-                    <div style="font-size:var(--fs-detail);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                      ${esc(s.artist || 'Artista desconhecido')} ${item.targetUserName ? `· <span style="color:var(--purple-light);">Lista de ${esc(item.targetUserName)}</span>` : ''}
-                    </div>
-                  </div>
-                  <div class="post-rating-display" style="margin:0;padding:2px 8px;flex-shrink:0;">
-                    ${renderRatingStars(item.rating, 14)}
-                    <span aria-hidden="true" style="font-size:var(--fs-detail);font-weight:800;">${item.rating.toFixed(1)}</span>
-                  </div>
-                </div>
-                ${item.comment ? `
-                  <div style="font-size:var(--fs-detail);color:var(--white);background:var(--bg-surface);border-radius:6px;padding:6px 10px;margin-top:6px;border-left:2.5px solid var(--purple-accent);">
-                    "${esc(item.comment)}"
-                  </div>` : ''}
-                ${item.lyrics ? `
-                  <div style="font-size:var(--fs-detail);color:var(--purple-light);font-style:italic;margin-top:4px;">
-                    "${esc(item.lyrics)}"
-                  </div>` : ''}
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:var(--fs-detail);color:var(--purple-muted);">
-                  <span>${item.isChallengeReview ? `<span class="ui-icon" aria-hidden="true">${ICONS.star}</span> Avaliação em Comparar` : esc(item.createdAt || '')}</span>
-                  <button class="doodle-btn doodle-btn-ghost doodle-btn-sm" style="padding:2px 8px;font-size:var(--fs-detail);display:inline-flex;align-items:center;gap:4px;" onclick="window._playTrack(${jsArg(trackObj)})">
-                    ${ICONS.play} Ouvir
-                  </button>
-                </div>
-              </div>
-            </div>`;
-        }).join('')}
-      </div>`;
-
+    renderRatingsList(el, userId);
   } else if (tabId === 'salvos' && isMe) {
     const saved = Storage.getUserBookmarkedPosts();
     if (!saved.length) {
@@ -602,6 +469,53 @@ function loadProfileTab(tabId, userId) {
     }
     el.innerHTML = `<div class="feed-posts-list">${saved.map(p => renderPostCard(p, { isMyProfile: isMe })).join('')}</div>`;
   }
+}
+
+// Ratings this person gave (post notes + challenge notes), newest first, 20 at a time.
+// shortcut: post notes come from the cached feed (last 150 posts), fetch the author's posts if older ones must show.
+const RATINGS_PAGE = 20;
+function ratingRowHtml(item) {
+  const s = item.song;
+  const track = { title: s.title, artist: s.artist, artwork: s.artwork, previewUrl: s.previewUrl };
+  return `
+    <div class="search-row rating-row" role="button" tabindex="0" onclick="window._playTrack(${jsArg(track)})"
+      onkeydown="if(event.key==='Enter')this.click()" title="Ouvir prévia">
+      ${s.artwork ? `<img class="search-cover" src="${safeUrl(s.artwork)}" alt="" loading="lazy">` : '<span class="search-cover-empty" aria-hidden="true"></span>'}
+      <div class="search-row-text">
+        <div class="search-row-title">${esc(s.title)}</div>
+        <div class="search-row-sub">${esc(s.artist || 'Artista desconhecido')}</div>
+      </div>
+      <span class="rating-origin">${item.source === 'post' ? 'Post' : 'Desafio'}</span>
+      <span class="rating-value" aria-label="Nota ${item.rating.toFixed(1)}">${ICONS.star}${item.rating.toFixed(1)}</span>
+    </div>`;
+}
+
+function renderRatingsList(el, userId) {
+  let shown = RATINGS_PAGE;
+  let items = [];
+  const draw = () => {
+    if (!items.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Sem avaliações ainda</div></div>`;
+      return;
+    }
+    el.innerHTML = `<div class="rating-list">${items.slice(0, shown).map(ratingRowHtml).join('')}</div>
+      ${items.length > shown ? '<button type="button" class="doodle-btn doodle-btn-ghost doodle-btn-sm rating-more">Ver mais</button>' : ''}`;
+    el.querySelector('.rating-more')?.addEventListener('click', () => {
+      const from = shown;
+      shown += RATINGS_PAGE;
+      draw();
+      stagger([...el.querySelectorAll('.rating-row')].slice(from));
+    });
+  };
+  const build = (remote) => { items = mergeRatings(Storage.getFeedPosts('all'), [...remote, ...Storage.getLocalReviewsBy(userId)], userId); };
+  build([]);
+  draw();
+  fetchReviewsBy(userId).then(remote => {
+    if (!remote.length || !el.isConnected) return;
+    const before = items.map(i => i.id).join();
+    build(remote);
+    if (items.map(i => i.id).join() !== before) draw();
+  });
 }
 
 // ──────────────────────────────────────────

@@ -1249,3 +1249,14 @@
   50% { transform: scaleY(1); }
 }
 @media (prefers-reduced-motion: reduce) { .np-wave i { animation: none; transform: scaleY(.5); } }
+
+/* Avaliações no perfil: lista (capa, música, artista, origem, nota) */
+.rating-list { display: flex; flex-direction: column; }
+.rating-row { padding: 10px 4px; }
+.rating-origin { flex-shrink: 0; font-size: var(--fs-detail); color: var(--text-2); }
+.rating-value {
+  flex-shrink: 0; min-width: 48px; display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px;
+  font-weight: 800; font-size: var(--fs-text); color: var(--star); font-variant-numeric: tabular-nums;
+}
+.rating-value svg { width: 14px; height: 14px; }
+.rating-more { display: block; margin: 8px auto 0; }

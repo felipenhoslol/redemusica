@@ -1,6 +1,6 @@
 // Global Audio Player manager for 30s music previews
 import { ICONS } from './icons.js';
-import { esc } from './dom.js';
+import { esc, safeUrl } from './dom.js';
 
 class AudioController {
   constructor() {
@@ -265,9 +265,28 @@ export const playAttr = (t) => `data-play-key="${esc(playKey(t))}"`; // search.j
 export const playIcon = (t) => (isPlayingTrack(t) ? ICONS.pause : ICONS.play);
 export const playClass = (t) => (isPlayingTrack(t) ? ' playing' : ''); // render-time twin of the class syncPlayButtons toggles
 
+const VINYL_FALLBACK = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
+/** Sleeve + record peeking out behind it; the record spins only while its own song plays (data-spin-key). */
+export const vinylStage = (t, { coverClass = '', onclick = '', title = '' } = {}) => `
+  <div class="featured-vinyl-stage"${onclick ? ` onclick="${onclick}"` : ''}${title ? ` title="${esc(title)}"` : ''}>
+    <div class="featured-album-sleeve">
+      <img class="featured-sleeve-art ${coverClass}" src="${safeUrl(t.artwork || '')}" alt="${esc(t.title)}" onerror="this.src='${VINYL_FALLBACK}'">
+      <div class="sleeve-edge-sheen"></div>
+    </div>
+    <div class="featured-vinyl-disk${playClass(t)}" data-spin-key="${esc(playKey(t))}">
+      <div class="vinyl-groove-rings"></div>
+      <div class="vinyl-light-sheen"></div>
+      <div class="vinyl-center-label">
+        <img class="vinyl-label-art" src="${safeUrl(t.artwork || '')}" alt="" onerror="this.src='${VINYL_FALLBACK}'">
+        <div class="vinyl-spindle-hole"></div>
+      </div>
+    </div>
+  </div>`;
+
 function syncPlayButtons() {
   const cur = globalAudio.getCurrentTrack();
   const key = globalAudio.getIsPlaying() && cur ? playKey(cur) : null;
+  document.querySelectorAll('[data-spin-key]').forEach(d => d.classList.toggle('playing', d.dataset.spinKey === key));
   document.querySelectorAll('[data-play-key]').forEach(btn => {
     const on = btn.dataset.playKey === key;
     if (btn.classList.contains('playing') === on) return;

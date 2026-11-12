@@ -776,3 +776,15 @@
   font-size: 11px;
 }
 .new-posts-face:first-child { margin-left: 0; }
+
+/* Música do post: mesmo vinil do destaque do perfil, em escala de card (prefixo dá especificidade sobre profile.css) */
+.post-attached-song .post-song-info .featured-vinyl-stage { width: 72px; height: 48px; cursor: default; }
+.post-attached-song .post-song-info .featured-album-sleeve { width: 48px; height: 48px; border-radius: 8px; }
+.post-attached-song .post-song-info .featured-vinyl-disk { left: 20px; width: 48px; height: 48px; }
+.post-attached-song .post-song-info .featured-vinyl-stage .featured-vinyl-disk.playing { translate: 6px 0; }
+@media (hover: hover) and (pointer: fine) {
+  .post-attached-song .post-song-info .featured-vinyl-stage:hover .featured-vinyl-disk { translate: 6px 0; }
+}
+.post-attached-song .post-song-info .vinyl-center-label { width: 20px; height: 20px; border-width: 1.5px; }
+.post-attached-song .post-song-info .vinyl-spindle-hole { width: 4px; height: 4px; border-width: 1px; }
+.post-attached-song .post-song-info .post-song-cover { width: 100%; height: 100%; border-radius: 0; }

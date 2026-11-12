@@ -1319,9 +1319,10 @@ export function saveSongReview(targetUserId, challengeId, questionId, rating, co
     targetUserId: targetUserId,
     challengeId: challengeId,
     questionId: questionId,
-    createdAt: 'agora'
+    createdAt: new Date().toISOString()
   };
   lsSet(STORAGE_KEYS.REVIEWS, JSON.stringify(all));
+  toRemote('saveReview', all[key][activeUser.id]);
   addNotification(targetUserId, {
     type: 'review',
     fromUserId: activeUser.id,
@@ -1330,6 +1331,14 @@ export function saveSongReview(targetUserId, challengeId, questionId, rating, co
     createdAt: new Date().toISOString()
   });
   return all[key][activeUser.id];
+}
+
+/** Reviews `userId` gave in this browser, in the shape of js/ratings.js. */
+export function getLocalReviewsBy(userId) {
+  return Object.values(getAllReviews()).map(byReviewer => byReviewer?.[userId]).filter(Boolean).map(r => ({
+    reviewerId: userId, targetUserId: r.targetUserId, challengeId: r.challengeId, questionId: String(r.questionId),
+    rating: Number(r.rating) || 0, song: r.song || null, updatedAt: r.createdAt
+  }));
 }
 
 // ──────────────────────────────────────────
