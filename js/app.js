@@ -28,6 +28,7 @@ import { bindSwipeTabs } from './swipeTabs.js';
 import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop, stagger, animateSpring } from './motion.js';
 import { screenKey, saveScroll, restoreScroll, ANCHOR } from './scrollMemory.js';
 import { needsBuild, isStale, enterPanel, hasFixedContent } from './keptTabs.js';
+import { withTransition, withReturn, transitioning } from './viewTransition.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
 import { creditHtml } from './credit.js';
@@ -557,18 +558,23 @@ history.scrollRestoration = 'manual'; // switchTab puts each screen back where i
 window.addEventListener('popstate', (e) => {
   if (!appStarted) return;
   const screen = e.state || { tab: 'feed', depth: 0 };
-  restoringHistory = true;
-  try {
-    closeLayers(screen.layer);
-    if (screen.tab === 'profile') { if (activeTab !== 'profile' || currentProfileUserId !== screen.uid) window._goToProfile(screen.uid); }
-    else if (screen.tab && screen.tab !== activeTab) switchTab(screen.tab);
-    if (screen.layer === 'post' && screen.postId && !document.getElementById('post-view')) window._openPostView(screen.postId);
-    window.dispatchEvent(new CustomEvent('screenrestore', { detail: screen })); // search and playlists sync their own view
-  } finally {
-    restoringHistory = false;
-  }
-  syncBackButton();
+  // Leaving the screen a cover/avatar flew to: it flies back to where it came from
+  withReturn(() => {
+    restoringHistory = true;
+    try {
+      closeLayers(screen.layer);
+      if (screen.tab === 'profile') { if (activeTab !== 'profile' || currentProfileUserId !== screen.uid) window._goToProfile(screen.uid); }
+      else if (screen.tab && screen.tab !== activeTab) switchTab(screen.tab);
+      if (screen.layer === 'post' && screen.postId && !document.getElementById('post-view')) window._openPostView(screen.postId);
+      window.dispatchEvent(new CustomEvent('screenrestore', { detail: screen })); // search and playlists sync their own view
+    } finally {
+      restoringHistory = false;
+    }
+    syncBackButton();
+  });
 });
+
+const PROFILE_AVATARS = '.post-author-avatar, .comment-avatar, .dm-contact-avatar, .friend-avatar';
 
 // Phone header: a back arrow once you are anywhere but the first screen
 function syncBackButton() {
@@ -623,7 +629,7 @@ function switchTab(tabName) {
   if (el) el.classList.add('active');
   // Another screen: exactly where it was left (never seen: top), then a short enter.
   // The same one again (its icon tapped): back to the top
-  if (from !== to) { restoreScroll(to, el || document.body, ANCHOR); enterPanel(el); }
+  if (from !== to) { restoreScroll(to, el || document.body, ANCHOR); if (!transitioning()) enterPanel(el); } // a View Transition is its enter
   else if (el && hasFixedContent(el)) window.scrollTo({ top: 0, behavior: 'instant' }); // no glide: it would transform the tab
   else springScrollTop(el || document.body);
   // Measured only now: the tab is shown and scrolled where it will be (chat staggers its contacts once they load)
@@ -958,11 +964,19 @@ function bindGlobalHandlers() {
 
   // Navigate to any profile
   window._goToProfile = (userId) => {
-    nextProfileId = userId; // the profile tab opens straight on this person (one history step)
-    switchTab('profile');
-    // The sidebar footer stands for the user's own profile: only keep it highlighted there
-    const isOwn = !userId || userId === getActiveUser().id;
-    document.getElementById('nav-profile')?.classList.toggle('active', isOwn);
+    const go = () => {
+      nextProfileId = userId; // the profile tab opens straight on this person (one history step)
+      switchTab('profile');
+      // The sidebar footer stands for the user's own profile: only keep it highlighted there
+      const isOwn = !userId || userId === getActiveUser().id;
+      document.getElementById('nav-profile')?.classList.toggle('active', isOwn);
+    };
+    // Tapped on someone's avatar (or the name beside it): the avatar flies to the profile's, if the profile is cached
+    const box = window.event?.target?.closest?.('[onclick], [data-profile]');
+    const from = box?.matches(PROFILE_AVATARS) ? box : box?.querySelector(PROFILE_AVATARS);
+    if (!from) { go(); return; }
+    withTransition(go, getUserById(userId || getActiveUser().id)
+      ? { from, toSelector: '#tab-profile .profile-avatar-wrap', name: 'profile-avatar' } : undefined);
   };
 
   // "Comparar desafios" on a profile: the comparison opens already on that person

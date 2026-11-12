@@ -2,6 +2,7 @@
 import { esc, safeUrl, jsArg, avatarInner, isImageAvatar } from './dom.js';
 import * as Storage from './storage.js';
 import { toggleCollapse, isCollapseOpen, setPopover, growFrom } from './motion.js';
+import { withTransition, withReturn } from './viewTransition.js';
 import { globalAudio, playAttr, playIcon } from './audio.js';
 import { ICONS, getStarSVG, renderRatingStars } from './icons.js';
 import { searchTracks, renderRichLinkCard, extractFirstUrl } from './api.js';
@@ -1131,7 +1132,7 @@ const isPhoneLayout = () => matchMedia('(max-width: 700px)').matches;
 window._toggleComments = (postId, btn, event) => {
   if (event) event.stopPropagation();
   // On a phone the post opens on its own screen with the comments, like on X
-  if (isPhoneLayout() && !btn?.closest('#post-view')) { window._openPostView(postId); return; }
+  if (isPhoneLayout() && !btn?.closest('#post-view')) { window._openPostView(postId, { from: btn?.closest('.post-card')?.querySelector('.post-song-cover') }); return; }
 
   let postCard = btn ? btn.closest('.post-card') : null;
   if (!postCard) {
@@ -1424,6 +1425,9 @@ window._openPhotoViewer = (urls, start = 0) => {
 // ─── Single post view: opened from a notification (liked, reposted, commented, mentioned...) ───
 window._openPostView = async (postId, opts = {}) => {
   document.getElementById('post-view')?.remove();
+  // Tapped on a card whose post is already here: its cover flies into the post view (opts.from = that cover)
+  const cached = Storage.getPostById(postId);
+  const flies = !!(cached && opts.from);
   const root = document.createElement('div');
   root.id = 'post-view';
   root.className = 'app-dialog post-view';
@@ -1436,19 +1440,23 @@ window._openPostView = async (postId, opts = {}) => {
       </div>
       <div class="post-view-body"><div class="post-view-empty">Carregando…</div></div>
     </div>`;
-  document.body.appendChild(root);
+  if (!flies) document.body.appendChild(root);
   // Phone: the comment box is pinned to the bottom; --kb lifts it above the keyboard (iPhone keeps the page height)
   const vv = isPhoneLayout() ? window.visualViewport : null;
   const onViewport = () => root.style.setProperty('--kb', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
   vv?.addEventListener('resize', onViewport);
   vv?.addEventListener('scroll', onViewport);
+  let closed = false;
   const close = () => {
+    if (closed) return; // back can reach it again while it is still leaving
+    closed = true;
     vv?.removeEventListener('resize', onViewport);
     vv?.removeEventListener('scroll', onViewport);
     document.removeEventListener('keydown', onKey);
+    window._leaveLayer?.('post');
+    if (flies) { withReturn(() => root.remove()); return; } // the cover flies back to its card
     root.classList.remove('open');
     setTimeout(() => root.remove(), 200);
-    window._leaveLayer?.('post');
   };
   window._pushLayer?.('post', { postId });
   // iPhone doesn't focus tapped buttons: the field would lose focus and the attach row would vanish under the finger
@@ -1462,12 +1470,22 @@ window._openPostView = async (postId, opts = {}) => {
     // Going to someone's profile from inside the post leaves the post view
     else if (e.target.closest('.post-author, .comment-name, .comment-avatar, .mention-link')) setTimeout(close, 0);
   });
+  if (flies) {
+    root.classList.add('open'); // shown as it is inserted: the transition is the enter
+    withTransition(() => { document.getElementById('post-view')?.remove(); document.body.appendChild(root); fillPostView(root, cached, opts); }, // a double tap: the last one wins
+      { from: opts.from, toSelector: '#post-view .post-song-cover', name: 'post-cover' });
+    return;
+  }
   growFrom(root.querySelector('.app-dialog-panel'));
   requestAnimationFrame(() => root.classList.add('open'));
 
-  const post = Storage.getPostById(postId) || await fetchPostById(postId);
-  const body = root.querySelector('.post-view-body');
+  const post = cached || await fetchPostById(postId);
   if (!root.isConnected) return;
+  fillPostView(root, post, opts);
+};
+
+function fillPostView(root, post, opts) {
+  const body = root.querySelector('.post-view-body');
   if (!post) { body.innerHTML = `<div class="post-view-empty">Esse post não existe mais.</div>`; return; }
   body.innerHTML = `<div class="feed-posts-list">${renderPostCard(post)}</div>`;
   // Comments open, and the comment the notification is about highlighted
@@ -1478,7 +1496,7 @@ window._openPostView = async (postId, opts = {}) => {
     const row = body.querySelector(`#comment-${CSS.escape(opts.commentId)}`);
     if (row) { row.classList.add('comment-highlight'); setTimeout(() => row.scrollIntoView({ block: 'center', behavior: 'smooth' }), 120); }
   }
-};
+}
 
 // Phone: tapping anywhere on a post opens it on its own screen, like on X;
 // links, buttons, pictures, songs, polls and comments keep doing their own thing, and selecting text doesn't open it
@@ -1494,5 +1512,5 @@ document.addEventListener('click', (e) => {
   const card = e.target.closest('.post-card');
   if (!card || card.closest('#post-view') || e.target.closest(POST_TAP_IGNORE)) return;
   if (window.getSelection()?.toString()) return;
-  if (card.dataset.postId) window._openPostView(card.dataset.postId);
+  if (card.dataset.postId) window._openPostView(card.dataset.postId, { from: card.querySelector('.post-song-cover') });
 });

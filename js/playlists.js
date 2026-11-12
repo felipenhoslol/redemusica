@@ -11,6 +11,7 @@ import { openSearchModalForPlaylist, showToast, openDoodleModal, closeDoodleModa
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { fetchSimilarTracks } from './lastfm.js';
 import { appendBelowFold } from './keptTabs.js';
+import { withTransition } from './viewTransition.js';
 
 let currentFilter = 'all'; // 'all' | 'mine' | 'community'
 let searchQuery = '';
@@ -172,9 +173,16 @@ export function renderPlaylistsTab(containerEl, firstDraw = false) {
   };
 
   window._viewPlaylist = (id) => {
-    if (activePlaylistId !== id) window._pushLayer?.('playlist', { playlistId: id }); // back returns to the list
-    activePlaylistId = id;
-    renderPlaylistDetails(containerEl, id);
+    const show = () => {
+      if (activePlaylistId !== id) window._pushLayer?.('playlist', { playlistId: id }); // back returns to the list
+      activePlaylistId = id;
+      renderPlaylistDetails(containerEl, id);
+    };
+    // Tapped on its card: the cover flies to the playlist's (back lands on the redrawn card's cover, via popstate)
+    const from = window.event?.target?.closest?.('.playlist-card')?.querySelector('.playlist-card-cover-wrap');
+    if (!from || !containerEl.contains(from)) { show(); return; }
+    withTransition(show, { from, toSelector: '#tab-playlists .playlist-hero-cover-wrap', name: 'playlist-cover',
+      back: `#tab-playlists .playlist-card[data-playlist-id="${CSS.escape(id)}"] .playlist-card-cover-wrap` });
   };
   // The list's own back button takes the same path as the header arrow
   window._playlistBack = () => {
@@ -212,7 +220,7 @@ function renderPlaylistCard(pl, activeUser) {
   const avatarHtml = renderAvatarHtml(author, 22, false);
 
   return `
-    <div class="playlist-card" onclick="window._viewPlaylist('${pl.id}')">
+    <div class="playlist-card" data-playlist-id="${esc(pl.id)}" onclick="window._viewPlaylist('${pl.id}')">
       <div class="playlist-card-cover-wrap">
         ${coverHtml}
         <button class="playlist-card-play-btn" title="Tocar Playlist" onclick="event.stopPropagation();window._playEntirePlaylist('${pl.id}')">

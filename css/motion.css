@@ -129,6 +129,9 @@ html { -webkit-tap-highlight-color: transparent; }
   .player-cover { width: 44px; height: 44px; }
 }
 
+/* ─── Elemento compartilhado (js/viewTransition.js): capa/avatar voam com mola, teto de 300 ms; o resto só faz crossfade ─── */
+::view-transition-group(*) { animation-timing-function: var(--spring-smooth); animation-duration: min(var(--spring-smooth-dur), 300ms); }
+
 /* ─── Movimento reduzido: menos e mais suave, não zero ─── */
 @media (prefers-reduced-motion: reduce) {
   .btn-post-action:active, .doodle-btn:active, .btn-attach:active, .player-play-btn:active,
