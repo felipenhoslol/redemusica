@@ -827,9 +827,16 @@ function updateCommentPendingBox(postId) {
   });
 }
 
+// Opened for an attachment: shown the way the comment button shows it, so its next tap closes it
+function showCommentsSection(el) {
+  if (!el) return;
+  el.style.display = 'flex';
+  el.dataset.open = 'true';
+}
+
 window._openCommentMusicSearch = (postId) => {
   const el = document.getElementById(`comments-${postId}`);
-  if (el) el.style.display = 'block';
+  showCommentsSection(el);
   import('./ui.js').then(u => u.openSearchModalForComment(postId));
 };
 
@@ -1023,7 +1030,7 @@ window._setCommentSong = (postId, track) => {
   window._pendingCommentAttachments[postId].song = track;
 
   const el = document.getElementById(`comments-${postId}`);
-  if (el) el.style.display = 'block';
+  showCommentsSection(el);
 
   updateCommentPendingBox(postId);
 
@@ -1037,7 +1044,7 @@ window._setCommentImage = (postId, imgUrl) => {
   if (window.closeDoodleModal) window.closeDoodleModal('comment-image-modal');
 
   const el = document.getElementById(`comments-${postId}`);
-  if (el) el.style.display = 'block';
+  showCommentsSection(el);
 
   updateCommentPendingBox(postId);
 };
@@ -1048,7 +1055,7 @@ window._setCommentGif = (postId, gifUrl) => {
   if (window.closeDoodleModal) window.closeDoodleModal('comment-gif-modal');
 
   const el = document.getElementById(`comments-${postId}`);
-  if (el) el.style.display = 'block';
+  showCommentsSection(el);
 
   updateCommentPendingBox(postId);
 };
@@ -1454,8 +1461,8 @@ window._openPostView = async (postId, opts = {}) => {
     vv?.removeEventListener('scroll', onViewport);
     document.removeEventListener('keydown', onKey);
     window._leaveLayer?.('post');
+    root.classList.remove('open'); // no longer an open overlay, even while it leaves: the next back goes on (backButton.js)
     if (flies) { withReturn(() => root.remove()); return; } // the cover flies back to its card
-    root.classList.remove('open');
     setTimeout(() => root.remove(), 200);
   };
   window._pushLayer?.('post', { postId });

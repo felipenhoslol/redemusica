@@ -39,7 +39,7 @@ export function bindSwipeTabs(el, { tabs, current, onSwitch }) {
   const settle = (x) => {
     const opacity = +(el.style.opacity || fade(x, el.offsetWidth || 1)); // from where it shows now
     clear();
-    if (x && !reducedMotion()) el.animate([{ transform: `translateX(${x}px)`, opacity }, { transform: 'translateX(0px)', opacity: 1 }],
+    if ((x || opacity < 1) && !reducedMotion()) el.animate([{ transform: `translateX(${x}px)`, opacity }, { transform: 'translateX(0px)', opacity: 1 }],
       { duration: SPRINGS.smooth.duration, easing: SPRINGS.smooth.easing });
   };
 
@@ -61,7 +61,7 @@ export function bindSwipeTabs(el, { tabs, current, onSwitch }) {
       opacity = +cs.opacity;
       el.style.opacity = cs.opacity;
     }
-    s = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, base, dx: base, catchFade: opacity / fade(base, el.offsetWidth || 1), axis: null, width: el.offsetWidth || 1,
+    s = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, base, dx: base, caught: running.length > 0, catchFade: opacity / fade(base, el.offsetWidth || 1), axis: null, width: el.offsetWidth || 1,
           last: { x: e.clientX, t: e.timeStamp }, v: 0 };
   });
 
@@ -89,9 +89,9 @@ export function bindSwipeTabs(el, { tabs, current, onSwitch }) {
 
   const finish = (e) => {
     if (!s || e.pointerId !== s.id) return;
-    const { dx, width, axis, t, base, v } = s;
+    const { dx, width, axis, t, base, v, caught } = s;
     s = null;
-    if (axis !== 'x') { if (base) settle(base); return; }
+    if (axis !== 'x') { if (caught) settle(base); return; } // a caught spring (even one at x 0, mid-fade) still ends at rest
     el.classList.remove('is-swiping');
 
     // A swipe is not a click: swallow the click that follows
@@ -111,7 +111,7 @@ export function bindSwipeTabs(el, { tabs, current, onSwitch }) {
       const { duration, easing } = SPRINGS.smooth;
       // A fast finger has already covered part of the way: the exit takes what is left at that speed, between half and the whole spring
       const left = Math.abs(-dir * width * 0.6 - dx);
-      const outMs = duration * Math.min(Math.max(left / (Math.abs(v) * duration), 0.5), 1);
+      const outMs = duration * (Math.min(Math.max(left / (Math.abs(v) * duration), 0.5), 1) || 1); // 0/0 (no way left, no speed): the whole spring
       // The old list leaves; the new one is drawn when it is gone (forwards fill: no frame of it back at rest in between)
       const out = reducedMotion() ? null : el.animate?.(kf.out, { duration: outMs, easing, fill: 'forwards' });
       if (!out) { onSwitch(target, dir); return; }

@@ -22,7 +22,7 @@ function matchLineHtml(user) {
   return match.hasEnoughData ? `<div class="profile-match-line">${Number(match.percentage) || 0}% de sintonia musical</div>` : '';
 }
 
-export function renderProfileView(container, targetUserId) {
+export function renderProfileView(container, targetUserId, subTab = 'posts') {
   const user = Storage.getUserById(targetUserId) || Storage.getActiveUser();
   const activeUser = Storage.getActiveUser();
   const isMe = user.id === activeUser.id;
@@ -191,13 +191,18 @@ export function renderProfileView(container, targetUserId) {
       ${isMe ? `<div id="profile-tab-salvos" class="profile-subtab-content" style="display:none;margin-top:10px;"></div>` : ''}
     </div>`;
 
+  // A redraw opens on the sub-tab that was showing (an unknown one, e.g. "Salvos" on someone else: Posts)
+  const shownTab = container.querySelector(`.profile-subtab-btn[data-profile-tab="${subTab}"]`) ? subTab : 'posts';
+  if (shownTab !== 'posts') {
+    container.querySelectorAll('.profile-subtab-btn').forEach(b => b.classList.toggle('active', b.dataset.profileTab === shownTab));
+    container.querySelectorAll('.profile-subtab-content').forEach(c => { c.style.display = c.id === `profile-tab-${shownTab}` ? 'block' : 'none'; });
+  }
   mountTabIndicator(container.querySelector('.profile-subtabs'));
 
   // Swap initial placeholders for real artist photos (async; cached afterwards)
   hydrateArtistImages(container, user.id);
 
-  // Load default tab
-  loadProfileTab('posts', user.id);
+  loadProfileTab(shownTab, user.id);
 
 
 

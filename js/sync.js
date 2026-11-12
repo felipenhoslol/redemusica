@@ -966,7 +966,7 @@ export async function searchPosts(q, limit = 40) {
 function write(task, failMessage, revert) {
   if (!me || disabled) return;
   task(getSupabase()).catch(err => {
-    revert?.();
+    try { revert?.(); } catch (e) { console.warn('revert failed:', e); } // the toast and the re-pull still run
     handlers.onError?.(err?.code === '42501' ? 'Sua conta não pode publicar no momento.' : failMessage);
     pullNow(); // put the cache back in line with the server
   });

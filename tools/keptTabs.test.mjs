@@ -8,7 +8,7 @@ globalThis.CSS = { supports: () => true };
 globalThis.document = { createElement: () => ({}), head: { appendChild() {} } };
 globalThis.getComputedStyle = (n) => ({ opacity: '1', transform: 'none', position: n?.position || 'static' });
 
-const { needsBuild, isStale, enterPanel, hasFixedContent, mountBelowFold, appendBelowFold } = await import('../js/keptTabs.js');
+const { needsBuild, isStale, enterPanel, hasFixedContent, mountBelowFold, appendBelowFold, profileUserSignature } = await import('../js/keptTabs.js');
 
 const fakeEl = (children = [{ position: 'static' }]) => {
   const calls = [];
@@ -84,4 +84,13 @@ test('enterPanel: aba com conteúdo fixo (chat no celular, composer) só aparece
   assert.ok(enterPanel(el));
   assert.deepEqual(el.calls[0].kf, [{ opacity: 0 }, { opacity: 1 }]);
   assert.equal(hasFixedContent(fakeEl()), false);
+});
+
+test('profileUserSignature: presence (lastSeenAt) does not change it; what the profile shows does', () => {
+  const user = { id: 'A', name: 'Lia', bio: 'oi', lastSeenAt: '2026-11-12T10:00:00Z' };
+  const sig = profileUserSignature(user);
+  assert.equal(profileUserSignature({ ...user, lastSeenAt: '2026-11-12T10:05:00Z' }), sig);
+  assert.equal(profileUserSignature({ ...user, lastSeenAt: undefined }), sig);
+  assert.notEqual(profileUserSignature({ ...user, bio: 'tchau' }), sig);
+  assert.equal(profileUserSignature(undefined), '{}');
 });

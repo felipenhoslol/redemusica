@@ -21,13 +21,13 @@ import { openDisplaySettings, initDisplay } from './display.js';
 import { mountTabIndicator, tabDirection, animatePanel } from './tabs.js';
 import { startSync, stopSync, pullNow, searchPeople } from './sync.js';
 import { renderSearchPage, openSearch, searchSignature } from './search.js';
-import { mentionedIds } from './mentions.js';
+import { mentionedIds, attachMentionAutocomplete } from './mentions.js';
 import { openPhotoEditor } from './photoEditor.js';
 import { initDragScroll } from './dragScroll.js';
 import { bindSwipeTabs } from './swipeTabs.js';
 import { flip, popIcon, rollNumber, swapContent, setPopover, growFrom, springScrollTop, stagger, animateSpring } from './motion.js';
 import { screenKey, saveScroll, restoreScroll, ANCHOR } from './scrollMemory.js';
-import { needsBuild, isStale, enterPanel, hasFixedContent } from './keptTabs.js';
+import { needsBuild, isStale, enterPanel, hasFixedContent, profileUserSignature } from './keptTabs.js';
 import { withTransition, withReturn, transitioning, afterPending } from './viewTransition.js';
 import { openAccountSettings } from './account.js';
 import { openPollBuilder } from './poll.js';
@@ -261,7 +261,7 @@ const TAB_SIGNATURES = {
   desafios: () => JSON.stringify([getActiveChallengeId(), getChallengeAnswers()]),
   profile: () => {
     const uid = currentProfileUserId;
-    return JSON.stringify([getUserById(uid), getFollowers(uid).length, getFollowing(uid).length,
+    return JSON.stringify([profileUserSignature(getUserById(uid)), getFollowers(uid).length, getFollowing(uid).length,
       postsSignature(getFeedPosts('all').filter(p => p.authorId === uid))]);
   }
 };
@@ -280,6 +280,11 @@ function redrawTab(tab) {
 
 /** The feed on screen now matches the data (after a render or an in-place update). */
 function markFeedShown() { shownSignature.feed = feedSignature(); }
+/** A post changed in place on every copy on screen (like, repost): the feed and the kept profile both show it already. */
+function markPostsShown() {
+  markFeedShown();
+  if (kept.built.has('profile')) shownSignature.profile = tabSignature('profile');
+}
 function feedSignature() {
   return JSON.stringify([feedFilterMode, postsSignature(feedView(feedFilterMode).visible)]);
 }
@@ -440,7 +445,7 @@ function renderMobileNav() {
     if (notifOpen && b.dataset.tab !== 'notif' && b.dataset.action !== 'back') toggleNotifPanel();
     if (b.dataset.action === 'post') window._composeNew();
     else if (b.dataset.action === 'back') history.back();
-    else if (b.dataset.action === 'me') window._goToProfile(getActiveUser().id);
+    else if (b.dataset.action === 'me') switchTab('profile'); // your own profile; tapped again there: back to the top
     else if (b.dataset.tab === 'notif') toggleNotifPanel();
     else switchTab(b.dataset.tab);
   };
@@ -612,6 +617,7 @@ function switchTab(tabName) {
   // Hide all tab contents
   document.querySelectorAll('.tab-view-content').forEach(el => el.classList.remove('active'));
 
+  if (tabName === 'profile') enterProfile(uid); // the one place a profile becomes the screen (redraws stay in place)
   // Kept tabs: built on the first visit; afterwards only shown again (redrawn first if its data changed meanwhile)
   const build = needsBuild(tabName, kept, uid);
   if (build) {
@@ -620,7 +626,6 @@ function switchTab(tabName) {
     if (tabName === 'profile') kept.profileUid = uid;
     shownSignature[tabName] = tabSignature(tabName);
   } else {
-    if (tabName === 'profile') enterProfile(uid);
     if (tabSignature(tabName) !== shownSignature[tabName]) redrawTab(tabName);
     else if (tabName === 'feed') syncNewPostsPill(); // what arrived while away
     if (isStale(lastPull, Date.now())) { lastPull = Date.now(); pullNow(); } // new data redraws through refreshFromServer
@@ -673,7 +678,7 @@ function renderChatTab(firstDraw = false) {
   if (!tab) return;
   import('./chat.js').then(c => {
     c.renderChatTab(tab);
-    if (firstDraw) stagger(tab.querySelectorAll('.chat-contact-card'));
+    if (firstDraw && tab.classList.contains('active')) stagger(tab.querySelectorAll('.chat-contact-card')); // left before it loaded: no entrance offscreen
   });
 }
 
@@ -843,14 +848,26 @@ function renderCompararTab() {
 let currentProfileUserId = null;
 let nextProfileId = null;
 
+/** Draw the profile tab. Never a history step (switchTab's enterProfile is): a redraw of the same person keeps its sub-tab and open comments. */
 function renderProfileTab(userId) {
   const tab = document.getElementById('tab-profile');
   if (!tab) return;
-  tab.innerHTML = '';
-
   const uid = userId || getActiveUser().id;
-  enterProfile(uid);
-  renderProfileView(tab, uid);
+  const same = tab.dataset.uid === uid; // what the tab shows now (switchTab already moved currentProfileUserId)
+  const subTab = same ? tab.querySelector('.profile-subtab-btn.active')?.dataset.profileTab : undefined;
+  const openComments = same ? [...tab.querySelectorAll('.post-comments-section[data-open="true"]')].map(s => s.closest('.post-card')?.dataset.postId) : [];
+  tab.innerHTML = '';
+  tab.dataset.uid = uid;
+  currentProfileUserId = uid;
+  renderProfileView(tab, uid, subTab);
+  openComments.forEach(id => {
+    const section = id && tab.querySelector(`.post-card[data-post-id="${CSS.escape(id)}"] .post-comments-section`);
+    if (!section) return;
+    section.style.display = 'flex';
+    section.dataset.open = 'true';
+    attachMentionAutocomplete(section.querySelector('input[id^="comment-input-"]'));
+  });
+  shownSignature.profile = tabSignature('profile');
   syncMobileNav();
 }
 
@@ -965,6 +982,8 @@ function bindGlobalHandlers() {
 
   // Navigate to any profile
   window._goToProfile = (userId) => {
+    // Already on this profile (its author tapped inside a post opened from it): stay where it was
+    if (activeTab === 'profile' && currentProfileUserId === (userId || getActiveUser().id)) return;
     const go = () => {
       nextProfileId = userId; // the profile tab opens straight on this person (one history step)
       switchTab('profile');
@@ -1034,7 +1053,7 @@ function bindGlobalHandlers() {
       rollNumber(b.querySelector('.like-count'), post.likes.length, liked ? 1 : -1);
       if (liked) popIcon(b);
     });
-    markFeedShown();
+    markPostsShown();
   };
 
   const refreshPostsView = () => {
@@ -1059,7 +1078,7 @@ function bindGlobalHandlers() {
       rollNumber(b.querySelector('.repost-count'), (post?.reposts || []).length, isNowReposted ? 1 : -1);
       if (isNowReposted) popIcon(b);
     });
-    markFeedShown();
+    markPostsShown();
     // "Seguindo" lists reposts, so there the list itself changes
     if (activeTab === 'feed' && feedFilterMode === 'following') refreshPostsView();
     else if (activeTab === 'profile') refreshPostsView();
@@ -1406,7 +1425,7 @@ function bindGlobalHandlers() {
         <div style="text-align:center;padding:30px 10px;color:var(--muted);">
           <div style="font-size:2rem;color:var(--purple-light);margin-bottom:8px;">${ICONS.playlist}</div>
           <p style="margin-bottom:14px;font-size:var(--fs-detail);">Nenhuma playlist encontrada.</p>
-          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="closeDoodleModal('playlist-picker-modal');switchTab('playlists');window._openCreatePlaylistModal();">
+          <button class="doodle-btn doodle-btn-primary doodle-btn-sm" onclick="closeDoodleModal('playlist-picker-modal');if(document.body.dataset.tab!=='playlists')switchTab('playlists');window._openCreatePlaylistModal();">
             Criar Nova Playlist
           </button>
         </div>`;
@@ -1475,7 +1494,7 @@ function bindGlobalHandlers() {
   };
 
   window._goToSharedPlaylist = (playlistId) => {
-    switchTab('playlists');
+    if (activeTab !== 'playlists') switchTab('playlists'); // already there: the list keeps its place under the playlist
     window._viewPlaylist?.(playlistId);
   };
 

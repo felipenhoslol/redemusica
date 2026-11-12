@@ -153,3 +153,25 @@ test('a release below the threshold springs back (no CSS transition)', () => {
   assert.equal(recorded[0].kf.at(-1).transform, 'translateX(0px)');
   assert.ok(!/ease/.test(panel.style.transition ?? ''));
 });
+
+test('released exactly at the exit point with no speed: the exit takes the whole spring (not NaN)', () => {
+  panel.style = {}; running = []; recorded = [];
+  h.pointerdown(ev(inFittingRow, 200));
+  h.pointermove(ev(inFittingRow, 200 - 240)); // 60% of 400
+  h.pointermove(ev(inFittingRow, 200 - 240)); // held still: speed 0
+  h.pointerup(ev(inFittingRow, 200 - 240));
+  assert.equal(recorded[0].opts.duration, SPRINGS.smooth.duration);
+});
+
+test('caught mid-fade at x 0 and released without a swipe: springs back to full opacity, no inline opacity left', () => {
+  panel.style = {}; running = []; recorded = [];
+  panel.animate([], {}); // e.g. the new list fading in
+  panelComputed = { transform: 'none', opacity: '0.4' };
+  h.pointerdown(ev(inFittingRow, 200));
+  h.pointerup(ev(inFittingRow, 200)); // a tap
+  panelComputed = { transform: 'none', opacity: '1' };
+  assert.equal(panel.style.opacity, '');
+  const back = recorded.at(-1);
+  assert.equal(back.kf[0].opacity, 0.4);
+  assert.equal(back.kf.at(-1).opacity, 1);
+});

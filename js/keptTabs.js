@@ -12,6 +12,12 @@ export function needsBuild(tab, state, uid) {
 /** More than 30 s since the last check with the server. */
 export const isStale = (lastCheck, now) => now - lastCheck > 30000;
 
+/** The person as their profile shows them. Presence (lastSeenAt) is left out: every sync rewrites it, and it must not redraw the profile. */
+export function profileUserSignature(user) {
+  const { lastSeenAt, ...shown } = user || {};
+  return JSON.stringify(shown);
+}
+
 /**
  * The tab shows position: fixed content (the phone chat, the open composer). A transform on the tab would make
  * the tab their containing block, so they would collapse into it while it moves.
